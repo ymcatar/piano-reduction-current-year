@@ -1,5 +1,5 @@
 from .base import ReductionAlgorithm
-from ..note import Chord
+from ..music.chord import Chord
 
 import music21
 import numpy

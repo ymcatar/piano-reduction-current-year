@@ -1,5 +1,6 @@
 from .base import ReductionAlgorithm
-from ..note import Note, Chord
+from ..music.note import Note
+from ..music.chord import Chord
 
 import music21
 

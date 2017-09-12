@@ -1,5 +1,6 @@
 from .base import ReductionAlgorithm
-from ..note import Rest, NotRest
+from ..music.rest import Rest
+from ..music.not_rest import NotRest
 
 import music21
 
