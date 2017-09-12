@@ -13,7 +13,7 @@ from scipy import tanh
 class ZeroOneLayer(NeuronLayer):
     def _forwardImplementation(self, inbuf, outbuf):
         func = lambda x: (x >= 0.95 and [1] or (x <= 0.05 and [0] or [x]))[0]
-        outbuf[:] = map(func, tanh(inbuf))
+        outbuf[:] = list(map(func, tanh(inbuf)))
 
     def _backwardImplementation(self, outerr, inerr, outbuf, inbuf):
         inerr[:] = (1 - outbuf**2) * outerr

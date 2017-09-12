@@ -1,8 +1,8 @@
 import copy
 
 import music21
-import base
-import learning
+from . import base
+from . import learning
 
 # multiple inheritance is used here because there is no better solution
 # to let music21 recognize my data and adding more attributes together

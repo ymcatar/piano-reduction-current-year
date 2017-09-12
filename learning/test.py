@@ -19,7 +19,7 @@ sampleOutXml = [
 ]
 
 # ------------------------------------------------------------------------------
-print 'read music score from file'
+print('read music score from file')
 
 # target score
 converter = music21.converter.subConverters.ConverterMusicXML()
@@ -40,7 +40,7 @@ for sample in sampleOutXml:
 
 
 # ------------------------------------------------------------------------------
-print 'building model'
+print('building model')
 
 # Guessing (include everything)
 reducer = piano.reducer.Reducer(target)
@@ -59,16 +59,16 @@ reducer.addReductionAlgorithm(piano.algorithm.EntranceEffect())
 
 
 # ------------------------------------------------------------------------------
-print 'initialize training network and example'
+print('initialize training network and example')
 
-for x in xrange(0, len(sampleIn)):
+for x in range(0, len(sampleIn)):
     reducer.addTrainingExample(sampleIn[x], sampleOut[x])
 reducer.initAlgorithmKeys()
 reducer.createAllMarkings()
 reducer.createAlignmentMarkings()
 
 dataset = None
-for x in xrange(0, len(sampleIn)):
+for x in range(0, len(sampleIn)):
     dataset = sampleIn[x].TrainingDataSet(reducer=reducer, dataset=dataset)
 
 # single layer
@@ -78,10 +78,10 @@ for x in xrange(0, len(sampleIn)):
 network = piano.learning.buildNetwork(len(reducer.allKeys), len(reducer.allKeys) * 2, 1, bias=True, seed=0)
 
 trainer = piano.learning.BackpropTrainer(network, dataset, verbose=True)
-print reducer.allKeys
+print(reducer.allKeys)
 
 # ------------------------------------------------------------------------------
-print 'show result'
+print('show result')
 result = music21.stream.Score()
 
 trainer.trainUntilConvergence(maxEpochs = 300)

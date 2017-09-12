@@ -1,7 +1,7 @@
 import random
 import music21
-import score
-import algorithm
+from . import score
+from . import algorithm
 
 class Reducer(object):
     def __init__(self, score):

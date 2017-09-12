@@ -2,9 +2,9 @@ import music21
 import copy
 import numpy
 
-import base
-import note
-import learning
+from . import base
+from . import note
+from . import learning
 
 class Score(object): 
 
@@ -66,7 +66,7 @@ class Score(object):
 
     def __addSignature(self, signature, measure, sign):
         if sign is not None:
-            if not signature.has_key(measure):
+            if measure not in signature:
                 signature[measure] = dict()
             signature[measure][type(sign)] = sign
 
@@ -79,11 +79,11 @@ class Score(object):
         if voice is None:
             voice = 0
 
-        if not part.has_key(voice):
+        if voice not in part:
             part[voice] = dict()
-        if not part[voice].has_key(measure):
+        if measure not in part[voice]:
             part[voice][measure] = dict()
-        if not part[voice][measure].has_key(offset):
+        if offset not in part[voice][measure]:
             part[voice][measure][offset] = []
         part[voice][measure][offset].append((noteObj, duration))
 
@@ -107,7 +107,7 @@ class Score(object):
                 expect_mid = 0
                 for mid in sorted(voice):
                     if (mid > expect_mid):
-                        for i in xrange(expect_mid, mid):
+                        for i in range(expect_mid, mid):
                             _measure = music21.stream.Measure()
                             _measure.number = i
                             _measure.insert(0, music21.note.Rest(quarterLength=measureOffset[i+1]-measureOffset[i]))
@@ -175,7 +175,7 @@ class Score(object):
                     expect_mid = mid + 1
 
                 if expect_mid <= numOfMeasures:
-                    for i in xrange(expect_mid, numOfMeasures):
+                    for i in range(expect_mid, numOfMeasures):
                         _measure = music21.stream.Measure()
                         _measure.number = i
                         _measure.insert(0, music21.note.Rest())
@@ -192,7 +192,7 @@ class Score(object):
         noteObj = note.Note(music21.note.Note(pitch, quarterLength=quarterLength))
         if tied is not None:
             if tied == 'continue' or tied == 'stop':
-                if tiedNotes.has_key(pitch) and tiedNotes[pitch] is not None:
+                if pitch in tiedNotes and tiedNotes[pitch] is not None:
                     noteObj.tie_previous = tiedNotes[pitch]
                 if tied == 'stop':
                     tiedNotes[pitch] = None
@@ -332,7 +332,7 @@ class Score(object):
         measureOffset = []
         signature = []
 
-        parts = (parts and [parts] or [xrange(0, len(self.score))])[0]
+        parts = (parts and [parts] or [range(0, len(self.score))])[0]
 
         for pid in parts:
             part = self.score[pid]
@@ -398,7 +398,7 @@ class Score(object):
         leftTie = dict()
         rightTie = dict()
 
-        for mid in xrange(0, len(leftHand)):
+        for mid in range(0, len(leftHand)):
             if measures is None or mid in measures:
                 rightMeasure = self.__createMeasure(notes=rightHand[mid], rests=rightRest[mid], tieRef=rightTie, measureLength=measureLength[mid], playable=playable, mid=None)
                 leftMeasure = self.__createMeasure(notes=leftHand[mid], rests=leftRest[mid], tieRef=leftTie, measureLength=measureLength[mid], playable=playable, mid=None)
@@ -475,7 +475,7 @@ class Score(object):
         realNotes = sorted(realNotes)
 
         if len(realNotes) > 1:
-            for nid in xrange(0, len(realNotes) - 1):
+            for nid in range(0, len(realNotes) - 1):
                 realNotes[nid][1] = realNotes[nid+1][0] - realNotes[nid][0]
             realNotes[len(realNotes) - 1][1] = measureLength - (realNotes[len(realNotes) - 1][0])
 
@@ -494,8 +494,8 @@ class Score(object):
         # print median, ps
 
         if mid == 4:
-            print sorted(realNotes)
-            print realNotes
+            print(sorted(realNotes))
+            print(realNotes)
 
         for noteTuple in sorted(realNotes):
             offset = noteTuple[0]
@@ -558,7 +558,7 @@ class Score(object):
                 insertNote = music21.note.Rest(duration=music21.duration.Duration(duration))
 
             if mid == 4:
-                print insertNote, offset, duration, insertNote.quarterLength
+                print(insertNote, offset, duration, insertNote.quarterLength)
             if duration > 1e-2:
                 result.insert(offset, insertNote)
 
@@ -623,6 +623,6 @@ class Score(object):
                     for noteObj in measure.notes:
                         if isinstance(noteObj, note.Chord):
                             for ch_note in noteObj:
-                                print ch_note, ch_note.align
+                                print(ch_note, ch_note.align)
                         else:
-                            print noteObj, noteObj.align
+                            print(noteObj, noteObj.align)

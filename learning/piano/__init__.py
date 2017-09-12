@@ -1,7 +1,7 @@
 # import all modules of the project
 
-import score
-import note
-import reducer
-import algorithm
-import learning
+from . import score
+from . import note
+from . import reducer
+from . import algorithm
+from . import learning
