@@ -10,13 +10,16 @@ from pybrain.structure.modules.neuronlayer import NeuronLayer
 
 from scipy import tanh
 
+
 class ZeroOneLayer(NeuronLayer):
     def _forwardImplementation(self, inbuf, outbuf):
-        func = lambda x: (x >= 0.95 and [1] or (x <= 0.05 and [0] or [x]))[0]
+        def func(x): return (x >= 0.95 and [
+            1] or (x <= 0.05 and [0] or [x]))[0]
         outbuf[:] = list(map(func, tanh(inbuf)))
 
     def _backwardImplementation(self, outerr, inerr, outbuf, inbuf):
         inerr[:] = (1 - outbuf**2) * outerr
+
 
 def buildNetwork(InputLength=1, HiddenLength=0, OutputLength=1, bias=True, seed=None):
 
@@ -50,7 +53,7 @@ def buildNetwork(InputLength=1, HiddenLength=0, OutputLength=1, bias=True, seed=
     numpy.random.seed(seed)
     random.seed(seed)
     network.randomize()
-    
-    #print network.params
+
+    # print network.params
 
     return network

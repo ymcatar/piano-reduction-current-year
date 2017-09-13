@@ -3,6 +3,7 @@ import music21
 from . import score
 from . import algorithm
 
+
 class Reducer(object):
     def __init__(self, score):
         super(Reducer, self).__init__()
@@ -12,7 +13,7 @@ class Reducer(object):
 
     @property
     def allKeys(self):
-        return sorted([ key for algo in self.algorithms for key in algo.allKeys ])
+        return sorted([key for algo in self.algorithms for key in algo.allKeys])
 
     @property
     def algorithms(self):
@@ -43,7 +44,7 @@ class Reducer(object):
     # --------------------------------------------------------------------------
 
     def createAllMarkings(self):
-        #print tuple([ algo.key for algo in self._algorithms])
+        # print tuple([ algo.key for algo in self._algorithms])
         for algo in self._algorithms:
             algo.createMarkingsOn(self._score)
 

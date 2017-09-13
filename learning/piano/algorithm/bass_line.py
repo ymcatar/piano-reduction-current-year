@@ -4,19 +4,21 @@ from ..music.chord import Chord
 import music21
 import numpy
 
+
 class BassLine(ReductionAlgorithm):
 
     _type = 'bass'
 
     @property
     def allKeys(self):
-        return [ self.key ] + [ self.key + '_' + str(pitchClass) for pitchClass in range(0, 12) ]
+        return [self.key] + [self.key + '_' + str(pitchClass) for pitchClass in range(0, 12)]
 
     def __init__(self, parts=[]):
         super(BassLine, self).__init__(parts=parts)
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [range(0, len(scoreObj.score))])[0]
+        parts = (self.parts and [self.parts] or [
+                 range(0, len(scoreObj.score))])[0]
 
         bass = []
 
@@ -56,14 +58,15 @@ class BassLine(ReductionAlgorithm):
                     for noteObj in measure.notes:
                         bassObj = None
                         for bassNote in bassPart.notes:
-                            if noteObj.offset - bassNote.offset > -1e-4: # noteObj.offset >= baseeNote.offset
+                            if noteObj.offset - bassNote.offset > -1e-4:  # noteObj.offset >= baseeNote.offset
                                 if bassObj is None:
                                     bassObj = bassNote
-                                if bassNote.offset > bassObj.offset: # bassNote.offset > bassObj.offset
+                                if bassNote.offset > bassObj.offset:  # bassNote.offset > bassObj.offset
                                     bassObj = bassNote
                         if bassObj is not None:
-                            entry = [ 0 for x in range(0, 12) ]
+                            entry = [0 for x in range(0, 12)]
                             entry[bassObj.pitchClass] = 1
                             for pitchClass in range(0, 12):
-                                noteObj.addMark(self.key + '_' + str(pitchClass), entry[pitchClass])
+                                noteObj.addMark(
+                                    self.key + '_' + str(pitchClass), entry[pitchClass])
                     mid = mid + 1

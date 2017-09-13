@@ -4,6 +4,7 @@ from ..music.not_rest import NotRest
 
 import music21
 
+
 class EntranceEffect(ReductionAlgorithm):
 
     _type = 'entrance'
@@ -12,7 +13,8 @@ class EntranceEffect(ReductionAlgorithm):
         super(EntranceEffect, self).__init__(parts=parts)
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [ range(0, len(scoreObj.score)) ])[0]
+        parts = (self.parts and [self.parts] or [
+                 range(0, len(scoreObj.score))])[0]
 
         for pid in parts:
             part = scoreObj.score[pid]
@@ -29,4 +31,5 @@ class EntranceEffect(ReductionAlgorithm):
                                 lastOnsetNote = noteObj
                                 lastOnsetMeasureOffset = measure.offset
                                 rested = 0
-                            noteObj.addMark(self.key, float(noteObj.offset - lastOnsetNote.offset + measure.offset - lastOnsetMeasureOffset))
+                            noteObj.addMark(self.key, float(
+                                noteObj.offset - lastOnsetNote.offset + measure.offset - lastOnsetMeasureOffset))

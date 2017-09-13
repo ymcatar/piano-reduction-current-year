@@ -4,6 +4,7 @@ from ..music.note import Note
 
 import music21
 
+
 class SimpleAlignment(object):
 
     def __init__(self):
@@ -19,9 +20,11 @@ class SimpleAlignment(object):
                     for noteObj in measure.notes:
                         if isinstance(noteObj, Chord):
                             for ch_note in noteObj:
-                                existence.add((mid, noteObj.offset, ch_note.nameWithOctave))
+                                existence.add(
+                                    (mid, noteObj.offset, ch_note.nameWithOctave))
                         elif isinstance(noteObj, Note):
-                            existence.add((mid, noteObj.offset, noteObj.nameWithOctave))
+                            existence.add(
+                                (mid, noteObj.offset, noteObj.nameWithOctave))
                     mid = mid + 1
 
         for part in sampleInput.score:
@@ -32,7 +35,8 @@ class SimpleAlignment(object):
                         if isinstance(noteObj, Chord):
                             for ch_note in noteObj:
                                 mark = 0
-                                key = (mid, noteObj.offset, ch_note.nameWithOctave)
+                                key = (mid, noteObj.offset,
+                                       ch_note.nameWithOctave)
                                 if key in existence:
                                     mark = 1
                                 ch_note.align = mark

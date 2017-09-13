@@ -2,6 +2,7 @@ from .general_note import GeneralNote
 
 import music21
 
+
 class NotRest(GeneralNote, music21.note.NotRest):
     def __init__(self, ref):
         super(NotRest, self).__init__(ref)

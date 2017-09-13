@@ -11,7 +11,7 @@ class ReductionAlgorithm(object):
 
     @property
     def allKeys(self):
-        return [ self.key ]
+        return [self.key]
 
     @property
     def key(self):

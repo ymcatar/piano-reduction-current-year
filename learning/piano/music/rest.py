@@ -2,6 +2,7 @@ from .general_note import GeneralNote
 
 import music21
 
+
 class Rest(GeneralNote, music21.note.Rest):
     def __init__(self, ref):
         if isinstance(ref, music21.note.NotRest):

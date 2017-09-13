@@ -4,6 +4,7 @@ from ..music.not_rest import NotRest
 
 import music21
 
+
 class RhythmVariety(ReductionAlgorithm):
 
     _type = 'rhythm'
@@ -13,7 +14,8 @@ class RhythmVariety(ReductionAlgorithm):
 
     def createMarkingsOn(self, scoreObj):
         # not tested yet
-        parts = (self.parts and [self.parts] or [range(0, len(scoreObj.score))])[0]
+        parts = (self.parts and [self.parts] or [
+                 range(0, len(scoreObj.score))])[0]
         for pid in parts:
             part = scoreObj.score[pid]
             for voice in part.voices:

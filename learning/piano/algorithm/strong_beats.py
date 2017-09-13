@@ -2,6 +2,7 @@ from .base import ReductionAlgorithm
 
 import music21
 
+
 class StrongBeats(ReductionAlgorithm):
 
     _type = 'beat'
@@ -11,7 +12,8 @@ class StrongBeats(ReductionAlgorithm):
         self.division = division
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [range(0, len(scoreObj.score))])[0]
+        parts = (self.parts and [self.parts] or [
+                 range(0, len(scoreObj.score))])[0]
         for pid in parts:
             part = scoreObj.score[pid]
             for voice in part.voices:
