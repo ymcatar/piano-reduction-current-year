@@ -1,13 +1,14 @@
 class ReductionAlgorithm(object):
     '''
-    Base class of all parameters, each contains a list of labels to allow multiple markings by one parameter
+    Base class of all parameters, each contains a list of labels to allow
+    multiple markings by one parameter
     '''
 
     _type = 'unknown'
 
     @property
     def type(self):
-        return _type
+        return self.__class__._type
 
     @property
     def allKeys(self):

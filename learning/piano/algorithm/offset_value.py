@@ -1,3 +1,5 @@
+import music21
+
 from .base import ReductionAlgorithm
 
 

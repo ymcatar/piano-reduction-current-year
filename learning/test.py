@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2
+#!/usr/bin/env python3
 
 import os
 import music21
@@ -7,6 +7,7 @@ import piano
 xml_path = os.getcwd() + '/sample/'
 
 targetXml = 'input/i_0000_Beethoven_op18_no1-4.xml'
+
 
 sampleInXml = [
     'input/i_0000_Beethoven_op18_no1-4.xml',
@@ -71,7 +72,7 @@ for x in range(0, len(sampleIn)):
     dataset = sampleIn[x].TrainingDataSet(reducer=reducer, dataset=dataset)
 
 # single layer
-#network = piano.learning.buildNetwork(len(reducer.allKeys), 0, 1, bias=True, seed=0)
+# network = piano.learning.buildNetwork(len(reducer.allKeys), 0, 1, bias=True, seed=0)
 
 # multi layer
 network = piano.learning.buildNetwork(

@@ -1,6 +1,3 @@
-import random
-import music21
-from . import score
 from . import algorithm
 
 
@@ -19,29 +16,17 @@ class Reducer(object):
     def algorithms(self):
         return self._algorithms
 
-    # END: def __init(self, fullScore)
-    # --------------------------------------------------------------------------
-
     def addTrainingExample(self, sampleInput, sampleOutput):
         self._examples.append((sampleInput, sampleOutput))
 
-    # END: def addTrainingData(self, sampleInput, sampleOutput)
-    # --------------------------------------------------------------------------
-
     def addReductionAlgorithm(self, algorithm):
         self._algorithms.append(algorithm)
-
-    # END: def addReductionAlgorithm(self, algorithm)
-    # --------------------------------------------------------------------------
 
     def initAlgorithmKeys(self):
         num = 0
         for algo in self._algorithms:
             algo.key = num
             num = num + 1
-
-    # END: def initAlgorithmKeys(self)
-    # --------------------------------------------------------------------------
 
     def createAllMarkings(self):
         # print tuple([ algo.key for algo in self._algorithms])
@@ -50,9 +35,6 @@ class Reducer(object):
 
             for example in self._examples:
                 algo.createMarkingsOn(example[0])
-
-    # END: def createAllMarkings(self)
-    # --------------------------------------------------------------------------
 
     def createAlignmentMarkings(self):
         align = algorithm.SimpleAlignment()

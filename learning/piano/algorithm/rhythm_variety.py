@@ -22,9 +22,12 @@ class RhythmVariety(ReductionAlgorithm):
                 previous_duration = 0
                 for measure in voice.getElementsByClass(music21.stream.Measure):
                     for noteObj in measure.notesAndRests:
-                        if isinstance(noteObj, Rest) and isinstance(previous_note, NotRest):
+                        if (isinstance(noteObj, Rest) and
+                                isinstance(previous_note, NotRest)):
                             previous_note.addMark(self.key, 1)
-                        if previous_note is None or isinstance(previous_note, Rest) or noteObj.duration.quarterLength != previous_duration:
+                        if (previous_note is None or
+                                isinstance(previous_note, Rest) or
+                                noteObj.duration.quarterLength != previous_duration):
                             noteObj.addMark(self.key, 1)
                             if isinstance(previous_note, NotRest):
                                 previous_note.addMark(self.key, 1)

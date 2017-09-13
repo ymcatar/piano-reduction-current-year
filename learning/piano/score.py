@@ -1,8 +1,6 @@
 import music21
-import copy
 import numpy
 
-from . import base
 from . import music
 from . import learning
 
@@ -42,7 +40,7 @@ class Score(object):
                     measureLength = measure.timeSignature.beatCount * \
                         measure.timeSignature.beatDuration.quarterLength
 
-                #self.__addSignature(_signature, mid, measure.clef)
+                # self.__addSignature(_signature, mid, measure.clef)
                 self.__addSignature(_signature, mid, measure.timeSignature)
                 self.__addSignature(_signature, mid, measure.keySignature)
                 for elem in measure.offsetMap():
@@ -134,7 +132,6 @@ class Score(object):
                             _measure.insert(previous_endTime, music21.note.Rest(
                                 quarterLength=(tuned_offset - previous_endTime)))
 
-                        rests = False
                         notes = []
                         duration = 1024
 
@@ -160,7 +157,7 @@ class Score(object):
                             duration = min(duration, length)
 
                         # if mid + 1 < len(measureOffset):
-                            #duration = min(duration, measureOffset[mid+1] - measureOffset[mid] - tuned_offset)
+                            # duration = min(duration, measureOffset[mid+1] - measureOffset[mid] - tuned_offset)
 
                         insert_note = None
                         if len(notes) > 0:
@@ -621,7 +618,7 @@ class Score(object):
         if reducer is None:
             return None
 
-        #allKeys = sorted([ algo.key for algo in reducer.algorithms ])
+        # allKeys = sorted([ algo.key for algo in reducer.algorithms ])
         allKeys = reducer.allKeys
         inputCount = len(allKeys)
 
@@ -637,7 +634,7 @@ class Score(object):
 
     def classify(self, reducer=None, network=None):
 
-        #allKeys = sorted([ algo.key for algo in reducer.algorithms ])
+        # allKeys = sorted([ algo.key for algo in reducer.algorithms ])
         allKeys = reducer.allKeys
 
         if network is None:
@@ -650,7 +647,7 @@ class Score(object):
 
     def threshold(self, reducer=None, threshold=0):
 
-        #allKeys = sorted([ algo.key for algo in reducer.algorithms ])
+        # allKeys = sorted([ algo.key for algo in reducer.algorithms ])
         allKeys = reducer.allKeys
 
         for part in self.score:

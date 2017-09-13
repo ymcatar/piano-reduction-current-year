@@ -30,5 +30,6 @@ class EntranceEffect(ReductionAlgorithm):
                                 lastOnsetNote = noteObj
                                 lastOnsetMeasureOffset = measure.offset
                                 rested = 0
-                            noteObj.addMark(self.key, float(
-                                noteObj.offset - lastOnsetNote.offset + measure.offset - lastOnsetMeasureOffset))
+                            value = (noteObj.offset - lastOnsetNote.offset +
+                                     measure.offset - lastOnsetMeasureOffset)
+                            noteObj.addMark(self.key, float(value))

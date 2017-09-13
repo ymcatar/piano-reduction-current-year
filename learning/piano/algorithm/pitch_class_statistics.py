@@ -11,7 +11,12 @@ class PitchClassStatistics(ReductionAlgorithm):
 
     @property
     def allKeys(self):
-        return [self.key + '_' + str(delta) + '_' + str(pitchClass) for pitchClass in range(0, 12) for delta in range(-self.before, self.after + 1)] + [self.key + '_' + str(pitchClass) for pitchClass in range(0, 12)]
+        return (
+            ['{}_{!s}_{!s}'.format(self.key, delta, pitchClass)
+             for pitchClass in range(0, 12)
+             for delta in range(-self.before, self.after + 1)] +
+            ['{}_{!s}'.format(self.key, pitchClass)
+             for pitchClass in range(0, 12)])
 
     def __init__(self, parts=[], before=0, after=0):
         super(PitchClassStatistics, self).__init__(parts=parts)
@@ -66,15 +71,18 @@ class PitchClassStatistics(ReductionAlgorithm):
                             for ch_note in noteObj:
                                 for pitchClass in range(0, 12):
                                     ch_note.addMark(
-                                        self.key + '_' + str(pitchClass), ((ch_note.pitchClass == pitchClass) and [1] or [0])[0])
+                                        '{}_{!s}'.format(self.key, pitchClass),
+                                        int(ch_note.pitchClass == pitchClass))
                         else:
                             for pitchClass in range(0, 12):
                                 noteObj.addMark(
-                                    self.key + '_' + str(pitchClass), ((noteObj.pitchClass == pitchClass) and [1] or [0])[0])
+                                    '{}_{!s}'.format(self.key, pitchClass),
+                                    int(noteObj.pitchClass == pitchClass))
 
                         for delta in measure_stat:
                             for pitchClass in range(0, 12):
                                 noteObj.addMark(
-                                    self.key + '_' + str(delta) + '_' + str(pitchClass), measure_stat[delta][pitchClass])
+                                    '{}_{!s}_{!s}'.format(self.key, delta, pitchClass),
+                                    measure_stat[delta][pitchClass])
 
                     mid = mid + 1

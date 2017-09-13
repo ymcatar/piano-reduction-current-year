@@ -5,7 +5,8 @@ from pybrain.structure.networks import FeedForwardNetwork
 # from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.supervised.trainers import BackpropTrainer
-from pybrain.structure import LinearLayer, TanhLayer, SigmoidLayer, BiasUnit, FullConnection
+from pybrain.structure import (LinearLayer, TanhLayer, SigmoidLayer, BiasUnit,
+                               FullConnection)
 from pybrain.structure.modules.neuronlayer import NeuronLayer
 
 from scipy import tanh
@@ -20,8 +21,8 @@ class ZeroOneLayer(NeuronLayer):
         inerr[:] = (1 - outbuf**2) * outerr
 
 
-def buildNetwork(InputLength=1, HiddenLength=0, OutputLength=1, bias=True, seed=None):
-
+def buildNetwork(InputLength=1, HiddenLength=0, OutputLength=1, bias=True,
+                 seed=None):
     network = FeedForwardNetwork()
     input_layer = LinearLayer(InputLength)
     if HiddenLength > 0:

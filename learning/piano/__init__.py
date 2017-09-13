@@ -4,3 +4,4 @@ from . import music
 from . import reducer
 from . import algorithm
 from . import learning
+from . import score

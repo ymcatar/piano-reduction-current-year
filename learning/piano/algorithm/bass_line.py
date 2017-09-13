@@ -11,7 +11,8 @@ class BassLine(ReductionAlgorithm):
 
     @property
     def allKeys(self):
-        return [self.key] + [self.key + '_' + str(pitchClass) for pitchClass in range(0, 12)]
+        return [self.key] + ['{}_{!s}'.format(self.key, pitchClass)
+                             for pitchClass in range(0, 12)]
 
     def __init__(self, parts=[]):
         super(BassLine, self).__init__(parts=parts)
