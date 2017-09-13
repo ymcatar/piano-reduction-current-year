@@ -1,7 +1,5 @@
 music21==4.1.0
 numpy==1.12.1
 protobuf==3.3.0
-PyBrain==0.3
-six==1.10.0
+https://github.com/pybrain/pybrain/archive/0.3.3.zip
 tensorflow==1.1.0
-Werkzeug==0.12.2
