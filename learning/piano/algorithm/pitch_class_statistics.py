@@ -19,8 +19,7 @@ class PitchClassStatistics(ReductionAlgorithm):
         self.after = after
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [
-                 range(0, len(scoreObj.score))])[0]
+        parts = self.parts or range(0, len(scoreObj.score))
 
         stat = []
 

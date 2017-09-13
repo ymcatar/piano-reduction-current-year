@@ -23,5 +23,4 @@ class Chord(NotRest, music21.chord.Chord):
 
     def threshold(self, allKeys=[], threshold=0):
         for noteObj in self:
-            noteObj.align = ((sum(noteObj.dataInput(allKeys))
-                              >= threshold) and [1] or [0])[0]
+            noteObj.align = int(sum(noteObj.dataInput(allKeys)) >= threshold)

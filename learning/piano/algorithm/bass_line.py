@@ -17,8 +17,7 @@ class BassLine(ReductionAlgorithm):
         super(BassLine, self).__init__(parts=parts)
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [
-                 range(0, len(scoreObj.score))])[0]
+        parts = self.parts or range(0, len(scoreObj.score))
 
         bass = []
 

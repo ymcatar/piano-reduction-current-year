@@ -13,7 +13,7 @@ class Reducer(object):
 
     @property
     def allKeys(self):
-        return sorted([key for algo in self.algorithms for key in algo.allKeys])
+        return sorted(key for algo in self.algorithms for key in algo.allKeys)
 
     @property
     def algorithms(self):

@@ -12,8 +12,7 @@ class ActiveRhythm(ReductionAlgorithm):
 
     def createMarkingsOn(self, scoreObj):
         rhythm = dict()
-        parts = (self.parts and [self.parts] or [
-                 range(0, len(scoreObj.score))])[0]
+        parts = self.parts or range(0, len(scoreObj.score))
         for pid in parts:
             part = scoreObj.score[pid]
             for voice in part.voices:

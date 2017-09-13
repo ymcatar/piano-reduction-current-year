@@ -13,8 +13,7 @@ class EntranceEffect(ReductionAlgorithm):
         super(EntranceEffect, self).__init__(parts=parts)
 
     def createMarkingsOn(self, scoreObj):
-        parts = (self.parts and [self.parts] or [
-                 range(0, len(scoreObj.score))])[0]
+        parts = self.parts or range(0, len(scoreObj.score))
 
         for pid in parts:
             part = scoreObj.score[pid]

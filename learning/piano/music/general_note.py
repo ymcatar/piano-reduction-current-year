@@ -30,8 +30,7 @@ class GeneralNote(PianoReductionObject, music21.note.GeneralNote):
 
     # to generate input data based on all labels provided
     def dataInput(self, allKeys=[]):
-        ret = tuple([((key in self._marks) and [self._marks[key]] or [0])[0]
-                     for key in allKeys])
+        ret = tuple(self._marks.get(key, 0) for key in allKeys)
         return ret
 
     @property
@@ -52,5 +51,4 @@ class GeneralNote(PianoReductionObject, music21.note.GeneralNote):
 
     # classify a note based on linear combination and a threshold
     def threshold(self, allKeys=[], threshold=0):
-        self.align = ((sum(self.dataInput(allKeys))
-                       >= threshold) and [1] or [0])[0]
+        self.align = int(sum(self.dataInput(allKeys)) >= threshold)
