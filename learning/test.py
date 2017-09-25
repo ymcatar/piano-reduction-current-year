@@ -6,38 +6,33 @@ import piano
 
 xml_path = os.getcwd() + '/sample/'
 
-targetXml = 'input/i_0000_Beethoven_op18_no1-4.xml'
+targetXml = 'input/i_0001_spring_sonata_I.xml'
 
 
 sampleInXml = [
     'input/i_0000_Beethoven_op18_no1-4.xml',
-    'input/i_0001_spring_sonata_I.xml'
 ]
 
 sampleOutXml = [
     'output/o_0000_Beethoven_op18_no1-4.xml',
-    'output/o_0001_spring_sonata_I.xml'
 ]
 
 # ------------------------------------------------------------------------------
 print('read music score from file')
 
 # target score
-converter = music21.converter.subConverters.ConverterMusicXML()
-converter.parseFile(xml_path + targetXml)
-target = piano.score.Score(converter.stream)
+score = music21.converter.parse(xml_path + targetXml, format='musicxml')
+target = piano.score.Score(score)
 
 # sample input
 sampleIn = []
 for sample in sampleInXml:
-    converter = music21.converter.subConverters.ConverterMusicXML()
-    converter.parseFile(xml_path + sample)
-    sampleIn.append(piano.score.Score(converter.stream))
+    score = music21.converter.parse(xml_path + sample, format='musicxml')
+    sampleIn.append(piano.score.Score(score))
 sampleOut = []
 for sample in sampleOutXml:
-    converter = music21.converter.subConverters.ConverterMusicXML()
-    converter.parseFile(xml_path + sample)
-    sampleOut.append(piano.score.Score(converter.stream))
+    score = music21.converter.parse(xml_path + sample, format='musicxml')
+    sampleOut.append(piano.score.Score(score))
 
 
 # ------------------------------------------------------------------------------
@@ -71,23 +66,25 @@ dataset = None
 for x in range(0, len(sampleIn)):
     dataset = sampleIn[x].TrainingDataSet(reducer=reducer, dataset=dataset)
 
-# single layer
-# network = piano.learning.buildNetwork(len(reducer.allKeys), 0, 1, bias=True, seed=0)
 
-# multi layer
-network = piano.learning.buildNetwork(
-    len(reducer.allKeys), len(reducer.allKeys) * 2, 1, bias=True, seed=0)
+if __name__ == '__main__':
+    # single layer
+    # network = piano.learning.buildNetwork(len(reducer.allKeys), 0, 1, bias=True, seed=0)
 
-trainer = piano.learning.BackpropTrainer(network, dataset, verbose=True)
-print(reducer.allKeys)
+    # multi layer
+    network = piano.learning.buildNetwork(
+        len(reducer.allKeys), len(reducer.allKeys) * 2, 1, bias=True, seed=0)
 
-# ------------------------------------------------------------------------------
-print('show result')
-result = music21.stream.Score()
+    trainer = piano.learning.BackpropTrainer(network, dataset, verbose=True)
+    print(reducer.allKeys)
 
-trainer.trainUntilConvergence(maxEpochs=300)
-# trainer.trainUntilConvergence()
-target.classify(network=network, reducer=reducer)
-final_result = target.generatePianoScore(reduced=True, playable=True)
+    # ------------------------------------------------------------------------------
+    print('show result')
+    result = music21.stream.Score()
 
-final_result.show('musicxml')
+    trainer.trainUntilConvergence(maxEpochs=300)
+    # trainer.trainUntilConvergence()
+    target.classify(network=network, reducer=reducer)
+    final_result = target.generatePianoScore(reduced=True, playable=True)
+
+    final_result.show('musicxml')
