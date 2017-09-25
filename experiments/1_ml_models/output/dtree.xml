@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE score-partwise
+  PUBLIC '-//Recordare//DTD MusicXML 2.0 Partwise//EN'
+  'http://www.musicxml.org/dtds/partwise.dtd'>
+<score-partwise>
+  <movement-title>Music21 Fragment</movement-title>
+  <identification>
+    <creator type="composer">Music21</creator>
+    <encoding>
+      <encoding-date>2017-09-25</encoding-date>
+      <software>Music21</software>
+      </encoding>
+    </identification>
+  <defaults>
+    <scaling>
+      <millimeters>7</millimeters>
+      <tenths>40</tenths>
+      </scaling>
+    </defaults>
+  <part-list>
+    <part-group number="1" type="start">
+      <group-name>Mba.</group-name>
+      <group-symbol>brace</group-symbol>
+      <group-barline>yes</group-barline>
+      </part-group>
+    <score-part id="P56449d44e4b174c7f2c44d87c01f8cbb">
+      <part-name />
+      </score-part>
+    <score-part id="Pbd0698c38e55b1d34fe2785f6a9c0067">
+      <part-name />
+      </score-part>
+    <part-group number="1" type="stop" />
+    </part-list>
+  <part id="P56449d44e4b174c7f2c44d87c01f8cbb">
+    <measure number="0">
+      <attributes>
+        <divisions>10080</divisions>
+        <key>
+          <fifths>-1</fifths>
+          </key>
+        <time>
+          <beats>4</beats>
+          <beat-type>4</beat-type>
+          </time>
+        <clef>
+          <sign>G</sign>
+          <line>2</line>
+          </clef>
+        </attributes>
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <pitch>
+          <step>A</step>
+          <octave>3</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">begin</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">end</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">begin</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">end</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>A</step>
+          <octave>3</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">begin</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">end</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">begin</beam>
+        </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        <beam number="1">end</beam>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>5</octave>
+          </pitch>
+        <duration>20160</duration>
+        <type>half</type>
+        </note>
+      <note>
+        <pitch>
+          <step>E</step>
+          <octave>5</octave>
+          </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+        </note>
+      <note>
+        <rest />
+        <duration>10080</duration>
+        <type>quarter</type>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <pitch>
+          <step>E</step>
+          <octave>5</octave>
+          </pitch>
+        <duration>15120</duration>
+        <type>quarter</type>
+        <dot />
+        </note>
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>5</octave>
+          </pitch>
+        <duration>5040</duration>
+        <type>eighth</type>
+        </note>
+      <note>
+        <pitch>
+          <step>D</step>
+          <alter>1</alter>
+          <octave>5</octave>
+          </pitch>
+        <duration>20160</duration>
+        <type>half</type>
+        <accidental>sharp</accidental>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    </part>
+  <part id="Pbd0698c38e55b1d34fe2785f6a9c0067">
+    <measure number="0">
+      <attributes>
+        <divisions>10080</divisions>
+        <key>
+          <fifths>-1</fifths>
+          </key>
+        <time>
+          <beats>4</beats>
+          <beat-type>4</beat-type>
+          </time>
+        <clef>
+          <sign>F</sign>
+          <line>4</line>
+          </clef>
+        </attributes>
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <rest measure="yes" />
+        <duration>40320</duration>
+        </note>
+      </measure>
+    <measure number="0">
+      <attributes />
+      <note>
+        <pitch>
+          <step>F</step>
+          <octave>2</octave>
+          </pitch>
+        <duration>10080</duration>
+        <type>quarter</type>
+        </note>
+      <note>
+        <rest />
+        <duration>30240</duration>
+        <type>half</type>
+        <dot />
+        </note>
+      </measure>
+    </part>
+  </score-partwise>

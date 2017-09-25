@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+# Run this script as:
+#   python3 -m learning.test
 
 import os
 import music21
-import piano
+from . import piano
 
 xml_path = os.getcwd() + '/sample/'
 
