@@ -7,14 +7,15 @@ from . import piano
 
 xml_path = os.getcwd() + '/sample/'
 
-targetXml = 'input/i_0001_spring_sonata_I.xml'
+target_xml = 'input/i_0001_spring_sonata_I.xml'
+target_xml = 'input/i_0000_Beethoven_op18_no1-4.xml'
 
 
-sampleInXml = [
+sample_in_xml = [
     'input/i_0000_Beethoven_op18_no1-4.xml',
 ]
 
-sampleOutXml = [
+sample_out_xml = [
     'output/o_0000_Beethoven_op18_no1-4.xml',
 ]
 
@@ -22,70 +23,68 @@ sampleOutXml = [
 print('read music score from file')
 
 # target score
-score = music21.converter.parse(xml_path + targetXml, format='musicxml')
-target = piano.score.Score(score)
+score = music21.converter.parse(xml_path + target_xml, format='musicxml')
+target = piano.score.ScoreObject(score)
 
 # sample input
-sampleIn = []
-for sample in sampleInXml:
+
+sample_in = []
+for sample in sample_in_xml:
     score = music21.converter.parse(xml_path + sample, format='musicxml')
-    sampleIn.append(piano.score.Score(score))
-sampleOut = []
-for sample in sampleOutXml:
+    sample_in.append(piano.score.ScoreObject(score))
+
+sample_out = []
+for sample in sample_out_xml:
     score = music21.converter.parse(xml_path + sample, format='musicxml')
-    sampleOut.append(piano.score.Score(score))
+    sample_out.append(piano.score.ScoreObject(score))
 
 
 # ------------------------------------------------------------------------------
-print('building model')
+print('building reducer')
 
 # Guessing (include everything)
-reducer = piano.reducer.Reducer(target)
-reducer.addReductionAlgorithm(piano.algorithm.ActiveRhythm())
-reducer.addReductionAlgorithm(piano.algorithm.BassLine())
-reducer.addReductionAlgorithm(piano.algorithm.EntranceEffect())
-reducer.addReductionAlgorithm(piano.algorithm.Occurrence())
-reducer.addReductionAlgorithm(piano.algorithm.OnsetAfterRest())
-reducer.addReductionAlgorithm(
-    piano.algorithm.PitchClassStatistics(before=0, after=0))
-reducer.addReductionAlgorithm(piano.algorithm.RhythmVariety())
-reducer.addReductionAlgorithm(piano.algorithm.StrongBeats(division=0.5))
-reducer.addReductionAlgorithm(piano.algorithm.SustainedRhythm())
-reducer.addReductionAlgorithm(piano.algorithm.VerticalDoubling())
-
+reducer = piano.reducer.Reducer(
+    algorithms=[
+        piano.algorithm.ActiveRhythm(),
+        piano.algorithm.BassLine(),
+        piano.algorithm.EntranceEffect(),
+        piano.algorithm.Occurrence(),
+        piano.algorithm.OnsetAfterRest(),
+        piano.algorithm.PitchClassStatistics(),
+        piano.algorithm.RhythmVariety(),
+        piano.algorithm.StrongBeats(division=0.5),
+        piano.algorithm.SustainedRhythm(),
+        piano.algorithm.VerticalDoubling(),
+        ])
 
 # ------------------------------------------------------------------------------
-print('initialize training network and example')
+print('extracting features for training data')
 
-for x in range(0, len(sampleIn)):
-    reducer.addTrainingExample(sampleIn[x], sampleOut[x])
-reducer.initAlgorithmKeys()
-reducer.createAllMarkings()
-reducer.createAlignmentMarkings()
-
-dataset = None
-for x in range(0, len(sampleIn)):
-    dataset = sampleIn[x].TrainingDataSet(reducer=reducer, dataset=dataset)
+X = reducer.create_markings_on(sample_in)
+import numpy as np
+assert np.all(X == reducer.create_markings_on(sample_in))
+y = reducer.create_alignment_markings_on(sample_in, sample_out)
 
 
 if __name__ == '__main__':
-    # single layer
-    # network = piano.learning.buildNetwork(len(reducer.allKeys), 0, 1, bias=True, seed=0)
+    from sklearn.linear_model import LogisticRegression
 
-    # multi layer
-    network = piano.learning.buildNetwork(
-        len(reducer.allKeys), len(reducer.allKeys) * 2, 1, bias=True, seed=0)
+    print('training ML model')
+    print(reducer.all_keys)
+    model = LogisticRegression()
+    model.fit(X, y)
+    print('Training accuracy = {}'.format(model.score(X, y)))
 
-    trainer = piano.learning.BackpropTrainer(network, dataset, verbose=True)
-    print(reducer.allKeys)
+    X_test = reducer.create_markings_on(target)
+    y_test = reducer.predict_from(model, target, X=X_test)
 
-    # ------------------------------------------------------------------------------
-    print('show result')
-    result = music21.stream.Score()
+    for i, n in enumerate(reducer.iter_notes(target)):
+        shade = int(n.editorial.misc['align'] * 255)
+        n.style.color = '#{:02X}0000'.format(shade)
 
-    trainer.trainUntilConvergence(maxEpochs=300)
-    # trainer.trainUntilConvergence()
-    target.classify(network=network, reducer=reducer)
-    final_result = target.generatePianoScore(reduced=True, playable=True)
+    target.score.show('musicxml')
 
-    final_result.show('musicxml')
+    post_processor = piano.post_processor.PostProcessor()
+    result = post_processor.generate_piano_score(target, reduced=True,
+                                                 playable=True)
+    result.show('musicxml')

@@ -1,20 +1,12 @@
-import music21
-
-from .base import ReductionAlgorithm
+from .base import ReductionAlgorithm, get_markings, iter_notes
 
 
 class OffsetValue(ReductionAlgorithm):
-
     _type = 'offset'
 
-    def __init__(self, parts=[]):
-        super(OffsetValue, self).__init__(parts=parts)
+    def __init__(self):
+        super(OffsetValue, self).__init__()
 
-    def createMarkingsOn(self, scoreObj):
-        parts = self.parts or range(0, len(scoreObj.score))
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    for noteObj in measure.notes:
-                        noteObj.addMark(self.key, noteObj.offset)
+    def create_markings_on(self, score_obj):
+        for n in iter_notes(score_obj._score.recurse()):
+            get_markings(n)[self.key] = n.offset

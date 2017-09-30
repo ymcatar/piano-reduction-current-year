@@ -1,35 +1,31 @@
-from .base import ReductionAlgorithm
-from ..music.rest import Rest
-from ..music.not_rest import NotRest
+from .base import ReductionAlgorithm, set_marking_in_general_note
 
-import music21
+from music21 import note, stream
 
 
 class EntranceEffect(ReductionAlgorithm):
-
     _type = 'entrance'
 
-    def __init__(self, parts=[]):
-        super(EntranceEffect, self).__init__(parts=parts)
+    def __init__(self):
+        super(EntranceEffect, self).__init__()
 
-    def createMarkingsOn(self, scoreObj):
-        parts = self.parts or range(0, len(scoreObj.score))
-
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                rested = 1
-                lastOnsetNote = None
-                lastOnsetMeasureOffset = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    for noteObj in measure.notesAndRests:
-                        if isinstance(noteObj, Rest):
-                            rested = 1
-                        elif isinstance(noteObj, NotRest):
+    def create_markings_on(self, score_obj):
+        '''
+        The entrance effect value for a note is given by the offset to the
+        previous rest in the same *voice*, in quarter lengths.
+        '''
+        for voices in score_obj.voices_by_part:
+            for voice in voices:
+                rested = True
+                last_offset = 0.0
+                for measure in voice.getElementsByClass(stream.Measure):
+                    for n in measure.notesAndRests:
+                        if isinstance(n, note.Rest):
+                            rested = True
+                        elif isinstance(n, note.NotRest):
                             if rested:
-                                lastOnsetNote = noteObj
-                                lastOnsetMeasureOffset = measure.offset
-                                rested = 0
-                            value = (noteObj.offset - lastOnsetNote.offset +
-                                     measure.offset - lastOnsetMeasureOffset)
-                            noteObj.addMark(self.key, float(value))
+                                last_offset = measure.offset + n.offset
+                                rested = False
+                            set_marking_in_general_note(
+                                n, self.key,
+                                measure.offset + n.offset - last_offset)

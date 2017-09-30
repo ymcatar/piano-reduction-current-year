@@ -1,41 +1,33 @@
-from .base import ReductionAlgorithm
+from .base import ReductionAlgorithm, get_markings, iter_notes
 
-import music21
+from music21 import stream
 
 
 class SustainedRhythm(ReductionAlgorithm):
-
     _type = 'sustained'
 
-    def __init__(self, division=1, parts=[]):
-        super(SustainedRhythm, self).__init__(parts=parts)
+    def __init__(self, division=1):
+        super(SustainedRhythm, self).__init__()
 
-    def createMarkingsOn(self, scoreObj):
-        rhythm = dict()
-        parts = self.parts or range(0, len(scoreObj.score))
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                mid = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    if mid not in rhythm:
-                        rhythm[mid] = (2036, [])
+    def create_markings_on(self, score_obj):
+        '''
+        In each bar, the non-empty part(s) with the least number of notes is
+        marked.
+        '''
+        for bar in score_obj.by_bar:
+            best_note_count, best_measures = 10 ** 9, set()
 
-                    length = len(measure.notes)
-                    if length == rhythm[mid][0]:
-                        rhythm[mid] = (length, rhythm[mid][1] + [measure])
-                    elif length < rhythm[mid][0]:
-                        rhythm[mid] = (length, [measure])
-                    mid = mid + 1
+            # Each part has only one measure
+            for measure in bar.recurse().getElementsByClass(stream.Measure):
+                count = sum(1 for _ in iter_notes(measure.recurse()))
+                if not count:
+                    continue
+                if count < best_note_count:
+                    best_note_count, best_measures = count, {measure}
+                elif count == best_note_count:
+                    best_measures.add(measure)
 
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                mid = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    mark = 0
-                    if measure in rhythm[mid][1]:
-                        mark = 1
-                    for noteObj in measure.notes:
-                        noteObj.addMark(self.key, mark)
-                    mid = mid + 1
+            for measure in bar.recurse().getElementsByClass(stream.Measure):
+                mark = measure in best_measures
+                for n in iter_notes(measure.recurse()):
+                    get_markings(n)[self.key] = mark

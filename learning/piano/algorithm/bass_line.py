@@ -1,72 +1,33 @@
-from .base import ReductionAlgorithm
-from ..music.chord import Chord
+from .base import ReductionAlgorithm, get_markings, iter_notes
 
-import music21
-import numpy
+from music21 import stream
+import numpy as np
 
 
 class BassLine(ReductionAlgorithm):
-
     _type = 'bass'
 
-    @property
-    def allKeys(self):
-        return [self.key] + ['{}_{!s}'.format(self.key, pitchClass)
-                             for pitchClass in range(0, 12)]
+    def __init__(self):
+        super(BassLine, self).__init__()
 
-    def __init__(self, parts=[]):
-        super(BassLine, self).__init__(parts=parts)
+    def create_markings_on(self, score_obj):
+        '''
+        In each bar, the part with the lowest median pitch space is marked.
+        '''
+        for bar in score_obj.by_bar:
+            best_median, best_measures = float('inf'), set()
+            for measure in bar.recurse().getElementsByClass(stream.Measure):
+                pss = [n.pitch.ps for n in iter_notes(measure.recurse())]
+                if not pss:
+                    pss = [float('inf')]
+                median = np.median(pss)
 
-    def createMarkingsOn(self, scoreObj):
-        parts = self.parts or range(0, len(scoreObj.score))
+                if median < best_median:
+                    best_median, best_measures = median, {measure}
+                elif median == best_median:
+                    best_measures.add(measure)
 
-        bass = []
-
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                mid = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    if len(bass) < (mid + 1):
-                        bass.append((1024, None))
-
-                    ps = []
-                    for noteObj in measure.notes:
-                        if isinstance(noteObj, Chord):
-                            for ch_note in noteObj:
-                                ps.append(ch_note.ps)
-                        else:
-                            ps.append(noteObj.ps)
-                    if len(ps) > 0:
-                        median = numpy.median(ps)
-                        if median < bass[mid][0]:
-                            bass[mid] = (median, measure)
-                    mid = mid + 1
-
-        for bassPart in bass:
-            if bassPart[1] is not None:
-                for noteObj in bassPart[1].notes:
-                    noteObj.addMark(self.key, 1)
-
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                mid = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    bassPart = bass[mid][1]
-
-                    for noteObj in measure.notes:
-                        bassObj = None
-                        for bassNote in bassPart.notes:
-                            if noteObj.offset - bassNote.offset > -1e-4:  # noteObj.offset >= baseeNote.offset
-                                if bassObj is None:
-                                    bassObj = bassNote
-                                if bassNote.offset > bassObj.offset:  # bassNote.offset > bassObj.offset
-                                    bassObj = bassNote
-                        if bassObj is not None:
-                            entry = [0 for x in range(0, 12)]
-                            entry[bassObj.pitchClass] = 1
-                            for pitchClass in range(0, 12):
-                                noteObj.addMark(
-                                    self.key + '_' + str(pitchClass), entry[pitchClass])
-                    mid = mid + 1
+            for measure in bar.recurse().getElementsByClass(stream.Measure):
+                mark = measure in best_measures
+                for n in iter_notes(measure.recurse()):
+                    get_markings(n)[self.key] = mark

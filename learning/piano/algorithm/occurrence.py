@@ -1,49 +1,30 @@
-from .base import ReductionAlgorithm
-from ..music.chord import Chord
-from ..music.note import Note
+from .base import ReductionAlgorithm, get_markings, iter_notes
 
-import music21
+from music21 import stream
+from collections import Counter
 
 
 class Occurrence(ReductionAlgorithm):
-
     _type = 'occurrence'
 
-    def __init__(self, parts=[]):
-        super(Occurrence, self).__init__(parts=parts)
+    def __init__(self):
+        super(Occurrence, self).__init__()
 
-    def createMarkingsOn(self, scoreObj):
-        parts = self.parts or range(0, len(scoreObj.score))
-        for pid in parts:
-            part = scoreObj.score[pid]
-            for voice in part.voices:
-                notes = dict()
-                mid = 0
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    if mid not in notes:
-                        notes[mid] = dict()
-                    for noteObj in measure.notes:
-                        if isinstance(noteObj, Chord):
-                            for ch_note in noteObj:
-                                if ch_note.name not in notes[mid]:
-                                    notes[mid][ch_note.name] = []
-                                notes[mid][ch_note.name].append(ch_note)
-                        elif isinstance(noteObj, Note):
-                            if noteObj.name not in notes[mid]:
-                                notes[mid][noteObj.name] = []
-                            notes[mid][noteObj.name].append(noteObj)
-                    mid = mid + 1
+    def create_markings_on(self, score_obj):
+        '''
+        For each measure in each voice, the notes with the pitch class(es) that
+        appears the most are marked, unless the max frequency is <= 1.
+        '''
+        for bar in score_obj.by_bar:
+            for voice in bar.recurse().getElementsByClass(stream.Voice):
+                counter = Counter(n.name for n in iter_notes(voice))
+                counter.setdefault('C', 0)  # so that max doesn't fail
+                max_freq = max(counter.values())
 
-                for mid in notes:
-                    max_cnt_pitch = 0
-                    bonus_pitch = []
-                    for pitch in notes[mid]:
-                        if len(notes[mid][pitch]) >= max_cnt_pitch:
-                            if len(notes[mid][pitch]) > max_cnt_pitch:
-                                max_cnt_pitch = len(notes[mid][pitch])
-                                bonus_pitch = []
-                            bonus_pitch.append(pitch)
-                    if max_cnt_pitch > 1:
-                        for pitch in bonus_pitch:
-                            for noteObj in notes[mid][pitch]:
-                                noteObj.addMark(self.key, 1)
+                if max_freq > 1:
+                    pitch_classes = {ps for ps, freq in counter.items()
+                                     if freq == max_freq}
+                else:
+                    pitch_classes = set()
+                for n in iter_notes(voice):
+                    get_markings(n)[self.key] = n.name in pitch_classes

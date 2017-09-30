@@ -1,6 +1,5 @@
 from .base import ReductionAlgorithm
 from .active_rhythm import ActiveRhythm
-from .alignment import SimpleAlignment
 from .bass_line import BassLine
 from .entrance_effect import EntranceEffect
 from .occurrence import Occurrence

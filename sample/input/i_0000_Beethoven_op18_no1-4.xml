@@ -1056,7 +1056,7 @@
      <mode>minor</mode>
     </key>
     <time color="#000000">
-     <beats>4</beats>
+     <beats>2</beats>
      <beat-type>4</beat-type>
     </time>
     <staves>1</staves>
@@ -2053,7 +2053,7 @@
      <mode>minor</mode>
     </key>
     <time color="#000000">
-     <beats>4</beats>
+     <beats>2</beats>
      <beat-type>4</beat-type>
     </time>
     <staves>1</staves>
@@ -2774,7 +2774,7 @@
      <mode>minor</mode>
     </key>
     <time color="#000000">
-     <beats>4</beats>
+     <beats>2</beats>
      <beat-type>4</beat-type>
     </time>
     <staves>1</staves>
