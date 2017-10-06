@@ -1,4 +1,4 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import ReductionAlgorithm, get_markings, iter_notes_with_offset
 
 
 class OffsetValue(ReductionAlgorithm):
@@ -8,5 +8,5 @@ class OffsetValue(ReductionAlgorithm):
         super(OffsetValue, self).__init__()
 
     def create_markings_on(self, score_obj):
-        for n in iter_notes(score_obj._score.recurse()):
-            get_markings(n)[self.key] = n.offset
+        for n, offset in iter_notes_with_offset(score_obj._score, recurse=True):
+            get_markings(n)[self.key] = offset

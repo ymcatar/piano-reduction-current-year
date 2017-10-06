@@ -1,7 +1,7 @@
 from music21 import converter, note, stream
 import pytest
 from . import algorithm
-from .algorithm.base import get_markings, iter_notes
+from .algorithm.base import get_markings, iter_notes, iter_notes_with_offset
 from .score import ScoreObject
 from .alignment import align_scores
 
@@ -33,19 +33,19 @@ def test_binary_algorithms(algo, output_name):
 
     alignment = align_scores(input, output)
 
-    for measure in input.recurse().getElementsByClass(stream.Measure):
-        for n in iter_notes(measure.recurse()):
+    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+        for n, offset in iter_notes_with_offset(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 assert len(alignment[n]) == 1
                 assert algo.key in get_markings(n), \
                     'Note {!r} at {} should be marked but is not marked' \
-                    .format(n, measure.offset + n.offset)
+                    .format(n, measure.offset + offset)
 
                 is_red = alignment[n][0].style.color == '#FF0000'
                 actual = get_markings(n)[algo.key]
                 assert actual == is_red, \
                     'Note {!r} at {} should be marked {} but is marked {}' \
-                    .format(n, measure.offset + n.offset, is_red, actual)
+                    .format(n, measure.offset + offset, is_red, actual)
 
 
 continuous_algorithms = [
@@ -67,13 +67,13 @@ def test_continuous_algorithms(algo, output_name):
 
     alignment = align_scores(input, output)
 
-    for measure in input.recurse().getElementsByClass(stream.Measure):
-        for n in iter_notes(measure.recurse()):
+    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+        for n, offset in iter_notes_with_offset(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 assert len(alignment[n]) == 1
                 assert algo.key in get_markings(n), \
                     'Note {!r} at {} should be marked but is not marked' \
-                    .format(n, measure.offset + n.offset)
+                    .format(n, measure.offset + offset)
 
                 value = alignment[n][0].lyric
                 if value:
@@ -81,7 +81,7 @@ def test_continuous_algorithms(algo, output_name):
                     actual = get_markings(n)[algo.key]
                     assert actual == expected, \
                         'Note {!r} at {} should be marked {} but is marked {}' \
-                        .format(n, measure.offset + n.offset, expected, actual)
+                        .format(n, measure.offset + offset, expected, actual)
 
 
 def test_pitch_class_statistics():
@@ -104,16 +104,16 @@ def test_pitch_class_statistics():
         norm = np.linalg.norm(histogram)
         expecteds[offset] = [x / norm for x in histogram]
 
-    for measure in input.recurse().getElementsByClass(stream.Measure):
-        for n in iter_notes(measure.recurse()):
+    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+        for n in iter_notes(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 markings = get_markings(n)
                 assert all(k in markings for k in algo.all_keys), \
                     'Note {!r} at {} should be marked but is not marked' \
-                    .format(n, measure.offset + n.offset)
+                    .format(n, measure.offset + offset)
 
                 actual = [markings[k] for k in algo.all_keys]
                 expected = expecteds[measure.offset]
                 assert actual == expected, \
                     'Note {!r} at {} should be marked {} but is marked {}' \
-                    .format(n, measure.offset + n.offset, expected, actual)
+                    .format(n, measure.offset + offset, expected, actual)

@@ -1,4 +1,5 @@
-from music21 import chord, clef, duration as duration_, layout, note, stream
+from music21 import (chord, clef, duration as duration_, instrument, layout,
+    note, stream)
 import numpy as np
 
 
@@ -51,12 +52,12 @@ class PostProcessor(object):
                                 (noteObj.offset, noteObj.offset + noteObj.quarterLength))
                         elif isinstance(noteObj, chord.Chord):
                             for ch_note in noteObj:
-                                if ch_note.editorial.misc['align'] >= 0.5 or not reduced:
+                                if not reduced or ch_note.editorial.misc['align'] >= 0.5:
                                     notePs.append(ch_note.ps)
                                     noteList.append(
                                         (noteObj.offset, ch_note.nameWithOctave, ch_note.tie))
                         elif isinstance(noteObj, note.Note):
-                            if noteObj.editorial.misc['align'] >= 0.5 or not reduced:
+                            if not reduced or noteObj.editorial.misc['align'] >= 0.5:
                                 notePs.append(noteObj.ps)
                                 noteList.append(
                                     (noteObj.offset, noteObj.nameWithOctave, noteObj.tie))
@@ -70,8 +71,6 @@ class PostProcessor(object):
                         else:
                             rightRest[mid].append(restList)
                             rightHand[mid].extend(noteList)
-
-                    mid = mid + 1
 
         leftStaff = stream.Part()
         rightStaff = stream.Part()
@@ -108,8 +107,16 @@ class PostProcessor(object):
         result.insert(0, rightStaff)
         result.insert(0, leftStaff)
 
+        for part in [leftStaff, rightStaff]:
+            # Change the instrument to piano
+            instruments = list(part.getElementsByClass('Instrument'))
+            part.remove(instruments)
+
+            piano = instrument.fromString('Piano')
+            part.insert(0, piano)
+
         staffGroup = layout.StaffGroup(
-            [rightStaff, leftStaff], name='Marimba', abbreviation='Mba.',
+            [rightStaff, leftStaff], name='Piano', abbreviation='Pno.',
             symbol='brace')
         staffGroup.barTogether = 'yes'
 

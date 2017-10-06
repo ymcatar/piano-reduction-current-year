@@ -18,8 +18,8 @@ class SustainedRhythm(ReductionAlgorithm):
             best_note_count, best_measures = 10 ** 9, set()
 
             # Each part has only one measure
-            for measure in bar.recurse().getElementsByClass(stream.Measure):
-                count = sum(1 for _ in iter_notes(measure.recurse()))
+            for measure in bar.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+                count = sum(1 for _ in iter_notes(measure, recurse=True))
                 if not count:
                     continue
                 if count < best_note_count:
@@ -27,7 +27,7 @@ class SustainedRhythm(ReductionAlgorithm):
                 elif count == best_note_count:
                     best_measures.add(measure)
 
-            for measure in bar.recurse().getElementsByClass(stream.Measure):
+            for measure in bar.recurse(skipSelf=False).getElementsByClass(stream.Measure):
                 mark = measure in best_measures
-                for n in iter_notes(measure.recurse()):
+                for n in iter_notes(measure, recurse=True):
                     get_markings(n)[self.key] = mark

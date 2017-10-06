@@ -18,7 +18,7 @@ class VerticalDoubling(ReductionAlgorithm):
             # counters[offset][pitch_class] =
             #   no. of times pitch_class occurs at offset
             counters = defaultdict(lambda: Counter())
-            for n in iter_notes(bar.recurse()):
+            for n in iter_notes(bar, recurse=True):
                 counters[n.offset][n.name] += 1
 
             pitch_classes = {}
@@ -26,5 +26,5 @@ class VerticalDoubling(ReductionAlgorithm):
                 pitch_classes[offset] = {pc for pc, freq in counter.items()
                                          if freq >= 2}
 
-            for n in iter_notes(bar.recurse()):
+            for n in iter_notes(bar, recurse=True):
                 get_markings(n)[self.key] = n.name in pitch_classes[n.offset]

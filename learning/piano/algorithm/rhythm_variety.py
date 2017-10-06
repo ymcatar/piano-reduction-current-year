@@ -20,7 +20,7 @@ class RhythmVariety(ReductionAlgorithm):
             for voice in voices:
                 last_note = None
                 last_duration = 0.0
-                for n in voice.recurse().notesAndRests:
+                for n in voice.recurse(skipSelf=False).notesAndRests:
                     set_marking_in_general_note(n, self.key, 0)
 
                     # This also marks rests as a side effect, although this

@@ -16,7 +16,7 @@ class Occurrence(ReductionAlgorithm):
         appears the most are marked, unless the max frequency is <= 1.
         '''
         for bar in score_obj.by_bar:
-            for voice in bar.recurse().getElementsByClass(stream.Voice):
+            for voice in bar.recurse(skipSelf=False).getElementsByClass(stream.Voice):
                 counter = Counter(n.name for n in iter_notes(voice))
                 counter.setdefault('C', 0)  # so that max doesn't fail
                 max_freq = max(counter.values())
