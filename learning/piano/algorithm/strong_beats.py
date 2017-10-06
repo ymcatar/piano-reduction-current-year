@@ -1,4 +1,4 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import ReductionAlgorithm, get_markings, iter_notes_with_offset
 
 
 class StrongBeats(ReductionAlgorithm):
@@ -13,6 +13,6 @@ class StrongBeats(ReductionAlgorithm):
         Each note whose onset occurs at an integral multiple of the defined
         division is marked.
         '''
-        for n in iter_notes(score_obj._score.recurse()):
-            # Note that here, % is a floating point operation
-            get_markings(n)[self.key] = n.offset % self.division < 1e-3
+        for n, offset in iter_notes_with_offset(score_obj._score, recurse=True):
+            # Note that here, % is a flcf), recurse=Trueoating point operation
+            get_markings(n)[self.key] = offset % self.division < 1e-3

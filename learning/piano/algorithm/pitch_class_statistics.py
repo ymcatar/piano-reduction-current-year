@@ -23,7 +23,7 @@ class PitchClassStatistics(ReductionAlgorithm):
         '''
         for bar in score_obj.by_bar:
             counter = Counter(
-                n.pitch.pitchClass for n in iter_notes(bar.recurse()))
+                n.pitch.pitchClass for n in iter_notes(bar, recurse=True))
 
             histogram = [counter[i] for i in PITCH_CLASSES]
 
@@ -34,5 +34,5 @@ class PitchClassStatistics(ReductionAlgorithm):
 
             marks = dict(zip(self.all_keys, histogram))
 
-            for n in iter_notes(bar.recurse()):
+            for n in iter_notes(bar, recurse=True):
                 get_markings(n).update(marks)

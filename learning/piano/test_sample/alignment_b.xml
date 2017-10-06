@@ -4,7 +4,7 @@
   <identification>
     <encoding>
       <software>MuseScore 2.1.0</software>
-      <encoding-date>2017-09-29</encoding-date>
+      <encoding-date>2017-10-06</encoding-date>
       <supports element="accidental" type="yes"/>
       <supports element="beam" type="yes"/>
       <supports element="print" attribute="new-page" type="yes" value="yes"/>
@@ -53,7 +53,7 @@
       </score-part>
     </part-list>
   <part id="P1">
-    <measure number="1" width="241.30">
+    <measure number="1" width="243.30">
       <print>
         <system-layout>
           <system-margins>
@@ -111,11 +111,28 @@
         <type>quarter</type>
         <stem>up</stem>
         </note>
-      <note>
-        <rest/>
+      <note default-x="121.43" default-y="-40.00">
+        <pitch>
+          <step>E</step>
+          <octave>4</octave>
+          </pitch>
         <duration>10</duration>
         <voice>1</voice>
         <type>quarter</type>
+        <stem>up</stem>
+        <notehead color="#800080">normal</notehead>
+        </note>
+      <note default-x="121.43" default-y="-30.00">
+        <chord/>
+        <pitch>
+          <step>G</step>
+          <octave>4</octave>
+          </pitch>
+        <duration>10</duration>
+        <voice>1</voice>
+        <type>quarter</type>
+        <stem>up</stem>
+        <notehead color="#FF00FF">normal</notehead>
         </note>
       <note>
         <rest/>
@@ -124,7 +141,7 @@
         <type>half</type>
         </note>
       </measure>
-    <measure number="2" width="186.53">
+    <measure number="2" width="186.03">
       <note default-x="12.00" default-y="-50.00">
         <pitch>
           <step>C</step>
@@ -149,7 +166,7 @@
         <type>half</type>
         </note>
       </measure>
-    <measure number="3" width="192.32">
+    <measure number="3" width="191.82">
       <note default-x="7.75" default-y="-45.00">
         <grace/>
         <pitch>
@@ -185,7 +202,7 @@
         <type>half</type>
         </note>
       </measure>
-    <measure number="4" width="186.53">
+    <measure number="4" width="186.03">
       <note default-x="12.00" default-y="-40.00">
         <pitch>
           <step>E</step>
@@ -209,7 +226,7 @@
         <type>half</type>
         </note>
       </measure>
-    <measure number="5" width="270.81">
+    <measure number="5" width="270.31">
       <note default-x="12.00" default-y="-40.00">
         <pitch>
           <step>E</step>
@@ -230,7 +247,7 @@
           <tuplet type="start" bracket="no"/>
           </notations>
         </note>
-      <note default-x="29.76" default-y="-40.00">
+      <note default-x="29.72" default-y="-40.00">
         <pitch>
           <step>E</step>
           <octave>4</octave>
@@ -247,7 +264,7 @@
         <beam number="2">continue</beam>
         <beam number="3">continue</beam>
         </note>
-      <note default-x="47.51" default-y="-40.00">
+      <note default-x="47.44" default-y="-40.00">
         <pitch>
           <step>E</step>
           <octave>4</octave>
@@ -264,7 +281,7 @@
         <beam number="2">continue</beam>
         <beam number="3">continue</beam>
         </note>
-      <note default-x="65.27" default-y="-40.00">
+      <note default-x="65.16" default-y="-40.00">
         <pitch>
           <step>E</step>
           <octave>4</octave>
@@ -281,7 +298,7 @@
         <beam number="2">continue</beam>
         <beam number="3">continue</beam>
         </note>
-      <note default-x="83.02" default-y="-40.00">
+      <note default-x="82.88" default-y="-40.00">
         <pitch>
           <step>E</step>
           <octave>4</octave>

@@ -1,4 +1,4 @@
-from .algorithm.base import iter_notes
+from .algorithm.base import iter_notes, iter_notes_with_offset
 
 from collections import defaultdict
 from music21 import stream
@@ -36,8 +36,8 @@ class Alignment:
         return id(key) in self.left_lookup
 
 
-def default_key_func(n, precision):
-    return (int(n.offset * precision),
+def default_key_func(n, offset, precision):
+    return (int(offset * precision),
             int(n.duration.quarterLength * precision),
             n.pitch.ps)
 
@@ -73,10 +73,11 @@ def align_scores(left_score, right_score, precision=1024,
             # because putting the note in a different voice still gives a
             # similarly looking score -- so the voice number is not informative.
             for measure in part.getElementsByClass(stream.Measure):
+                mo = int(measure.offset * precision)
                 # Recurse on voices
-                for n in iter_notes(measure.recurse(skipSelf=False).notes):
-                    key = key_func(n, precision)
-                    index[i][measure.offset][key].append(n)
+                for n, offset in iter_notes_with_offset(measure, recurse=True):
+                    key = key_func(n, offset, precision)
+                    index[i][mo][key].append(n)
 
     # For each score, look up the other Note object index
     lookups = [{} for _ in range(2)]
@@ -85,17 +86,18 @@ def align_scores(left_score, right_score, precision=1024,
             if ignore_parts:
                 i = 0
             for measure in part.getElementsByClass(stream.Measure):
+                mo = int(measure.offset * precision)
                 # Recurse on voices
-                for n in iter_notes(measure.recurse(skipSelf=False).notes):
-                    key = key_func(n, precision)
+                for n, offset in iter_notes_with_offset(measure, recurse=True):
+                    key = key_func(n, offset, precision)
                     assert id(n) not in lookups, 'Note object not unique!'
-                    lookup[id(n)] = other_index[i][measure.offset][key]
+                    lookup[id(n)] = other_index[i][mo][key]
 
     return Alignment(*lookups)
 
 
 def mark_alignment(input_score, output_score, **kwargs):
     alignment = align_scores(input_score, output_score, **kwargs)
-    for n in iter_notes(input_score.recurse()):
+    for n in iter_notes(input_score, recurse=True):
         n.editorial.misc['align'] = bool(alignment[n])
     return input_score

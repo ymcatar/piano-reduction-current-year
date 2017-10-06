@@ -48,7 +48,7 @@ class ScoreObject(object):
             vids_in_measure = list(v.id for v in measure.voices)
 
             if not vids_in_measure:
-                voice = stream.Voice(id=1)
+                voice = stream.Voice(id='1')
                 voice.mergeAttributes(measure)
                 for elem in measure:
                     if isinstance(elem, note.GeneralNote):
@@ -59,7 +59,7 @@ class ScoreObject(object):
                 result.insert(0, voice)
             else:
                 result.mergeElements(measure)
-                for vid in vids.exclude(vids_in_measure):
+                for vid in vids.difference(vids_in_measure):
                     voice = stream.Voice(id=vid)
                     voice.insert(0, note.Rest(measure.highestTime))
 
@@ -97,7 +97,7 @@ class ScoreObject(object):
         for i in count(0):
             subscore = result.measure(i)
             # Measure 0 is the pickup (partial) measure and may not exist
-            if i > 0 and not subscore.recurse().getElementsByClass('Measure'):
+            if i > 0 and not subscore.recurse(skipSelf=False).getElementsByClass('Measure'):
                 break
             self.by_bar.append(subscore)
 

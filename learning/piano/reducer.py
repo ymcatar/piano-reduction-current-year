@@ -29,7 +29,7 @@ class Reducer(object):
             input_score_objs = [input_score_objs]
 
         for score_obj in input_score_objs:
-            yield from iter_notes(score_obj.score.recurse())
+            yield from iter_notes(score_obj.score, recurse=True)
 
     def create_markings_on(self, input_score_objs):
         if not isinstance(input_score_objs, Sequence):
@@ -54,8 +54,7 @@ class Reducer(object):
             output_score_objs = [output_score_objs]
 
         for input, output in zip(input_score_objs, output_score_objs):
-            for algo in self.algorithms:
-                mark_alignment(input.score, output.score, ignore_parts=True)
+            mark_alignment(input.score, output.score, ignore_parts=True)
 
         note_count = sum(1 for _ in self.iter_notes(input_score_objs))
         y = np.fromiter((n.editorial.misc['align']
