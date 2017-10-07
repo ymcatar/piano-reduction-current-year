@@ -16,6 +16,7 @@ from sklearn.ensemble import RandomForestClassifier
 X = dataset['input']
 y = dataset['target']
 
+
 # Compatibility class for classifying test data
 class ModelWrapper:
     def __init__(self, model):
@@ -30,12 +31,14 @@ class ModelWrapper:
 
         Returns: a 1D array containing the single output label
         '''
-        X_test = np.array(inputs)[np.newaxis,:]
+        X_test = np.array(inputs)[np.newaxis, :]
 
         return self.model.predict(X_test)[:]
 
+
 OUTPUT_PREFIX = os.path.dirname(__file__) + '/output/'
 os.makedirs(OUTPUT_PREFIX, exist_ok=True)
+
 
 def evaluate(model, filename):
     target.classify(network=ModelWrapper(model), reducer=reducer)

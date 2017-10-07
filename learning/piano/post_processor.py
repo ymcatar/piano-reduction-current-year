@@ -1,5 +1,5 @@
 from music21 import (chord, clef, duration as duration_, instrument, layout,
-    note, stream)
+                     note, stream)
 import numpy as np
 
 

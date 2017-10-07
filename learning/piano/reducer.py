@@ -43,8 +43,8 @@ class Reducer(object):
         X = np.zeros((note_count, len(self.all_keys)), dtype='float')
         for i, n in enumerate(self.iter_notes(input_score_objs)):
             markings = get_markings(n)
-            X[i,:] = np.fromiter((markings[k] for k in self.all_keys),
-                                 dtype='float', count=len(self.all_keys))
+            X[i, :] = np.fromiter((markings[k] for k in self.all_keys),
+                                  dtype='float', count=len(self.all_keys))
         return X
 
     def create_alignment_markings_on(self, input_score_objs, output_score_objs):
