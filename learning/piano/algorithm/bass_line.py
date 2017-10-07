@@ -16,7 +16,8 @@ class BassLine(ReductionAlgorithm):
         '''
         for bar in score_obj.by_bar:
             best_median, best_measures = float('inf'), set()
-            for measure in bar.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+            for measure in bar.recurse(
+                    skipSelf=False).getElementsByClass(stream.Measure):
                 pss = [n.pitch.ps for n in iter_notes(measure, recurse=True)]
                 if not pss:
                     pss = [float('inf')]
@@ -27,7 +28,8 @@ class BassLine(ReductionAlgorithm):
                 elif median == best_median:
                     best_measures.add(measure)
 
-            for measure in bar.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+            for measure in bar.recurse(
+                    skipSelf=False).getElementsByClass(stream.Measure):
                 mark = measure in best_measures
                 for n in iter_notes(measure, recurse=True):
                     get_markings(n)[self.key] = mark

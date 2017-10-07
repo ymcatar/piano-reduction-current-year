@@ -33,7 +33,8 @@ def test_binary_algorithms(algo, output_name):
 
     alignment = align_scores(input, output)
 
-    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+    for measure in input.recurse(
+            skipSelf=False).getElementsByClass(stream.Measure):
         for n, offset in iter_notes_with_offset(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 assert len(alignment[n]) == 1
@@ -67,7 +68,8 @@ def test_continuous_algorithms(algo, output_name):
 
     alignment = align_scores(input, output)
 
-    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+    for measure in input.recurse(
+            skipSelf=False).getElementsByClass(stream.Measure):
         for n, offset in iter_notes_with_offset(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 assert len(alignment[n]) == 1
@@ -104,7 +106,8 @@ def test_pitch_class_statistics():
         norm = np.linalg.norm(histogram)
         expecteds[offset] = [x / norm for x in histogram]
 
-    for measure in input.recurse(skipSelf=False).getElementsByClass(stream.Measure):
+    for measure in input.recurse(
+            skipSelf=False).getElementsByClass(stream.Measure):
         for n in iter_notes(measure, recurse=True):
             if isinstance(n, note.NotRest):
                 markings = get_markings(n)
