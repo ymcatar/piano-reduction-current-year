@@ -29,3 +29,9 @@
     ```sh
     flake8
     ```
+
+-   Unit testing:
+
+    ```sh
+    pytest
+    ```
