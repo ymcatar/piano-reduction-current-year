@@ -1,5 +1,5 @@
 import music21
-from music21 import meter, note, stream
+from music21 import layout, meter, note, stream
 import numpy
 from collections import defaultdict
 from itertools import count
@@ -23,7 +23,7 @@ def _group_by_voices(part):
     for vid, voice in voices.items():
         voice.id = vid
 
-    return sorted(voices.values(), key=lambda v: v.id)
+    return sorted(voices.values(), key=lambda v: str(v.id))
 
 
 class ScoreObject(object):
@@ -45,7 +45,7 @@ class ScoreObject(object):
         def preprocess_measure(measure, vids):
             result = measure.cloneEmpty(derivationMethod='preprocess')
 
-            vids_in_measure = list(v.id for v in measure.voices)
+            vids_in_measure = set(v.id for v in measure.voices)
 
             if not vids_in_measure:
                 voice = stream.Voice(id='1')
@@ -62,6 +62,10 @@ class ScoreObject(object):
                 for vid in vids.difference(vids_in_measure):
                     voice = stream.Voice(id=vid)
                     voice.insert(0, note.Rest(measure.highestTime))
+                    result.insert(voice)
+
+            # Remove page breaks so that it doesn't mess with our output layout
+            result.removeByClass([layout.PageLayout, layout.SystemLayout])
 
             return result
 
