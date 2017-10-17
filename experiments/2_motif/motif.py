@@ -4,11 +4,28 @@ import music21
 import os
 
 class MotifAnalyzer(object):
-    
+
     def __init__(self, filepath):
         self.filepath = filepath
         self.score = music21.converter.parse(filepath)
-    
+
+    @staticmethod
+    def intervalFunc(result, prev_note, curr_note):
+        prev_is_note = isinstance(prev_note, music21.note.Note)
+        curr_is_note = isinstance(curr_note, music21.note.Note)
+        new_item = None
+        if prev_is_note and curr_is_note:
+            if prev_note.pitch == curr_note.pitch:
+                new_item = '='
+            else:
+                new_item = '<' if prev_note.pitch < curr_note.pitch else '>'
+        elif prev_is_note:
+            new_item = 'N'
+        elif curr_is_note:
+            new_item = 'R'
+        return result + [(new_item, prev_note, curr_note)] \
+            if new_item is not None else result
+
     def generate_part_step(self, partId, func):
         curr_part = self.score.getElementById(partId)
         prev_note = None
@@ -19,34 +36,19 @@ class MotifAnalyzer(object):
         return result
 
     def generate_part_interval_step(self, partId):
-        def intervalFunc(result, prev_note, curr_note):
-            prev_is_note = isinstance(prev_note, music21.note.Note)
-            curr_is_note = isinstance(curr_note, music21.note.Note)
-            new_item = None
-            if prev_is_note and curr_is_note:
-                if prev_note.pitch == curr_note.pitch:
-                    new_item = '='
-                else:
-                    new_item = '<' if prev_note.pitch < curr_note.pitch else '>'
-            elif prev_is_note:
-                new_item = 'N'
-            elif curr_is_note:
-                new_item = 'R'
-            return result + [(new_item, prev_note, curr_note)] \
-                if new_item is not None else result
-        return self.generate_part_step(partId, intervalFunc)
-    
+        return self.generate_part_step(partId, MotifAnalyzer.intervalFunc)
+
     def get_motif_from_step(self, step):
         max_result = []
-        for length in range(3, 8):
+        for length in range(3, 16):
             temp_kmers = {}
             for i in range(0, len(step) - length):
-                index = list(map(lambda i: i[0], step[i:i+length]))
+                index = [s[0] for s in step[i:i+length]]
 
                 # if list only have R and N, unlikely to be motif => remove
-                if len([i for i in index if i != 'R' and i != 'N']) == 0:
+                if all(i in 'RN' for i in index):
                     continue
-                
+
                 index = ','.join(index)
                 if index not in temp_kmers:
                     temp_kmers[index] = []
@@ -55,7 +57,7 @@ class MotifAnalyzer(object):
             maximum = 0
             maximum_indices = []
             for pattern, indices in temp_kmers.items():
-                if len(indices) * len(pattern) / 2 == maximum: # do this to favour longer motiff
+                if len(indices) * len(pattern) / 2 == maximum: # do this to favour longer motif
                     maximum_indices = maximum_indices + indices
                 elif len(indices) * len(pattern) / 2 > maximum:
                     maximum_indices = indices
@@ -67,12 +69,12 @@ class MotifAnalyzer(object):
             length, freq, indices = item
             if freq > result[1]:
                 result = item
-        
+
         length, freq, indices = result
         return (length, indices)
-            
-            
-        
+
+
+
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 
 for part in analyzer.score.recurse().getElementsByClass('Part'):
@@ -92,5 +94,5 @@ for part in analyzer.score.recurse().getElementsByClass('Part'):
             note.style.color = '#FF0000'
 
 analyzer.score.show()
-    
+
 
