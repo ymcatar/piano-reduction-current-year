@@ -42,6 +42,7 @@ class MotifAnalyzer(object):
 
     def generate_all_ngrams(self, length, sequence):
         curr_ngram, all_ngrams = ([], {})
+        curr_map, all_maps = ([], {})
 
         curr = 0
         while True:
@@ -49,17 +50,21 @@ class MotifAnalyzer(object):
                 frozen_ngram = ';'.join(curr_ngram)
                 if frozen_ngram in all_ngrams:
                     all_ngrams[frozen_ngram] = all_ngrams[frozen_ngram] + 1
+                    all_maps[frozen_ngram] = all_maps[frozen_ngram] + curr_map
                 else:
                     all_ngrams[frozen_ngram] = 1
+                    all_maps[frozen_ngram] = []
                 curr_ngram.pop(0)
+                curr_map.pop(0)
             else:
                 if curr >= len(sequence):
                     break
                 character, note_list = sequence[curr]
                 curr_ngram.append(character)
+                curr_map.append(note_list)
                 curr = curr + 1
 
-        return all_ngrams
+        return all_ngrams, all_maps
 
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 
@@ -67,14 +72,12 @@ sequence = []
 for part in analyzer.score.recurse().getElementsByClass('Part'):
     sequence = sequence + analyzer.to_sequence(part.id, MotifAnalyzer.note_func)
 
-ngrams = analyzer.generate_all_ngrams(4, sequence)
+ngrams, maps = analyzer.generate_all_ngrams(4, sequence)
 
 maximum_ngram = max(ngrams, key=ngrams.get)
 
-print(maximum_ngram)
+for ngram_grouped_notes in maps[maximum_ngram]:
+    for ngram_note in ngram_grouped_notes:
+        ngram_note.style.color = '#FF0000'
 
-# for ngram_grouped_notes in ngrams_to_note[maximum_ngram]:
-#     for ngram_notes in ngram_grouped_notes:
-#         ngram_notes.style.color = '#FF0000'
-
-# analyzer.score.show()
+analyzer.score.show()
