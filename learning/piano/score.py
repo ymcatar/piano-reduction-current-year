@@ -1,5 +1,4 @@
-import music21
-from music21 import layout, meter, note, stream
+from music21 import converter, layout, meter, note, stream
 import numpy
 from collections import defaultdict
 from itertools import count
@@ -109,3 +108,16 @@ class ScoreObject(object):
         self.voices_by_part = []
         for part in result.parts:
             self.voices_by_part.append(_group_by_voices(part))
+
+    @classmethod
+    def from_file(cls, fp, *args, **kwargs):
+        '''
+        Create a ScoreObject from a file. Uses music21.converter.parseFile to
+        do so.
+        '''
+        score = converter.parseFile(fp, *args, **kwargs)
+
+        # Make sure the file is not something else, e.g. an Opus
+        assert isinstance(score, stream.Score), 'File is not a single score!'
+
+        return cls(score)
