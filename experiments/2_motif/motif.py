@@ -3,6 +3,13 @@
 import music21
 import os
 
+# static_var decorator
+def static_var(varname, value):
+    def decorate(func):
+        setattr(func, varname, value)
+        return func
+    return decorate
+
 class MotifAnalyzer(object):
 
     def __init__(self, filepath):
@@ -10,7 +17,12 @@ class MotifAnalyzer(object):
         self.score = music21.converter.parse(filepath)
 
     @staticmethod
-    def note_func(result, prev_note, curr_note, next_note):
+    @static_var("note_list_length", 3)
+    def note_func(result, note_list):
+        prev_note, curr_note, next_note = note_list
+        if prev_note is None or next_note is None:
+            return result
+
         # merge rest together as a single rest
         if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
             return result
@@ -25,18 +37,20 @@ class MotifAnalyzer(object):
         curr_part = self.score.getElementById(partId)
         result = []
 
-        curr_trigram = [ item for item in curr_part.recurse().getElementsByClass(('Note', 'Rest')) ]
+        curr_ngram = [ item for item in curr_part.recurse().getElementsByClass(('Note', 'Rest')) ]
 
-        while len(curr_trigram) >= 3:
-            prev_note, curr_note, next_note = curr_trigram[0:3]
-            result = func(result, prev_note, curr_note, next_note)
-            curr_trigram.pop(0)
+        while len(curr_ngram) >= func.note_list_length:
+            result = func(result, curr_ngram[0:func.note_list_length])
+            curr_ngram.pop(0)
 
         # tail case
-        if len(curr_trigram) == 2:
-            result = func(result, curr_trigram[0], curr_trigram[1], None)
-        elif len(curr_trigram) == 1:
-            result = func(result, curr_trigram[0], None, None)
+        while len(curr_ngram) != 0 and len(curr_ngram) < func.note_list_length:
+            curr_ngram.append(None)
+
+        while len(curr_ngram) != 0 and curr_ngram[0] is not None:
+            result = func(result, curr_ngram[0:func.note_list_length])
+            curr_ngram.pop(0)
+            curr_ngram.append(None)
 
         return result
 
