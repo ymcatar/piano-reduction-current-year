@@ -54,7 +54,7 @@ class Reducer(object):
             output_score_objs = [output_score_objs]
 
         for input, output in zip(input_score_objs, output_score_objs):
-            mark_alignment(input.score, output.score, ignore_parts=True)
+            mark_alignment(input.score, output.score)
 
         note_count = sum(1 for _ in self.iter_notes(input_score_objs))
         y = np.fromiter((n.editorial.misc['align']
