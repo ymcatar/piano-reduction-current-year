@@ -10,89 +10,40 @@ class MotifAnalyzer(object):
         self.score = music21.converter.parse(filepath)
 
     @staticmethod
-    def intervalFunc(result, prev_note, curr_note):
-        prev_is_note = isinstance(prev_note, music21.note.Note)
+    def note_func(result, curr_note):
         curr_is_note = isinstance(curr_note, music21.note.Note)
-        new_item = None
-        if prev_is_note and curr_is_note:
-            if prev_note.pitch == curr_note.pitch:
-                new_item = '='
-            else:
-                new_item = '<' if prev_note.pitch < curr_note.pitch else '>'
-        elif prev_is_note:
-            new_item = 'N'
-        elif curr_is_note:
+        new_item = curr_note.name
+        if new_item == 'rest':
             new_item = 'R'
-        return result + [(new_item, prev_note, curr_note)] \
+        return result + [(new_item, curr_note)] \
+             if new_item is not None else result
+
+    @staticmethod
+    def rhythm_func(result, curr_note):
+        curr_is_note = isinstance(curr_note, music21.note.Note)
+        new_item = str(curr_note.duration.quarterLength)
+        return result + [(new_item, curr_note)] \
             if new_item is not None else result
 
-    def generate_part_step(self, partId, func):
+    @staticmethod
+    def test_func(result, curr_note):
+        curr_is_note = isinstance(curr_note, music21.note.Note)
+        new_item = curr_note.name
+        if new_item == 'rest':
+            new_item = 'R'
+        new_item = new_item + str(curr_note.duration.quarterLength)
+        return result + [(new_item, curr_note)] \
+            if new_item is not None else result
+
+    def to_string(self, partId, func):
         curr_part = self.score.getElementById(partId)
-        prev_note = None
         result = []
-        for note in curr_part.recurse().getElementsByClass(('Note', 'Rest')):
-            result = func(result, prev_note, note)
-            prev_note = note
+        for curr_note in curr_part.recurse().getElementsByClass(('Note', 'Rest')):
+            result = func(result, curr_note)
         return result
-
-    def generate_part_interval_step(self, partId):
-        return self.generate_part_step(partId, MotifAnalyzer.intervalFunc)
-
-    def get_motif_from_step(self, step):
-        max_result = []
-        for length in range(3, 16):
-            temp_kmers = {}
-            for i in range(0, len(step) - length):
-                index = [s[0] for s in step[i:i+length]]
-
-                # if list only have R and N, unlikely to be motif => remove
-                if all(i in 'RN' for i in index):
-                    continue
-
-                index = ','.join(index)
-                if index not in temp_kmers:
-                    temp_kmers[index] = []
-                temp_kmers[index].append(i)
-
-            maximum = 0
-            maximum_indices = []
-            for pattern, indices in temp_kmers.items():
-                if len(indices) * len(pattern) / 2 == maximum: # do this to favour longer motif
-                    maximum_indices = maximum_indices + indices
-                elif len(indices) * len(pattern) / 2 > maximum:
-                    maximum_indices = indices
-                    maximum = len(indices) * len(pattern) / 2
-            max_result.append((length, maximum, maximum_indices))
-
-        result = max_result[0]
-        for item in max_result:
-            length, freq, indices = item
-            if freq > result[1]:
-                result = item
-
-        length, freq, indices = result
-        return (length, indices)
-
-
 
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 
 for part in analyzer.score.recurse().getElementsByClass('Part'):
-    step = analyzer.generate_part_interval_step(part.id)
-    motif_length, motif_indices = analyzer.get_motif_from_step(step)
-
-    motiffs = ([ [ step[j] for j in range(i, i + motif_length) ] for i in motif_indices ])
-    result = []
-    for motif in motiffs:
-        temp = [ motif[0][1] ]
-        for i in motif:
-            temp.append(i[2])
-        result.append(temp)
-
-    for motif in result:
-        for note in motif:
-            note.style.color = '#FF0000'
-
-analyzer.score.show()
-
-
+    string = analyzer.to_string(part.id, MotifAnalyzer.test_func)
+    print(' '.join(item[0] for item in string))
