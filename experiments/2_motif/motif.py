@@ -11,68 +11,70 @@ class MotifAnalyzer(object):
 
     @staticmethod
     def note_func(result, prev_note, curr_note, next_note):
-        curr_is_note = isinstance(curr_note, music21.note.Note)
+        # merge rest together as a single rest
+        if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
+            return result
+
         new_item = curr_note.name
-        if new_item == 'rest':
+        if curr_note.name == 'rest':
             new_item = 'R'
-        return result + [(new_item, curr_note)] \
-             if new_item is not None else result
 
-    @staticmethod
-    def rhythm_func(result, prev_note, curr_note, next_note):
-        curr_is_note = isinstance(curr_note, music21.note.Note)
-        new_item = str(curr_note.duration.quarterLength)
-        return result + [(new_item, curr_note)] \
-            if new_item is not None else result
+        return result + [(new_item, [curr_note])]
 
-    @staticmethod
-    def test_func(result, prev_note, curr_note, next_note):
-        curr_is_note = isinstance(curr_note, music21.note.Note)
-        new_item = curr_note.name
-        if new_item == 'rest':
-            new_item = 'R'
-        new_item = new_item + str(curr_note.duration.quarterLength)
-        return result + [(new_item, curr_note)] \
-            if new_item is not None else result
-
-    def to_string(self, partId, func):
+    def to_sequence(self, partId, func):
         curr_part = self.score.getElementById(partId)
         result = []
 
-        iterator = curr_part.recurse().getElementsByClass(('Note', 'Rest'))
+        curr_trigram = [ item for item in curr_part.recurse().getElementsByClass(('Note', 'Rest')) ]
 
-        prev_note = iterator[0]
-        next_note = iterator[1]
-        for i in range(0, len(iterator) - 1):
-            curr_note = iterator[i]
+        while len(curr_trigram) >= 3:
+            prev_note, curr_note, next_note = curr_trigram[0:3]
             result = func(result, prev_note, curr_note, next_note)
-            prev_note = curr_note
-            curr_note = next_note
-            next_note = iterator[i + 1]
+            curr_trigram.pop(0)
+
+        # tail case
+        if len(curr_trigram) == 2:
+            result = func(result, curr_trigram[0], curr_trigram[1], None)
+        elif len(curr_trigram) == 1:
+            result = func(result, curr_trigram[0], None, None)
+
         return result
 
-    def generate_all_ngrams(self, length, tokens):
-        results = {}
-        ngram_temp = []
+    def generate_all_ngrams(self, length, sequence):
+        curr_ngram, all_ngrams = ([], {})
+
         curr = 0
         while True:
-            if len(ngram_temp) == length:
-                result = '_'.join(ngram_temp)
-                if result in results:
-                    results[result] = results[result] + 1
+            if len(curr_ngram) == length:
+                frozen_ngram = ';'.join(curr_ngram)
+                if frozen_ngram in all_ngrams:
+                    all_ngrams[frozen_ngram] = all_ngrams[frozen_ngram] + 1
                 else:
-                    results[result] = 1
-                ngram_temp.pop()
+                    all_ngrams[frozen_ngram] = 1
+                curr_ngram.pop(0)
             else:
-                if curr >= len(tokens):
+                if curr >= len(sequence):
                     break
-                ngram_temp.append(tokens[curr][0])
+                character, note_list = sequence[curr]
+                curr_ngram.append(character)
                 curr = curr + 1
-        return results
 
+        return all_ngrams
 
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 
+sequence = []
 for part in analyzer.score.recurse().getElementsByClass('Part'):
-    string = analyzer.to_string(part.id, MotifAnalyzer.test_func)
-    # print(string)
+    sequence = sequence + analyzer.to_sequence(part.id, MotifAnalyzer.note_func)
+
+ngrams = analyzer.generate_all_ngrams(4, sequence)
+
+maximum_ngram = max(ngrams, key=ngrams.get)
+
+print(maximum_ngram)
+
+# for ngram_grouped_notes in ngrams_to_note[maximum_ngram]:
+#     for ngram_notes in ngram_grouped_notes:
+#         ngram_notes.style.color = '#FF0000'
+
+# analyzer.score.show()
