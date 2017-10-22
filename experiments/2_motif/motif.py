@@ -47,13 +47,20 @@ class MotifAnalyzer(object):
         return result + [(new_item, [curr_note])]
 
     @staticmethod
-    def simple_score_func(ngram, freq):
+    def simple_note_score_func(ngram, freq):
         ngram_chars = ngram.split(';')
         score = freq * len(ngram_chars)
         # if the ngram only have one unique character
         if ngram_chars.count(ngram_chars[0]) == len(ngram_chars):
-            score = score / len(ngram_chars) / 2
-        return score
+            return score / len(ngram_chars) / 2
+        # motif should not start/end with Rest
+        elif ngram_chars[0] == 'R' or ngram_chars[-1] == 'R':
+            return -1
+        # extreme: motif should not have a Rest
+        elif 'R' in ngram_chars:
+            return -1
+        else:
+            return score
 
     def to_sequence(self, part_id, sequence_func):
         curr_ngram = [
@@ -142,7 +149,7 @@ analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_
 max_grams = analyzer.analyze_top_motif(
     10,
     MotifAnalyzer.note_sequence_func,
-    MotifAnalyzer.simple_score_func
+    MotifAnalyzer.simple_note_score_func
 )
 
 print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
