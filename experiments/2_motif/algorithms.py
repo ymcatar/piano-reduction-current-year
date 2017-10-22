@@ -64,7 +64,10 @@ class MotifAnalyzerAlgorithms(object):
         prev_is_rest = isinstance(prev_note, music21.note.Rest)
         curr_is_rest = isinstance(curr_note, music21.note.Rest)
         if not prev_is_rest and not curr_is_rest:
-            new_item = str(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
+            if prev_note.duration.quarterLength - 0.0 < 1e-2:
+                new_item = 'R'
+            else:
+                new_item = '{0:.2f}'.format(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
         else:
             new_item = 'R'
         return [(new_item, [prev_note, curr_note])]
@@ -86,11 +89,10 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def simple_note_score_func(ngram, freq, maps):
         ngram_chars = ngram.split(';')
-        score = freq * len(ngram_chars)
+        score = freq * math.sqrt(len(ngram_chars))
         # extreme: motif should not have a Rest
         if 'R' in ngram_chars:
             score = -1
-
         return score
 
     @staticmethod
