@@ -84,15 +84,9 @@ class MotifAnalyzerAlgorithms(object):
         return [(new_item, [curr_note])]
 
     @staticmethod
-    def simple_note_score_func(ngram, freq):
+    def simple_note_score_func(ngram, freq, maps):
         ngram_chars = ngram.split(';')
         score = freq * len(ngram_chars)
-        # if the ngram only have one unique character
-        if ngram_chars.count(ngram_chars[0]) == len(ngram_chars):
-            score = score * len(ngram_chars) / 2
-        # # motif should not start/end with Rest
-        # elif ngram_chars[0] == 'R' or ngram_chars[-1] == 'R':
-        #     return -1
         # extreme: motif should not have a Rest
         if 'R' in ngram_chars:
             score = -1
@@ -100,7 +94,7 @@ class MotifAnalyzerAlgorithms(object):
         return score
 
     @staticmethod
-    def entropy_note_score_func(ngram, freq):
+    def entropy_note_score_func(ngram, freq, maps):
         ngram_chars = ngram.split(';')
         probabilities = { item: ngram_chars.count(item) / len(ngram_chars) for item in ngram_chars}
         probs = np.array(list(probabilities.values()))
