@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import music21
+import os
 import sys
 
 from algorithms import MotifAnalyzerAlgorithms
@@ -106,23 +107,45 @@ class MotifAnalyzer(object):
 
         return max_ngrams
 
-if len(sys.argv) != 2:
-    print("Usage: $0 [path of the input MusicXML file]")
+if len(sys.argv) != 3:
+    print("Usage: $0 [path of the input MusicXML file] [output path]")
     exit()
 
-analyzer = MotifAnalyzer(sys.argv[1])
+sequence_funcs = {
+    'noteSequence': MotifAnalyzerAlgorithms.note_sequence_func,
+    'rhythmSequence': MotifAnalyzerAlgorithms.rhythm_sequence_func,
+    'noteTransitionSequence': MotifAnalyzerAlgorithms.note_transition_sequence_func,
+    'rhythmTransitionSequence': MotifAnalyzerAlgorithms.rhythm_transition_sequence_func
+}
 
-# rhythm transition motif ------------------------------------------------------
-max_grams = analyzer.analyze_top_motif(
-    30,
-    MotifAnalyzerAlgorithms.note_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func
-)
+score_funcs = {
+    'simpleNote': MotifAnalyzerAlgorithms.simple_note_score_func,
+    'entropyNote': MotifAnalyzerAlgorithms.entropy_note_score_func
+}
 
-print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
+output_path = sys.argv[2]
+filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
 
-for max_gram in max_grams:
-    _, _, motif_note_ids = max_gram
-    for grouped_note_ids in motif_note_ids:
-        for note_id in grouped_note_ids:
-            analyzer.note_map[note_id].style.color = '#FF0000'
+for curr_sequence_func_name, curr_sequence_func in sequence_funcs.items():
+    for curr_score_func_name, curr_score_func in score_funcs.items():
+        analyzer = MotifAnalyzer(sys.argv[1])
+        max_grams = analyzer.analyze_top_motif(
+            1,
+            curr_sequence_func,
+            curr_score_func
+        )
+        print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
+
+        for max_gram in max_grams:
+            _, _, motif_note_ids = max_gram
+            for grouped_note_ids in motif_note_ids:
+                for note_id in grouped_note_ids:
+                    analyzer.note_map[note_id].style.color = '#FF0000'
+
+        analyzer.score.write(
+            'musicxml',
+            os.path.join(
+                output_path,
+                filename + '_' + curr_sequence_func_name + '_' + curr_score_func_name + '.xml'
+            )
+        )
