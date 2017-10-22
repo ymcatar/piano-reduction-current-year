@@ -34,6 +34,26 @@ class MotifAnalyzer(object):
 
     @staticmethod
     @static_var("note_list_length", 3)
+    def note_transition_sequence_func(result, note_list):
+        prev_note, curr_note, next_note = note_list
+        # we process iff the reading frame all have notes
+        if prev_note is None or curr_note is None or next_note is None:
+            return result
+        # merge rest together as a single rest
+        if curr_note.name == 'rest' and next_note.name == 'rest':
+            return result
+        # record the transition of note
+        new_item = None
+        prev_is_rest = isinstance(prev_note, music21.note.Rest)
+        curr_is_rest = isinstance(curr_note, music21.note.Rest)
+        if not prev_is_rest and not curr_is_rest:
+            new_item = str(curr_note.pitch.ps - prev_note.pitch.ps)
+        else:
+            new_item = 'R'
+        return result + [(new_item, [prev_note, curr_note])]
+
+    @staticmethod
+    @static_var("note_list_length", 3)
     def rhythm_sequence_func(result, note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
@@ -52,15 +72,15 @@ class MotifAnalyzer(object):
         score = freq * len(ngram_chars)
         # if the ngram only have one unique character
         if ngram_chars.count(ngram_chars[0]) == len(ngram_chars):
-            return score / len(ngram_chars) / 2
-        # motif should not start/end with Rest
-        elif ngram_chars[0] == 'R' or ngram_chars[-1] == 'R':
-            return -1
+            score = score / len(ngram_chars) / 2
+        # # motif should not start/end with Rest
+        # elif ngram_chars[0] == 'R' or ngram_chars[-1] == 'R':
+        #     return -1
         # extreme: motif should not have a Rest
-        elif 'R' in ngram_chars:
-            return -1
-        else:
-            return score
+        if 'R' in ngram_chars:
+            score = -1
+
+        return score
 
     def to_sequence(self, part_id, sequence_func):
         curr_ngram = [
@@ -138,18 +158,21 @@ class MotifAnalyzer(object):
             max_ngrams.append((ngrams[curr_max_ngram], curr_max_ngram, maps[curr_max_ngram]))
 
         return max_ngrams
-        # for ngram_grouped_notes in maps[maximum_ngram]:
-        #     for ngram_note in ngram_grouped_notes:
-        #         ngram_note.style.color = '#FF0000'
-
-        # self.score.show()
 
 
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 max_grams = analyzer.analyze_top_motif(
-    10,
-    MotifAnalyzer.note_sequence_func,
+    1,
+    MotifAnalyzer.note_transition_sequence_func,
     MotifAnalyzer.simple_note_score_func
 )
 
 print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
+
+for max_gram in max_grams:
+    score, sequence, notes = max_gram
+    for grouped_note in notes:
+        for note in grouped_note:
+            note.style.color = '#FF0000'
+
+analyzer.score.show()
