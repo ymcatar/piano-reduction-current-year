@@ -31,7 +31,7 @@ class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
     @static_var("note_list_length", 3)
-    def note_transition_sequence_func(result, note_list):
+    def note_transition_sequence_func(note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
         if prev_note is None or curr_note is None or next_note is None:
