@@ -18,37 +18,61 @@ class MotifAnalyzer(object):
 
     @staticmethod
     @static_var("note_list_length", 3)
-    def note_func(result, note_list):
+    def note_sequence_func(result, note_list):
         prev_note, curr_note, next_note = note_list
-        if prev_note is None or next_note is None:
+        # we process iff the reading frame all have notes
+        if prev_note is None or curr_note is None or next_note is None:
             return result
-
         # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
+        if curr_note.name == 'rest' and next_note.name == 'rest':
             return result
-
+        # use the note name as the sequence character
         new_item = curr_note.name
         if curr_note.name == 'rest':
             new_item = 'R'
-
         return result + [(new_item, [curr_note])]
 
-    def to_sequence(self, partId, func):
-        curr_part = self.score.getElementById(partId)
+    @staticmethod
+    @static_var("note_list_length", 3)
+    def rhythm_sequence_func(result, note_list):
+        prev_note, curr_note, next_note = note_list
+        # we process iff the reading frame all have notes
+        if prev_note is None or curr_note is None or next_note is None:
+            return result
+        # merge rest together as a single rest
+        if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
+            return result
+        # use the note duration length as the sequence character
+        new_item = str(curr_note.duration.quarterLength)
+        return result + [(new_item, [curr_note])]
+
+    @staticmethod
+    def simple_score_func(ngram, freq):
+        ngram_chars = ngram.split(';')
+        score = freq * len(ngram_chars)
+        # if the ngram only have one unique character
+        if ngram_chars.count(ngram_chars[0]) == len(ngram_chars):
+            score = score / len(ngram_chars) / 2
+        return score
+
+    def to_sequence(self, part_id, sequence_func):
+        curr_ngram = [
+            item for item in self.score.getElementById(part_id)  \
+            .recurse().getElementsByClass(('Note', 'Rest')) \
+        ]
+
         result = []
 
-        curr_ngram = [ item for item in curr_part.recurse().getElementsByClass(('Note', 'Rest')) ]
-
-        while len(curr_ngram) >= func.note_list_length:
-            result = func(result, curr_ngram[0:func.note_list_length])
+        while len(curr_ngram) >= sequence_func.note_list_length:
+            result = sequence_func(result, curr_ngram[0:sequence_func.note_list_length])
             curr_ngram.pop(0)
 
         # tail case
-        while len(curr_ngram) != 0 and len(curr_ngram) < func.note_list_length:
+        while len(curr_ngram) != 0 and len(curr_ngram) < sequence_func.note_list_length:
             curr_ngram.append(None)
-
+        # populate None until all Note passed to sequence_func
         while len(curr_ngram) != 0 and curr_ngram[0] is not None:
-            result = func(result, curr_ngram[0:func.note_list_length])
+            result = sequence_func(result, curr_ngram[0:sequence_func.note_list_length])
             curr_ngram.pop(0)
             curr_ngram.append(None)
 
@@ -80,18 +104,45 @@ class MotifAnalyzer(object):
 
         return all_ngrams, all_maps
 
+    def score_all_ngrams(self, all_ngrams, score_func):
+        for key, value in all_ngrams.items():
+            all_ngrams[key] = score_func(key, value)
+        return all_ngrams
+
+    def analyze_top_motif(self, max_count, sequence_func, score_func):
+        sequence = []
+        for part in self.score.recurse().getElementsByClass('Part'):
+            sequence = sequence + self.to_sequence(part.id, sequence_func)
+
+        ngrams, maps = ({}, {})
+
+        for i in range(3, 10):
+            curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
+            curr_ngrams = self.score_all_ngrams(curr_ngrams, score_func)
+
+            ngrams = { **ngrams, **curr_ngrams }
+            maps = { ** maps, ** curr_maps }
+
+        max_ngrams = []
+        temp_ngrams = ngrams.copy()
+        for i in range(0, max_count):
+            curr_max_ngram = max(temp_ngrams, key=temp_ngrams.get)
+            temp_ngrams.pop(curr_max_ngram)
+            max_ngrams.append((ngrams[curr_max_ngram], curr_max_ngram, maps[curr_max_ngram]))
+
+        return max_ngrams
+        # for ngram_grouped_notes in maps[maximum_ngram]:
+        #     for ngram_note in ngram_grouped_notes:
+        #         ngram_note.style.color = '#FF0000'
+
+        # self.score.show()
+
+
 analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
+max_grams = analyzer.analyze_top_motif(
+    10,
+    MotifAnalyzer.note_sequence_func,
+    MotifAnalyzer.simple_score_func
+)
 
-sequence = []
-for part in analyzer.score.recurse().getElementsByClass('Part'):
-    sequence = sequence + analyzer.to_sequence(part.id, MotifAnalyzer.note_func)
-
-ngrams, maps = analyzer.generate_all_ngrams(4, sequence)
-
-maximum_ngram = max(ngrams, key=ngrams.get)
-
-for ngram_grouped_notes in maps[maximum_ngram]:
-    for ngram_note in ngram_grouped_notes:
-        ngram_note.style.color = '#FF0000'
-
-analyzer.score.show()
+print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
