@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import music21
-import os
+import sys
 import math
 import numpy as np
 
@@ -173,20 +173,23 @@ class MotifAnalyzer(object):
 
         return max_ngrams
 
+if len(sys.argv) != 2:
+    print("Usage: $0 [path of the input MusicXML file]")
+    exit()
 
-analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
+analyzer = MotifAnalyzer(sys.argv[1])
 max_grams = analyzer.analyze_top_motif(
-    10,
-    MotifAnalyzer.note_transition_sequence_func,
-    MotifAnalyzer.entropy_note_score_func
+    1,
+    MotifAnalyzer.note_sequence_func,
+    MotifAnalyzer.simple_note_score_func
 )
 
 print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
 
-# for max_gram in max_grams:
-#     score, sequence, notes = max_gram
-#     for grouped_note in notes:
-#         for note in grouped_note:
-#             note.style.color = '#FF0000'
+for max_gram in max_grams:
+    score, sequence, notes = max_gram
+    for grouped_note in notes:
+        for note in grouped_note:
+            note.style.color = '#FF0000'
 
-# analyzer.score.show()
+analyzer.score.show()
