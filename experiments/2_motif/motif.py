@@ -21,7 +21,14 @@ class MotifAnalyzer(object):
         result = []
 
         while len(curr_ngram) >= sequence_func.note_list_length:
-            result.extend(sequence_func(curr_ngram[0:sequence_func.note_list_length]))
+            new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
+            for key, item in enumerate(new_items):
+                character, note_list = item
+                for note in note_list:
+                    if id(note) not in self.note_map:
+                        self.note_map[id(note)] = note
+                new_items[key] = (character, [ id(note) for note in note_list ])
+            result.extend(new_items)
             curr_ngram.pop(0)
 
         # tail case
@@ -30,7 +37,14 @@ class MotifAnalyzer(object):
 
         # tail case: populate None until all Note passed to sequence_func
         while len(curr_ngram) != 0 and curr_ngram[0] is not None:
-            result.extend(sequence_func(curr_ngram[0:sequence_func.note_list_length]))
+            new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
+            for key, item in enumerate(new_items):
+                character, note_list = item
+                for note in note_list:
+                    if id(note) not in self.note_map:
+                        self.note_map[id(note)] = note
+                new_items[key] = (character, [ id(note) for note in note_list ])
+            result.extend(new_items)
             curr_ngram.pop(0)
             curr_ngram.append(None)
 
@@ -101,12 +115,14 @@ max_grams = analyzer.analyze_top_motif(
     MotifAnalyzerAlgorithms.entropy_note_score_func
 )
 
-print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
+print("Score\t\t\tSequence")
+print("=====\t\t\t=======")
+print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
 
-# for max_gram in max_grams:
-#     score, sequence, notes = max_gram
-#     for grouped_note in notes:
-#         for note in grouped_note:
-#             note.style.color = '#FF0000'
+for max_gram in max_grams:
+    _, _, motif_note_ids = max_gram
+    for grouped_note_ids in motif_note_ids:
+        for note_id in grouped_note_ids:
+            analyzer.note_map[note_id].style.color = '#FF0000'
 
 # analyzer.score.show()
