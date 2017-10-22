@@ -15,19 +15,19 @@ class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
     @static_var("note_list_length", 3)
-    def note_sequence_func(result, note_list):
+    def note_sequence_func(note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
         if prev_note is None or curr_note is None or next_note is None:
-            return result
+            return []
         # merge rest together as a single rest
         if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
+            return []
         # use the note name as the sequence character
         new_item = curr_note.name
         if curr_note.name == 'rest':
             new_item = 'R'
-        return result + [(new_item, [curr_note])]
+        return [(new_item, [curr_note])]
 
     @staticmethod
     @static_var("note_list_length", 3)
@@ -35,10 +35,10 @@ class MotifAnalyzerAlgorithms(object):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
         if prev_note is None or curr_note is None or next_note is None:
-            return result
+            return []
         # merge rest together as a single rest
         if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
+            return []
         # record the transition of note
         new_item = None
         prev_is_rest = isinstance(prev_note, music21.note.Rest)
@@ -47,18 +47,18 @@ class MotifAnalyzerAlgorithms(object):
             new_item = str(curr_note.pitch.ps - prev_note.pitch.ps)
         else:
             new_item = 'R'
-        return result + [(new_item, [curr_note])]
+        return [(new_item, [curr_note])]
 
     @staticmethod
     @static_var("note_list_length", 3)
-    def rhythm_transition_sequence_func(result, note_list):
+    def rhythm_transition_sequence_func(note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
         if prev_note is None or curr_note is None or next_note is None:
-            return result
+            return []
         # merge rest together as a single rest
         if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
+            return []
         # record the transition of note
         new_item = None
         prev_is_rest = isinstance(prev_note, music21.note.Rest)
@@ -67,21 +67,21 @@ class MotifAnalyzerAlgorithms(object):
             new_item = str(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
         else:
             new_item = 'R'
-        return result + [(new_item, [prev_note, curr_note])]
+        return [(new_item, [prev_note, curr_note])]
 
     @staticmethod
     @static_var("note_list_length", 3)
-    def rhythm_sequence_func(result, note_list):
+    def rhythm_sequence_func(note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
         if prev_note is None or curr_note is None or next_note is None:
-            return result
+            return []
         # merge rest together as a single rest
         if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
-            return result
+            return []
         # use the note duration length as the sequence character
         new_item = str(curr_note.duration.quarterLength)
-        return result + [(new_item, [curr_note])]
+        return [(new_item, [curr_note])]
 
     @staticmethod
     def simple_note_score_func(ngram, freq):

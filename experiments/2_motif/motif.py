@@ -21,7 +21,7 @@ class MotifAnalyzer(object):
         result = []
 
         while len(curr_ngram) >= sequence_func.note_list_length:
-            result = sequence_func(result, curr_ngram[0:sequence_func.note_list_length])
+            result.extend(sequence_func(curr_ngram[0:sequence_func.note_list_length]))
             curr_ngram.pop(0)
 
         # tail case
@@ -30,7 +30,7 @@ class MotifAnalyzer(object):
 
         # tail case: populate None until all Note passed to sequence_func
         while len(curr_ngram) != 0 and curr_ngram[0] is not None:
-            result = sequence_func(result, curr_ngram[0:sequence_func.note_list_length])
+            result.extend(sequence_func(curr_ngram[0:sequence_func.note_list_length]))
             curr_ngram.pop(0)
             curr_ngram.append(None)
 
@@ -62,10 +62,10 @@ class MotifAnalyzer(object):
 
         return all_ngrams, all_maps
 
-    def score_all_ngrams(self, all_ngrams, score_func):
-        for key, value in all_ngrams.items():
-            all_ngrams[key] = score_func(key, value)
-        return all_ngrams
+    def score_ngrams(self, ngrams, maps, score_func):
+        for key, value in ngrams.items():
+            ngrams[key] = score_func(key, value)
+        return ngrams
 
     def analyze_top_motif(self, max_count, sequence_func, score_func):
         sequence = []
@@ -76,7 +76,7 @@ class MotifAnalyzer(object):
 
         for i in range(3, 10):
             curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
-            curr_ngrams = self.score_all_ngrams(curr_ngrams, score_func)
+            curr_ngrams = self.score_ngrams(curr_ngrams, curr_maps, score_func)
 
             ngrams = { **ngrams, **curr_ngrams }
             maps = { ** maps, ** curr_maps }
