@@ -56,6 +56,26 @@ class MotifAnalyzer(object):
 
     @staticmethod
     @static_var("note_list_length", 3)
+    def rhythm_transition_sequence_func(result, note_list):
+        prev_note, curr_note, next_note = note_list
+        # we process iff the reading frame all have notes
+        if prev_note is None or curr_note is None or next_note is None:
+            return result
+        # merge rest together as a single rest
+        if curr_note.name == 'rest' and next_note.name == 'rest':
+            return result
+        # record the transition of note
+        new_item = None
+        prev_is_rest = isinstance(prev_note, music21.note.Rest)
+        curr_is_rest = isinstance(curr_note, music21.note.Rest)
+        if not prev_is_rest and not curr_is_rest:
+            new_item = str(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
+        else:
+            new_item = 'R'
+        return result + [(new_item, [prev_note, curr_note])]
+
+    @staticmethod
+    @static_var("note_list_length", 3)
     def rhythm_sequence_func(result, note_list):
         prev_note, curr_note, next_note = note_list
         # we process iff the reading frame all have notes
@@ -89,7 +109,7 @@ class MotifAnalyzer(object):
         ngram_chars = ngram.split(';')
         probabilities = { item: ngram_chars.count(item) / len(ngram_chars) for item in ngram_chars}
         probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq
+        score = - probs.dot(np.log2(probs)) * freq * math.sqrt(len(ngram_chars))
 
         if 'R' in ngram_chars:
             score = -1
@@ -179,9 +199,9 @@ if len(sys.argv) != 2:
 
 analyzer = MotifAnalyzer(sys.argv[1])
 max_grams = analyzer.analyze_top_motif(
-    1,
-    MotifAnalyzer.note_sequence_func,
-    MotifAnalyzer.simple_note_score_func
+    10,
+    MotifAnalyzer.rhythm_transition_sequence_func,
+    MotifAnalyzer.entropy_note_score_func
 )
 
 print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
