@@ -2,119 +2,15 @@
 
 import music21
 import sys
-import math
-import numpy as np
 
-# static_var decorator
-def static_var(varname, value):
-    def decorate(func):
-        setattr(func, varname, value)
-        return func
-    return decorate
+from algorithms import MotifAnalyzerAlgorithms
 
 class MotifAnalyzer(object):
 
     def __init__(self, filepath):
         self.filepath = filepath
         self.score = music21.converter.parse(filepath)
-
-    @staticmethod
-    @static_var("note_list_length", 3)
-    def note_sequence_func(result, note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return result
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
-        # use the note name as the sequence character
-        new_item = curr_note.name
-        if curr_note.name == 'rest':
-            new_item = 'R'
-        return result + [(new_item, [curr_note])]
-
-    @staticmethod
-    @static_var("note_list_length", 3)
-    def note_transition_sequence_func(result, note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return result
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
-        # record the transition of note
-        new_item = None
-        prev_is_rest = isinstance(prev_note, music21.note.Rest)
-        curr_is_rest = isinstance(curr_note, music21.note.Rest)
-        if not prev_is_rest and not curr_is_rest:
-            new_item = str(curr_note.pitch.ps - prev_note.pitch.ps)
-        else:
-            new_item = 'R'
-        return result + [(new_item, [prev_note, curr_note])]
-
-    @staticmethod
-    @static_var("note_list_length", 3)
-    def rhythm_transition_sequence_func(result, note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return result
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return result
-        # record the transition of note
-        new_item = None
-        prev_is_rest = isinstance(prev_note, music21.note.Rest)
-        curr_is_rest = isinstance(curr_note, music21.note.Rest)
-        if not prev_is_rest and not curr_is_rest:
-            new_item = str(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
-        else:
-            new_item = 'R'
-        return result + [(new_item, [prev_note, curr_note])]
-
-    @staticmethod
-    @static_var("note_list_length", 3)
-    def rhythm_sequence_func(result, note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return result
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
-            return result
-        # use the note duration length as the sequence character
-        new_item = str(curr_note.duration.quarterLength)
-        return result + [(new_item, [curr_note])]
-
-    @staticmethod
-    def simple_note_score_func(ngram, freq):
-        ngram_chars = ngram.split(';')
-        score = freq * len(ngram_chars)
-        # if the ngram only have one unique character
-        if ngram_chars.count(ngram_chars[0]) == len(ngram_chars):
-            score = score * len(ngram_chars) / 2
-        # # motif should not start/end with Rest
-        # elif ngram_chars[0] == 'R' or ngram_chars[-1] == 'R':
-        #     return -1
-        # extreme: motif should not have a Rest
-        if 'R' in ngram_chars:
-            score = -1
-
-        return score
-
-    @staticmethod
-    def entropy_note_score_func(ngram, freq):
-        ngram_chars = ngram.split(';')
-        probabilities = { item: ngram_chars.count(item) / len(ngram_chars) for item in ngram_chars}
-        probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * math.sqrt(len(ngram_chars))
-
-        if 'R' in ngram_chars:
-            score = -1
-
-        return score
+        self.note_map = {}
 
     def to_sequence(self, part_id, sequence_func):
         curr_ngram = [
@@ -131,7 +27,8 @@ class MotifAnalyzer(object):
         # tail case
         while len(curr_ngram) != 0 and len(curr_ngram) < sequence_func.note_list_length:
             curr_ngram.append(None)
-        # populate None until all Note passed to sequence_func
+
+        # tail case: populate None until all Note passed to sequence_func
         while len(curr_ngram) != 0 and curr_ngram[0] is not None:
             result = sequence_func(result, curr_ngram[0:sequence_func.note_list_length])
             curr_ngram.pop(0)
@@ -200,16 +97,16 @@ if len(sys.argv) != 2:
 analyzer = MotifAnalyzer(sys.argv[1])
 max_grams = analyzer.analyze_top_motif(
     10,
-    MotifAnalyzer.rhythm_transition_sequence_func,
-    MotifAnalyzer.entropy_note_score_func
+    MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func
 )
 
 print('\n'.join(str(item[0]) + ' ' + item[1] for item in max_grams))
 
-for max_gram in max_grams:
-    score, sequence, notes = max_gram
-    for grouped_note in notes:
-        for note in grouped_note:
-            note.style.color = '#FF0000'
+# for max_gram in max_grams:
+#     score, sequence, notes = max_gram
+#     for grouped_note in notes:
+#         for note in grouped_note:
+#             note.style.color = '#FF0000'
 
-analyzer.score.show()
+# analyzer.score.show()
