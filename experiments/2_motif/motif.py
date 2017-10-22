@@ -1,96 +1,128 @@
 #!/usr/bin/env python3
 
 import music21
-import os
+import sys
+
+from algorithms import MotifAnalyzerAlgorithms
 
 class MotifAnalyzer(object):
-    
+
     def __init__(self, filepath):
         self.filepath = filepath
         self.score = music21.converter.parse(filepath)
-    
-    def generate_part_step(self, partId, func):
-        curr_part = self.score.getElementById(partId)
-        prev_note = None
+        self.note_map = {}
+
+    def to_sequence(self, part_id, sequence_func):
+        curr_ngram = [
+            item for item in self.score.getElementById(part_id)  \
+            .recurse().getElementsByClass(('Note', 'Rest')) \
+        ]
+
         result = []
-        for note in curr_part.recurse().getElementsByClass(('Note', 'Rest')):
-            result = func(result, prev_note, note)
-            prev_note = note
+
+        while len(curr_ngram) >= sequence_func.note_list_length:
+            new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
+            for key, item in enumerate(new_items):
+                character, note_list = item
+                for note in note_list:
+                    if id(note) not in self.note_map:
+                        self.note_map[id(note)] = note
+                new_items[key] = (character, [ id(note) for note in note_list ])
+            result.extend(new_items)
+            curr_ngram.pop(0)
+
+        # tail case
+        while len(curr_ngram) != 0 and len(curr_ngram) < sequence_func.note_list_length:
+            curr_ngram.append(None)
+
+        # tail case: populate None until all Note passed to sequence_func
+        while len(curr_ngram) != 0 and curr_ngram[0] is not None:
+            new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
+            for key, item in enumerate(new_items):
+                character, note_list = item
+                for note in note_list:
+                    if id(note) not in self.note_map:
+                        self.note_map[id(note)] = note
+                new_items[key] = (character, [ id(note) for note in note_list ])
+            result.extend(new_items)
+            curr_ngram.pop(0)
+            curr_ngram.append(None)
+
         return result
 
-    def generate_part_interval_step(self, partId):
-        def intervalFunc(result, prev_note, curr_note):
-            prev_is_note = isinstance(prev_note, music21.note.Note)
-            curr_is_note = isinstance(curr_note, music21.note.Note)
-            new_item = None
-            if prev_is_note and curr_is_note:
-                if prev_note.pitch == curr_note.pitch:
-                    new_item = '='
+    def generate_all_ngrams(self, length, sequence):
+        curr_ngram, all_ngrams = ([], {})
+        curr_map, all_maps = ([], {})
+
+        curr = 0
+        while True:
+            if len(curr_ngram) == length:
+                frozen_ngram = ';'.join(curr_ngram)
+                if frozen_ngram in all_ngrams:
+                    all_ngrams[frozen_ngram] = all_ngrams[frozen_ngram] + 1
+                    all_maps[frozen_ngram] = all_maps[frozen_ngram] + curr_map
                 else:
-                    new_item = '<' if prev_note.pitch < curr_note.pitch else '>'
-            elif prev_is_note:
-                new_item = 'N'
-            elif curr_is_note:
-                new_item = 'R'
-            return result + [(new_item, prev_note, curr_note)] \
-                if new_item is not None else result
-        return self.generate_part_step(partId, intervalFunc)
-    
-    def get_motif_from_step(self, step):
-        max_result = []
-        for length in range(3, 8):
-            temp_kmers = {}
-            for i in range(0, len(step) - length):
-                index = list(map(lambda i: i[0], step[i:i+length]))
+                    all_ngrams[frozen_ngram] = 1
+                    all_maps[frozen_ngram] = []
+                curr_ngram.pop(0)
+                curr_map.pop(0)
+            else:
+                if curr >= len(sequence):
+                    break
+                character, note_list = sequence[curr]
+                curr_ngram.append(character)
+                curr_map.append(note_list)
+                curr = curr + 1
 
-                # if list only have R and N, unlikely to be motif => remove
-                if len([i for i in index if i != 'R' and i != 'N']) == 0:
-                    continue
-                
-                index = ','.join(index)
-                if index not in temp_kmers:
-                    temp_kmers[index] = []
-                temp_kmers[index].append(i)
+        return all_ngrams, all_maps
 
-            maximum = 0
-            maximum_indices = []
-            for pattern, indices in temp_kmers.items():
-                if len(indices) * len(pattern) / 2 == maximum: # do this to favour longer motiff
-                    maximum_indices = maximum_indices + indices
-                elif len(indices) * len(pattern) / 2 > maximum:
-                    maximum_indices = indices
-                    maximum = len(indices) * len(pattern) / 2
-            max_result.append((length, maximum, maximum_indices))
+    def score_ngrams(self, ngrams, maps, score_func):
+        for key, value in ngrams.items():
+            ngrams[key] = score_func(key, value, maps[key])
+        return ngrams
 
-        result = max_result[0]
-        for item in max_result:
-            length, freq, indices = item
-            if freq > result[1]:
-                result = item
-        
-        length, freq, indices = result
-        return (length, indices)
-            
-            
-        
-analyzer = MotifAnalyzer(os.getcwd() + '/sample/Beethoven_5th_Symphony_Movement_1.xml')
 
-for part in analyzer.score.recurse().getElementsByClass('Part'):
-    step = analyzer.generate_part_interval_step(part.id)
-    motif_length, motif_indices = analyzer.get_motif_from_step(step)
+    def analyze_top_motif(self, max_count, sequence_func, score_func):
+        sequence = []
+        for part in self.score.recurse().getElementsByClass('Part'):
+            sequence = sequence + self.to_sequence(part.id, sequence_func)
 
-    motiffs = ([ [ step[j] for j in range(i, i + motif_length) ] for i in motif_indices ])
-    result = []
-    for motif in motiffs:
-        temp = [ motif[0][1] ]
-        for i in motif:
-            temp.append(i[2])
-        result.append(temp)
+        ngrams, maps = ({}, {})
 
-    for motif in result:
-        for note in motif:
-            note.style.color = '#FF0000'
+        for i in range(3, 10):
 
-analyzer.score.show()
-    
+            curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
+            curr_ngrams = self.score_ngrams(curr_ngrams, curr_maps, score_func)
 
+            ngrams = { **ngrams, **curr_ngrams }
+            maps = { ** maps, ** curr_maps }
+
+        max_ngrams = []
+        temp_ngrams = ngrams.copy()
+        for i in range(0, max_count):
+            curr_max_ngram = max(temp_ngrams, key=temp_ngrams.get)
+            temp_ngrams.pop(curr_max_ngram)
+            max_ngrams.append((ngrams[curr_max_ngram], curr_max_ngram, maps[curr_max_ngram]))
+
+        return max_ngrams
+
+if len(sys.argv) != 2:
+    print("Usage: $0 [path of the input MusicXML file]")
+    exit()
+
+analyzer = MotifAnalyzer(sys.argv[1])
+
+# rhythm transition motif ------------------------------------------------------
+max_grams = analyzer.analyze_top_motif(
+    30,
+    MotifAnalyzerAlgorithms.note_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func
+)
+
+print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
+
+for max_gram in max_grams:
+    _, _, motif_note_ids = max_gram
+    for grouped_note_ids in motif_note_ids:
+        for note_id in grouped_note_ids:
+            analyzer.note_map[note_id].style.color = '#FF0000'
