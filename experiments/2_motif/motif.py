@@ -89,6 +89,7 @@ class MotifAnalyzer(object):
         ngrams, maps = ({}, {})
 
         for i in range(3, 10):
+
             curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
             curr_ngrams = self.score_ngrams(curr_ngrams, curr_maps, score_func)
 
@@ -109,20 +110,38 @@ if len(sys.argv) != 2:
     exit()
 
 analyzer = MotifAnalyzer(sys.argv[1])
-max_grams = analyzer.analyze_top_motif(
-    10,
+
+# rhythm transition motif ------------------------------------------------------
+max_rhythm_transition_grams = analyzer.analyze_top_motif(
+    3,
     MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
     MotifAnalyzerAlgorithms.entropy_note_score_func
 )
 
-print("Score\t\t\tSequence")
-print("=====\t\t\t=======")
-print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
+print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_rhythm_transition_grams))
 
-for max_gram in max_grams:
+for max_gram in max_rhythm_transition_grams:
     _, _, motif_note_ids = max_gram
     for grouped_note_ids in motif_note_ids:
         for note_id in grouped_note_ids:
             analyzer.note_map[note_id].style.color = '#FF0000'
 
-# analyzer.score.show()
+# note motif -------------------------------------------------------------------
+max_note_transition_grams = analyzer.analyze_top_motif(
+    3,
+    MotifAnalyzerAlgorithms.note_transition_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func
+)
+
+print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_note_transition_grams))
+
+for max_gram in max_note_transition_grams:
+    _, _, motif_note_ids = max_gram
+    for grouped_note_ids in motif_note_ids:
+        for note_id in grouped_note_ids:
+            if analyzer.note_map[note_id].style.color == '#FF0000':
+                analyzer.note_map[note_id].style.color = '#0000FF'
+            else:
+                analyzer.note_map[note_id].style.color = '#00FF00'
+
+analyzer.score.show()
