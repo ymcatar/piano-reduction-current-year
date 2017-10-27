@@ -11,7 +11,7 @@ class Reducer(object):
 
         # Set the key for each algorithm
         for i, algo in enumerate(self.algorithms):
-            algo.key = i
+            algo.key_prefix = str(i)
 
         self._all_keys = sorted(
             key for algo in self.algorithms for key in algo.all_keys)

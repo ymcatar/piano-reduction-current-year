@@ -4,8 +4,6 @@ from music21 import stream
 
 
 class ActiveRhythm(ReductionAlgorithm):
-    _type = 'active'
-
     def __init__(self):
         super(ActiveRhythm, self).__init__()
 

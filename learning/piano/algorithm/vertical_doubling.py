@@ -4,8 +4,6 @@ from collections import Counter, defaultdict
 
 
 class VerticalDoubling(ReductionAlgorithm):
-    _type = 'doubling'
-
     def __init__(self):
         super(VerticalDoubling, self).__init__()
 
