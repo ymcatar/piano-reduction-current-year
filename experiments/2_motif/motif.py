@@ -112,14 +112,15 @@ if len(sys.argv) != 3:
     exit()
 
 sequence_funcs = {
-    'noteSequence': MotifAnalyzerAlgorithms.note_sequence_func,
-    'rhythmSequence': MotifAnalyzerAlgorithms.rhythm_sequence_func,
-    'noteTransitionSequence': MotifAnalyzerAlgorithms.note_transition_sequence_func,
-    'rhythmTransitionSequence': MotifAnalyzerAlgorithms.rhythm_transition_sequence_func
+    # 'noteSequence': MotifAnalyzerAlgorithms.note_sequence_func,
+    # 'rhythmSequence': MotifAnalyzerAlgorithms.rhythm_sequence_func,
+    # 'noteTransitionSequence': MotifAnalyzerAlgorithms.note_transition_sequence_func,
+    # 'rhythmTransitionSequence': MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
+    'notenameTransitionSequence': MotifAnalyzerAlgorithms.notename_transition_sequence_func
 }
 
 score_funcs = {
-    'simpleNote': MotifAnalyzerAlgorithms.simple_note_score_func,
+    # 'simpleNote': MotifAnalyzerAlgorithms.simple_note_score_func
     'entropyNote': MotifAnalyzerAlgorithms.entropy_note_score_func
 }
 
