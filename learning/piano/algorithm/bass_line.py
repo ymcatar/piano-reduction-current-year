@@ -5,8 +5,6 @@ import numpy as np
 
 
 class BassLine(ReductionAlgorithm):
-    _type = 'bass'
-
     def __init__(self):
         super(BassLine, self).__init__()
 

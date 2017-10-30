@@ -4,8 +4,6 @@ from music21 import note, stream
 
 
 class EntranceEffect(ReductionAlgorithm):
-    _type = 'entrance'
-
     def __init__(self):
         super(EntranceEffect, self).__init__()
 

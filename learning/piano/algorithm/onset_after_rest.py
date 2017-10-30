@@ -4,8 +4,6 @@ from music21 import stream, note
 
 
 class OnsetAfterRest(ReductionAlgorithm):
-    _type = 'onset'
-
     def __init__(self):
         super(OnsetAfterRest, self).__init__()
 

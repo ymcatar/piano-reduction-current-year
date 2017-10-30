@@ -22,15 +22,13 @@ binary_algorithms = [
 
 @pytest.mark.parametrize('algo,output_name', binary_algorithms)
 def test_binary_algorithms(algo, output_name):
-    input = converter.parse('learning/piano/test_sample/algorithm_input.xml')
+    s = ScoreObject.from_file('learning/piano/test_sample/algorithm_input.xml')
+    input = s.score
     # Each sample output has notes with value 1 marked as red
     output = converter.parse(
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
-    s = ScoreObject(input)
-    input = s._score
     algo.create_markings_on(s)
-
     alignment = align_scores(input, output)
 
     for measure in input.recurse(
@@ -57,15 +55,13 @@ continuous_algorithms = [
 
 @pytest.mark.parametrize('algo,output_name', continuous_algorithms)
 def test_continuous_algorithms(algo, output_name):
-    input = converter.parse('learning/piano/test_sample/algorithm_input.xml')
+    s = ScoreObject.from_file('learning/piano/test_sample/algorithm_input.xml')
+    input = s.score
     # Each sample output has some notes with its value written as lyric
     output = converter.parse(
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
-    s = ScoreObject(input)
-    input = s._score
     algo.create_markings_on(s)
-
     alignment = align_scores(input, output)
 
     for measure in input.recurse(
@@ -87,11 +83,10 @@ def test_continuous_algorithms(algo, output_name):
 
 
 def test_pitch_class_statistics():
-    input = converter.parse('learning/piano/test_sample/algorithm_input.xml')
-    algo = algorithm.PitchClassStatistics()
+    s = ScoreObject.from_file('learning/piano/test_sample/algorithm_input.xml')
+    input = s.score
 
-    s = ScoreObject(input)
-    input = s._score
+    algo = algorithm.PitchClassStatistics()
     algo.create_markings_on(s)
 
     expecteds = {

@@ -5,8 +5,6 @@ from collections import Counter
 
 
 class Occurrence(ReductionAlgorithm):
-    _type = 'occurrence'
-
     def __init__(self):
         super(Occurrence, self).__init__()
 

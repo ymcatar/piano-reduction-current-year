@@ -4,8 +4,6 @@ from music21 import note
 
 
 class RhythmVariety(ReductionAlgorithm):
-    _type = 'rhythm'
-
     def __init__(self):
         super(RhythmVariety, self).__init__()
 
