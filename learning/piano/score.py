@@ -102,10 +102,11 @@ class ScoreObject(object):
         self.by_bar = []
         for i in count(0):
             subscore = result.measure(i)
-            # Measure 0 is the pickup (partial) measure and may not exist
-            if i > 0 and not subscore.recurse(
+            if not subscore.recurse(
                     skipSelf=False).getElementsByClass('Measure'):
-                break
+                # Measure 0 is the pickup (partial) measure and may not exist
+                if i == 0: continue
+                else: break
             self.by_bar.append(subscore)
 
         self.voices_by_part = []
