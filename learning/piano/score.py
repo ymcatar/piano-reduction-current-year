@@ -91,6 +91,9 @@ class ScoreObject(object):
             else:
                 result.insert(elem)
 
+        # Remove instrument transposition
+        result.toSoundingPitch(inPlace=True)
+
         self.original_score = score
         self._score = result
 
