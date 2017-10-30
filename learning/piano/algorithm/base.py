@@ -25,14 +25,6 @@ class ReductionAlgorithm(object):
         raise NotImplementedError()
 
 
-    def __init__(self):
-        super(ReductionAlgorithm, self).__init__()
-        self._key = '!'
-
-    def createMarkingsOn(self, score):
-        pass
-
-
 def get_markings(n):
     return n.editorial.misc.setdefault('markings', {})
 
