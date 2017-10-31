@@ -10,7 +10,10 @@ class MotifAnalyzer(object):
 
     def __init__(self, filepath):
         self.filepath = filepath
+
         self.score = music21.converter.parse(filepath)
+        self.score.toSoundingPitch()
+
         self.note_map = {}
 
     def to_sequence(self, part_id, sequence_func):
@@ -20,6 +23,10 @@ class MotifAnalyzer(object):
         ]
 
         result = []
+
+        if len(curr_ngram) % sequence_func.note_list_length != 0:
+            for i in range(len(curr_ngram) % sequence_func.note_list_length, sequence_func.note_list_length):
+                curr_ngram.append(None)
 
         while len(curr_ngram) >= sequence_func.note_list_length:
             new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
@@ -31,23 +38,6 @@ class MotifAnalyzer(object):
                 new_items[key] = (character, [ id(note) for note in note_list ])
             result.extend(new_items)
             curr_ngram.pop(0)
-
-        # tail case
-        while len(curr_ngram) != 0 and len(curr_ngram) < sequence_func.note_list_length:
-            curr_ngram.append(None)
-
-        # tail case: populate None until all Note passed to sequence_func
-        while len(curr_ngram) != 0 and curr_ngram[0] is not None:
-            new_items = sequence_func(curr_ngram[0:sequence_func.note_list_length])
-            for key, item in enumerate(new_items):
-                character, note_list = item
-                for note in note_list:
-                    if id(note) not in self.note_map:
-                        self.note_map[id(note)] = note
-                new_items[key] = (character, [ id(note) for note in note_list ])
-            result.extend(new_items)
-            curr_ngram.pop(0)
-            curr_ngram.append(None)
 
         return result
 
@@ -95,7 +85,7 @@ class MotifAnalyzer(object):
             curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
             curr_ngrams = self.score_ngrams(curr_ngrams, curr_maps, score_func)
 
-            ngrams = { **ngrams, **curr_ngrams }
+            ngrams = { ** ngrams, ** curr_ngrams }
             maps = { ** maps, ** curr_maps }
 
         max_ngrams = []
