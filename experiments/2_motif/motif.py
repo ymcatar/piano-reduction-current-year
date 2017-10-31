@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import music21
 import os
 import sys
+import music21
 
 from algorithms import MotifAnalyzerAlgorithms
 
@@ -15,6 +15,13 @@ class MotifAnalyzer(object):
         self.score.toSoundingPitch()
 
         self.note_map = {}
+        self.ngrams = {}
+        self.maps = {}
+
+        self.func_list = []
+
+    def add_func(self, sequence_func, score_func):
+        self.func_list.append((sequence_func, score_func))
 
     def to_sequence(self, part_id, sequence_func):
         curr_ngram = [
@@ -33,8 +40,7 @@ class MotifAnalyzer(object):
             for key, item in enumerate(new_items):
                 character, note_list = item
                 for note in note_list:
-                    if id(note) not in self.note_map:
-                        self.note_map[id(note)] = note
+                    self.note_map[id(note)] = note
                 new_items[key] = (character, [ id(note) for note in note_list ])
             result.extend(new_items)
             curr_ngram.pop(0)
@@ -46,7 +52,7 @@ class MotifAnalyzer(object):
         curr_map, all_maps = ([], {})
 
         curr = 0
-        while True:
+        while curr < len(sequence):
             if len(curr_ngram) == length:
                 frozen_ngram = ';'.join(curr_ngram)
                 if frozen_ngram in all_ngrams:
@@ -58,8 +64,6 @@ class MotifAnalyzer(object):
                 curr_ngram.pop(0)
                 curr_map.pop(0)
             else:
-                if curr >= len(sequence):
-                    break
                 character, note_list = sequence[curr]
                 curr_ngram.append(character)
                 curr_map.append(note_list)
@@ -73,28 +77,42 @@ class MotifAnalyzer(object):
         return ngrams
 
 
-    def analyze_top_motif(self, max_count, sequence_func, score_func):
-        sequence = []
-        for part in self.score.recurse().getElementsByClass('Part'):
-            sequence = sequence + self.to_sequence(part.id, sequence_func)
+    def generate_all_motifs(self):
+        assert len(self.func_list) != 0
 
-        ngrams, maps = ({}, {})
+        self.ngrams = {}
+        self.maps = {}
+
+        sequence = []
+
+        # first iteration: using the first (sequence_func, score_func) pair
+        first_sequence_func, first_score_func = self.func_list[0]
+        for part in self.score.recurse().getElementsByClass('Part'):
+            sequence = sequence + self.to_sequence(part.id, first_sequence_func)
 
         for i in range(3, 10):
-
             curr_ngrams, curr_maps = self.generate_all_ngrams(i, sequence)
-            curr_ngrams = self.score_ngrams(curr_ngrams, curr_maps, score_func)
+            curr_ngrams = self.score_ngrams(
+                curr_ngrams,
+                curr_maps,
+                first_score_func
+            )
+            self.ngrams = {** self.ngrams, ** curr_ngrams}
+            self.maps = {** self.maps, ** curr_maps}
 
-            ngrams = { ** ngrams, ** curr_ngrams }
-            maps = { ** maps, ** curr_maps }
+        # remaining iteration: remaining (sequence_func, score_func) pairs
+        for curr_func_pair in self.func_list[1:]:
+            curr_sequence_func, curr_score_func = curr_func_pair
 
+    def get_top_motifs(self, max_count):
         max_ngrams = []
-        temp_ngrams = ngrams.copy()
+        temp_ngrams = self.ngrams.copy()
         for i in range(0, max_count):
             curr_max_ngram = max(temp_ngrams, key=temp_ngrams.get)
             temp_ngrams.pop(curr_max_ngram)
-            max_ngrams.append((ngrams[curr_max_ngram], curr_max_ngram, maps[curr_max_ngram]))
-
+            max_ngrams.append(
+                (self.ngrams[curr_max_ngram], curr_max_ngram, self.maps[curr_max_ngram])
+            )
         return max_ngrams
 
 if len(sys.argv) != 3:
@@ -104,7 +122,8 @@ if len(sys.argv) != 3:
 sequence_funcs = {
     # 'noteSequence': MotifAnalyzerAlgorithms.note_sequence_func,
     # 'rhythmSequence': MotifAnalyzerAlgorithms.rhythm_sequence_func,
-    # 'noteTransitionSequence': MotifAnalyzerAlgorithms.note_transition_sequence_func,
+    # 'noteTransitionSequence': \
+    #   MotifAnalyzerAlgorithms.note_transition_sequence_func,
     # 'rhythmTransitionSequence': MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
     'notenameTransitionSequence': MotifAnalyzerAlgorithms.notename_transition_sequence_func
 }
@@ -117,26 +136,34 @@ score_funcs = {
 output_path = sys.argv[2]
 filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
 
+analyzer = MotifAnalyzer(sys.argv[1])
+
 for curr_sequence_func_name, curr_sequence_func in sequence_funcs.items():
     for curr_score_func_name, curr_score_func in score_funcs.items():
-        analyzer = MotifAnalyzer(sys.argv[1])
-        max_grams = analyzer.analyze_top_motif(
-            1,
-            curr_sequence_func,
-            curr_score_func
-        )
-        print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
+        analyzer.add_func(curr_sequence_func, curr_score_func)
 
-        for max_gram in max_grams:
-            _, _, motif_note_ids = max_gram
-            for grouped_note_ids in motif_note_ids:
-                for note_id in grouped_note_ids:
-                    analyzer.note_map[note_id].style.color = '#FF0000'
+        # max_grams = analyzer.analyze_top_motif(
+        #     1,
+        #     curr_sequence_func,
+        #     curr_score_func
+        # )
+        # print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_grams))
 
-        analyzer.score.write(
-            'musicxml',
-            os.path.join(
-                output_path,
-                filename + '_' + curr_sequence_func_name + '_' + curr_score_func_name + '.xml'
-            )
-        )
+        # for max_gram in max_grams:
+        #     _, _, motif_note_ids = max_gram
+        #     for grouped_note_ids in motif_note_ids:
+        #         for note_id in grouped_note_ids:
+        #             analyzer.note_map[note_id].style.color = '#FF0000'
+
+        # analyzer.score.write(
+        #     'musicxml',
+        #     os.path.join(
+        #         output_path,
+        #         filename + '_' + curr_sequence_func_name + '_' + curr_score_func_name + '.xml'
+        #     )
+        # )
+
+analyzer.generate_all_motifs()
+max_ngrams = analyzer.get_top_motifs(5)
+
+print('\n'.join(str(item[0]) + '\t\t' + item[1] for item in max_ngrams))
