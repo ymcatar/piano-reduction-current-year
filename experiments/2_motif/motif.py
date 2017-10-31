@@ -86,13 +86,6 @@ if len(sys.argv) != 3:
 analyzer = MotifAnalyzer(sys.argv[1])
 
 analyzer.start_run(
-    MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.5
-)
-
-analyzer.start_run(
     MotifAnalyzerAlgorithms.note_sequence_func,
     MotifAnalyzerAlgorithms.entropy_note_score_func,
     threshold = 0,
@@ -100,10 +93,31 @@ analyzer.start_run(
 )
 
 analyzer.start_run(
+    MotifAnalyzerAlgorithms.notename_transition_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func,
+    threshold = 0,
+    multipier = 0.4
+)
+
+analyzer.start_run(
+    MotifAnalyzerAlgorithms.note_transition_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func,
+    threshold = 0,
+    multipier = 0.1
+)
+
+analyzer.start_run(
     MotifAnalyzerAlgorithms.rhythm_sequence_func,
     MotifAnalyzerAlgorithms.entropy_note_score_func,
     threshold = 0,
-    multipier = 0.3
+    multipier = 0.1
+)
+
+analyzer.start_run(
+    MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
+    MotifAnalyzerAlgorithms.entropy_note_score_func,
+    threshold = 0,
+    multipier = 0.2
 )
 
 motifs = analyzer.get_top_motifs(top_count = 1000)
@@ -118,7 +132,7 @@ for motif_noteidgram in motifs:
     if prev_score != analyzer.score_by_noteidgram[motif_noteidgram]:
         print('------------------------------------------------')
         curr_color = curr_color + 1
-        if curr_color >= 10:
+        if curr_color >= 20:
             break
 
     # analyzer.highlight_noteidgram(motif_noteidgram, colors[curr_color])
