@@ -88,7 +88,7 @@ class MotifAnalyzerAlgorithms(object):
                         curr_note_length = curr_note.duration.quarterLength
                         if i == len(note_list) - 1: # last note
                             curr_note_length = 1 # expand the last note to quarter note
-                        results.append('{0:.2f}'.format(curr_note_length / prev_note.duration.quarterLength))
+                        results.append('{0:.2f}'.format(float(curr_note_length / prev_note.duration.quarterLength)))
                 else:
                     results.append('R')
         return results
@@ -108,7 +108,7 @@ class MotifAnalyzerAlgorithms(object):
     def entropy_note_score_func(notegram, sequence, freq):
         probabilities = {item: sequence.count(item) / len(sequence) for item in list(sequence)}
         probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * (len(sequence) ** 0.5)
+        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         # if sequence contain 'rest', give a low score
         for note in notegram:
             if note is not None and note.name == 'rest':
