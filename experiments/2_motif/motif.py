@@ -7,7 +7,7 @@ from matplotlib import cm, colors
 
 from algorithms import MotifAnalyzerAlgorithms
 
-LOWER_N = 2
+LOWER_N = 3
 UPPER_N = 10
 
 class MotifAnalyzer(object):
@@ -70,7 +70,11 @@ class MotifAnalyzer(object):
 
         for noteidgram, _ in sequence_by_noteidgram.items():
             if noteidgram in score_to_add_by_noteidgram:
-                self.score_by_noteidgram[noteidgram] = self.score_by_noteidgram[noteidgram] + score_to_add_by_noteidgram[noteidgram] / total_score_to_add * len(score_to_add_by_noteidgram)
+                self.score_by_noteidgram[noteidgram] = \
+                    self.score_by_noteidgram[noteidgram] + \
+                    score_to_add_by_noteidgram[noteidgram] / \
+                    total_score_to_add * \
+                    len(score_to_add_by_noteidgram)
 
     def get_top_distinct_score_motifs(self, top_count = 1):
         noteidgram_by_score = {}
@@ -103,40 +107,16 @@ colors = ['#{:02X}{:02X}{:02X}'.format(*(int(x*255) for x in color[:3])) for col
 
 analyzer = MotifAnalyzer(sys.argv[1])
 
-analyzer.start_run(
-    MotifAnalyzerAlgorithms.note_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.2
-)
+algorithms = [
+    (MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1),
+    (MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.distance_entropy_score_func, 0, 0.3),
+    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.3),
+    # (MotifAnalyzerAlgorithms.note_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1)
+]
 
-analyzer.start_run(
-    MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.4
-)
-
-analyzer.start_run(
-    MotifAnalyzerAlgorithms.note_transition_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.1
-)
-
-analyzer.start_run(
-    MotifAnalyzerAlgorithms.rhythm_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.1
-)
-
-analyzer.start_run(
-    MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-    MotifAnalyzerAlgorithms.entropy_note_score_func,
-    threshold = 0,
-    multipier = 0.2
-)
+for algorithm in algorithms:
+    analyzer.start_run(*algorithm)
 
 motifs = analyzer.get_top_distinct_score_motifs(top_count = top_count)
 
