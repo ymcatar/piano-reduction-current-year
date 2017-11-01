@@ -48,6 +48,7 @@ class MotifAnalyzer(object):
     def start_run(self, sequence_func, score_func, threshold = 0, multipier = 1):
         freq_by_sequence = {}
         sequence_by_noteidgram = {}
+        score_to_add_by_noteidgram = {}
 
         for noteidgram in self.noteidgrams:
             notegram = self.noteidgram_to_notegram(noteidgram)
@@ -63,7 +64,13 @@ class MotifAnalyzer(object):
             if score >= threshold:
                 if noteidgram not in self.score_by_noteidgram:
                     self.score_by_noteidgram[noteidgram] = 0
-                self.score_by_noteidgram[noteidgram] = self.score_by_noteidgram[noteidgram] + score * multipier
+                score_to_add_by_noteidgram[noteidgram] = score * multipier
+
+        total_score_to_add = sum(score_to_add_by_noteidgram.values())
+
+        for noteidgram, _ in sequence_by_noteidgram.items():
+            if noteidgram in score_to_add_by_noteidgram:
+                self.score_by_noteidgram[noteidgram] = self.score_by_noteidgram[noteidgram] + score_to_add_by_noteidgram[noteidgram] / total_score_to_add * len(score_to_add_by_noteidgram)
 
     def get_top_distinct_score_motifs(self, top_count = 1):
         noteidgram_by_score = {}
