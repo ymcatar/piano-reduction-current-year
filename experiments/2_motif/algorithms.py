@@ -8,7 +8,7 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def note_sequence_func(note_list):
         results = []
-        for curr_note in note_list:
+        for curr_note in note_list: # ignore the last note
             if curr_note is None:
                 continue
             elif curr_note.name == 'rest':
@@ -27,6 +27,8 @@ class MotifAnalyzerAlgorithms(object):
                 results.append('R')
             else:
                 results.append(str(curr_note.duration.quarterLength))
+        # last note rhythm might sustain => replace with 1
+        results[-1] = 1
         return results
 
     @staticmethod
@@ -83,7 +85,10 @@ class MotifAnalyzerAlgorithms(object):
                     if prev_note.duration.quarterLength - 0.0 < 1e-2:
                         results.append('R')
                     else:
-                        results.append('{0:.2f}'.format(curr_note.duration.quarterLength / prev_note.duration.quarterLength))
+                        curr_note_length = curr_note.duration.quarterLength
+                        if i == len(note_list) - 1: # last note
+                            curr_note_length = 1 # expand the last note to quarter note
+                        results.append('{0:.2f}'.format( / prev_note.duration.quarterLength))
                 else:
                     results.append('R')
         return results
