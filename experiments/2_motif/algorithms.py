@@ -88,7 +88,7 @@ class MotifAnalyzerAlgorithms(object):
                         curr_note_length = curr_note.duration.quarterLength
                         if i == len(note_list) - 1: # last note
                             curr_note_length = 1 # expand the last note to quarter note
-                        results.append('{0:.2f}'.format( / prev_note.duration.quarterLength))
+                        results.append('{0:.2f}'.format(curr_note_length / prev_note.duration.quarterLength))
                 else:
                     results.append('R')
         return results
