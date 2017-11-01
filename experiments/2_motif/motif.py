@@ -3,6 +3,7 @@
 import music21
 import os
 import sys
+from matplotlib import cm, colors
 
 from algorithms import MotifAnalyzerAlgorithms
 
@@ -84,9 +85,14 @@ class MotifAnalyzer(object):
             note.style.color = color
 
 
-if len(sys.argv) != 3:
-    print("Usage: $0 [path of the input MusicXML file] [output path]")
+if len(sys.argv) != 4:
+    print("Usage: $0 [path of the input MusicXML file] [output path] [top count]")
     exit()
+
+top_count = int(sys.argv[3])
+
+m = cm.ScalarMappable(colors.Normalize(vmin=0, vmax=top_count+1), 'hsv')
+colors = ['#{:02X}{:02X}{:02X}'.format(*(int(x*255) for x in color[:3])) for color in m.to_rgba(range(top_count))]
 
 analyzer = MotifAnalyzer(sys.argv[1])
 
@@ -125,13 +131,14 @@ analyzer.start_run(
     multipier = 0.2
 )
 
-motifs = analyzer.get_top_distinct_score_motifs(top_count = 30)
-
-# colors = ['#D50000', '#6200EA', '#2962FF']
+motifs = analyzer.get_top_distinct_score_motifs(top_count = top_count)
 
 print('#\t\tScore\t\tSequence')
 print('-\t\t-----\t\t--------')
-for motif_noteidgram_list in motifs:
+for i in range(0, len(motifs)):
+    motif_noteidgram_list = motifs[i]
+    for motif_noteidgram in motif_noteidgram_list:
+        analyzer.highlight_noteidgram(motif_noteidgram, colors[i])
     print(
         str(len(motif_noteidgram_list)) +
         '\t\t' +
@@ -143,4 +150,4 @@ for motif_noteidgram_list in motifs:
         )))
     )
 
-# analyzer.score.show()
+analyzer.score.show()
