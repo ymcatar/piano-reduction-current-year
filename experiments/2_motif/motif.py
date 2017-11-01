@@ -64,13 +64,18 @@ class MotifAnalyzer(object):
                     self.score_by_noteidgram[noteidgram] = 0
                 self.score_by_noteidgram[noteidgram] = self.score_by_noteidgram[noteidgram] + score * multipier
 
-    def get_top_motifs(self, top_count = 1):
+    def get_top_distinct_score_motifs(self, top_count = 1):
+        noteidgram_by_score = {}
+        for noteidgram, score in self.score_by_noteidgram.items():
+            if score not in noteidgram_by_score:
+                noteidgram_by_score[score] = []
+            noteidgram_by_score[score] = noteidgram_by_score[score] + [noteidgram]
+
         results = []
-        temp_score_by_noteidgram = self.score_by_noteidgram.copy()
-        for i in range(0, min(len(self.score_by_noteidgram), top_count)):
-            noteidgram = max(temp_score_by_noteidgram, key=temp_score_by_noteidgram.get)
-            temp_score_by_noteidgram.pop(noteidgram)
-            results.append(noteidgram)
+        for i in range(0, min(len(noteidgram_by_score), top_count)):
+            max_score = max(k for k, v in noteidgram_by_score.items())
+            results.append(noteidgram_by_score.pop(max_score))
+
         return results
 
     def highlight_noteidgram(self, noteidgram, color):
@@ -120,31 +125,19 @@ analyzer.start_run(
     multipier = 0.2
 )
 
-motifs = analyzer.get_top_motifs(top_count = 1000)
+motifs = analyzer.get_top_distinct_score_motifs(top_count = 3)
 
 # colors = ['#D50000', '#6200EA', '#2962FF']
 
-prev_score = -1
-curr_color = -1
-
-for motif_noteidgram in motifs:
-
-    if prev_score != analyzer.score_by_noteidgram[motif_noteidgram]:
-        print('------------------------------------------------')
-        curr_color = curr_color + 1
-        if curr_color >= 20:
-            break
-
-    # analyzer.highlight_noteidgram(motif_noteidgram, colors[curr_color])
-
-    print(
-        str(analyzer.score_by_noteidgram[motif_noteidgram]) +
-        '\t\t' +
-        str(MotifAnalyzerAlgorithms.note_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram))) +
-        '\t\t' +
-        str(MotifAnalyzerAlgorithms.rhythm_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram)))
-    )
-
-    prev_score = analyzer.score_by_noteidgram[motif_noteidgram]
+for motif_noteidgram_list in motifs:
+    print('------------------------------------------------')
+    for motif_noteidgram in motif_noteidgram_list:
+        print(
+            str(analyzer.score_by_noteidgram[motif_noteidgram]) +
+            '\t\t' +
+            str(MotifAnalyzerAlgorithms.note_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram))) +
+            '\t\t' +
+            str(MotifAnalyzerAlgorithms.rhythm_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram)))
+        )
 
 # analyzer.score.show()
