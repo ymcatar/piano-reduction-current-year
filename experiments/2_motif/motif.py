@@ -125,19 +125,22 @@ analyzer.start_run(
     multipier = 0.2
 )
 
-motifs = analyzer.get_top_distinct_score_motifs(top_count = 3)
+motifs = analyzer.get_top_distinct_score_motifs(top_count = 30)
 
 # colors = ['#D50000', '#6200EA', '#2962FF']
 
+print('#\t\tScore\t\tSequence')
+print('-\t\t-----\t\t--------')
 for motif_noteidgram_list in motifs:
-    print('------------------------------------------------')
-    for motif_noteidgram in motif_noteidgram_list:
-        print(
-            str(analyzer.score_by_noteidgram[motif_noteidgram]) +
-            '\t\t' +
-            str(MotifAnalyzerAlgorithms.note_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram))) +
-            '\t\t' +
-            str(MotifAnalyzerAlgorithms.rhythm_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram)))
-        )
+    print(
+        str(len(motif_noteidgram_list)) +
+        '\t\t' +
+        str('{0:.2f}'.format(analyzer.score_by_noteidgram[motif_noteidgram_list[0]])) +
+        '\t\t' +
+        str(list(zip(
+            MotifAnalyzerAlgorithms.note_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram_list[0])),
+            MotifAnalyzerAlgorithms.rhythm_sequence_func(analyzer.noteidgram_to_notegram(motif_noteidgram_list[0]))
+        )))
+    )
 
 # analyzer.score.show()
