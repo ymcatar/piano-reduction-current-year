@@ -44,7 +44,7 @@ class ScoreObject(object):
         def preprocess_measure(measure, vids):
             result = measure.cloneEmpty(derivationMethod='preprocess')
 
-            vids_in_measure = set(v.id for v in measure.voices)
+            vids_in_measure = set(str(v.id) for v in measure.voices)
 
             if not vids_in_measure:
                 voice = stream.Voice(id='1')
@@ -56,12 +56,16 @@ class ScoreObject(object):
                         # Things like TimeSignature, MetronomeMark, etc.
                         result.insert(elem)
                 result.insert(0, voice)
+                vids_in_measure.add('1')
             else:
                 result.mergeElements(measure)
-                for vid in vids.difference(vids_in_measure):
-                    voice = stream.Voice(id=vid)
-                    voice.insert(0, note.Rest(measure.highestTime))
-                    result.insert(voice)
+
+            for vid in vids.difference(vids_in_measure):
+                voice = stream.Voice(id=vid)
+                rest = note.Rest(duration=measure.barDuration)
+                rest.hideObjectOnPrint = True
+                voice.insert(0, rest)
+                result.insert(0, voice)
 
             # Remove page breaks so that it doesn't mess with our output layout
             result.removeByClass([layout.PageLayout, layout.SystemLayout])
@@ -72,10 +76,10 @@ class ScoreObject(object):
             result = part.cloneEmpty(derivationMethod='preprocess')
 
             # Find all voices ids
-            vids = {1}
+            vids = {'1'}
             for m in part.getElementsByClass(stream.Measure):
                 for v in m.voices:
-                    vids.add(v.id)
+                    vids.add(str(v.id))
 
             for elem in part:
                 if isinstance(elem, stream.Measure):
