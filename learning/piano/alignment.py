@@ -56,7 +56,7 @@ def align_scores(left_score, right_score, precision=1024,
     Returns: an Alignment object.
     '''
 
-    # index[part index][measure offset] \
+    # index[part index][measure index] \
     #   [(local offset, duration, pitch space)] = list(notes)
     # The tuple can be completely determined from the Note object itself
     scores = [left_score, right_score]
@@ -72,12 +72,11 @@ def align_scores(left_score, right_score, precision=1024,
             # corresponding voice, but only the corresponding score. This is
             # because putting the note in a different voice still gives a
             # similarly looking score -- so the voice number is not informative.
-            for measure in part.getElementsByClass(stream.Measure):
-                mo = int(measure.offset * precision)
+            for mi, measure in enumerate(part.getElementsByClass(stream.Measure)):
                 # Recurse on voices
                 for n, offset in iter_notes_with_offset(measure, recurse=True):
                     key = key_func(n, offset, precision)
-                    index[i][mo][key].append(n)
+                    index[i][mi][key].append(n)
 
     # For each score, look up the other Note object index
     lookups = [{} for _ in range(2)]
@@ -85,13 +84,12 @@ def align_scores(left_score, right_score, precision=1024,
         for i, part in enumerate(score.parts):
             if ignore_parts:
                 i = 0
-            for measure in part.getElementsByClass(stream.Measure):
-                mo = int(measure.offset * precision)
+            for mi, measure in enumerate(part.getElementsByClass(stream.Measure)):
                 # Recurse on voices
                 for n, offset in iter_notes_with_offset(measure, recurse=True):
                     key = key_func(n, offset, precision)
                     assert id(n) not in lookups, 'Note object not unique!'
-                    lookup[id(n)] = other_index[i][mo][key]
+                    lookup[id(n)] = other_index[i][mi][key]
 
     return Alignment(*lookups)
 
