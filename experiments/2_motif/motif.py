@@ -123,7 +123,8 @@ analyzer = MotifAnalyzer(sys.argv[1])
 algorithms = [
     (MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5),
-    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 10),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 10),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 8),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5)
 ]
 
