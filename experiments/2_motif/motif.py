@@ -29,7 +29,13 @@ class MotifAnalyzer(object):
         # TODO: support multiple voice
         note_list = [item for item in part.recurse().getElementsByClass(('Note', 'Rest'))]
         result = [[i for i in zip(*[note_list[i:] for i in range(n)])] for n in range(LOWER_N, UPPER_N)]
-        return sum(result, []) # flatten the list
+        result = sum(result, []) # flatten the list
+        result = [notegram for notegram in result if not any(
+            (isinstance(note, music21.note.Rest) or
+            note.name == 'rest' or
+            note.duration.quarterLength - 0.0 < 1e-2) for note in notegram
+        )]
+        return result
 
     def noteidgram_to_notegram(self, noteidgram):
         return tuple(self.note_map[i] for i in list(noteidgram))
@@ -64,7 +70,7 @@ class MotifAnalyzer(object):
             if score >= threshold:
                 if noteidgram not in self.score_by_noteidgram:
                     self.score_by_noteidgram[noteidgram] = 0
-                score_to_add_by_noteidgram[noteidgram] = score * multipier
+                score_to_add_by_noteidgram[noteidgram] = score
 
         total_score_to_add = sum(score_to_add_by_noteidgram.values())
 
@@ -74,6 +80,7 @@ class MotifAnalyzer(object):
                     self.score_by_noteidgram[noteidgram] + \
                     score_to_add_by_noteidgram[noteidgram] / \
                     total_score_to_add * \
+                    multipier * \
                     len(score_to_add_by_noteidgram)
 
     def get_top_distinct_score_motifs(self, top_count = 1):
@@ -94,12 +101,18 @@ class MotifAnalyzer(object):
         notegram = self.noteidgram_to_notegram(noteidgram)
         for note in notegram:
             note.style.color = color
+            if note.lyric is None:
+                note.lyric = '1'
+            else:
+                note.lyric = str(int(note.lyric) + 1)
 
 
 if len(sys.argv) != 4:
     print("Usage: $0 [path of the input MusicXML file] [output path] [top count]")
     exit()
 
+filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+output_path = sys.argv[2]
 top_count = int(sys.argv[3])
 
 m = cm.ScalarMappable(colors.Normalize(vmin=0, vmax=top_count+1), 'hsv')
@@ -108,11 +121,10 @@ colors = ['#{:02X}{:02X}{:02X}'.format(*(int(x*255) for x in color[:3])) for col
 analyzer = MotifAnalyzer(sys.argv[1])
 
 algorithms = [
-    (MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1),
-    (MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1),
-    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.distance_entropy_score_func, 0, 0.3),
-    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.3),
-    # (MotifAnalyzerAlgorithms.note_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 0.1)
+    (MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5),
+    (MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 10),
+    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5)
 ]
 
 for algorithm in algorithms:
@@ -137,4 +149,4 @@ for i in range(0, len(motifs)):
         )))
     )
 
-analyzer.score.show()
+analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
