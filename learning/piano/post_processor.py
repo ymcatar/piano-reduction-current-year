@@ -21,10 +21,6 @@ class PostProcessor(object):
             keep_func = default_keep_func if reduced else lambda n: True
             self.assign_hands(score_obj, keep_func=keep_func)
 
-        # Must be run before processing measures, so that key signatures will
-        # agree.
-        score_obj.score.toWrittenPitch(inPlace=True)
-
         HANDS = [LEFT_HAND, RIGHT_HAND]
         parts = [stream.Part(), stream.Part()]
 
@@ -195,10 +191,10 @@ class PostProcessor(object):
                     max_ps, min_ps = max(pss), min(pss)
                     while max(pss) - min(pss) > 12:
                         if median > 60:
-                            pss.add(min_ps + 13)
+                            pss.add(min_ps + 12)
                             pss.remove(min_ps)
                         else:
-                            pss.add(max_ps - 13)
+                            pss.add(max_ps - 12)
                             pss.remove(max_ps)
                         max_ps, min_ps = max(pss), min(pss)
 

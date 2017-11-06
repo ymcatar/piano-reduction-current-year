@@ -121,6 +121,8 @@ def command_reduce(args):
         plt.show()
 
     if args.type == 'combined':
+        target.score.toWrittenPitch(inPlace=True)
+
         # Combine scores
         if not args.heat:
             for n in reducer.iter_notes(target):
