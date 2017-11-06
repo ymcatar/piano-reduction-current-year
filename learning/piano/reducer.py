@@ -68,7 +68,7 @@ class Reducer(object):
 
         if X is None:
             X = self.create_markings_on(input_score_objs)
-        y = model.predict(X)
+        y = model.predict_proba(X)[:,1]
 
         for i, n in enumerate(self.iter_notes(input_score_objs)):
             n.editorial.misc['align'] = y[i]

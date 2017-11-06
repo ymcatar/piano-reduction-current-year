@@ -4,10 +4,11 @@ import logging
 import os.path
 import sys
 import textwrap
-from music21 import expressions, layout
+from music21 import chord, expressions, layout
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
+import numpy as np
 from .piano import algorithm
 from .piano.alignment import mark_alignment
 from .piano.reducer import Reducer
@@ -71,14 +72,14 @@ def command_reduce(args):
         algorithms=[
             algorithm.ActiveRhythm(),
             algorithm.BassLine(),
-            # algorithm.EntranceEffect(),
-            # algorithm.Occurrence(),
-            # algorithm.OnsetAfterRest(),
-            # algorithm.PitchClassStatistics(),
-            # algorithm.RhythmVariety(),
-            # algorithm.StrongBeats(division=0.5),
+            algorithm.EntranceEffect(),
+            algorithm.Occurrence(),
+            algorithm.OnsetAfterRest(),
+            algorithm.PitchClassStatistics(),
+            algorithm.RhythmVariety(),
+            algorithm.StrongBeats(division=0.5),
             algorithm.SustainedRhythm(),
-            # algorithm.VerticalDoubling(),
+            algorithm.VerticalDoubling(),
             ])
 
     X = reducer.create_markings_on(sample_in)
@@ -108,7 +109,11 @@ def command_reduce(args):
         rgbas = mappable.to_rgba(aligns)
 
         # Show the distribution and a colorbar
-        plt.hist(aligns, range=(0, 1))
+        _, _, patches = plt.hist(aligns, range=(0, 1), bins=10)
+        # Set the colour of each bar
+        cs = mappable.to_rgba(np.linspace(0.05, 0.95, 10))
+        for c, p in zip(cs, patches):
+            plt.setp(p, 'facecolor', c)
         plt.title('Distribution of y')
         plt.colorbar(mappable)
 
@@ -117,8 +122,16 @@ def command_reduce(args):
             n.style.color = '#{:02X}{:02X}{:02X}'.format(
                 *(int(i * 256) for i in rgba[:3]))
 
-        target.score.show('musicxml')
-        plt.show()
+        if args.label:
+            for n in target.score.recurse().notes:
+                if isinstance(n, chord.Chord):
+                    n.lyric = '/'.join(
+                        '{:.2f}'.format(i.editorial.misc['align']) for i in n)
+                else:
+                    n.lyric = '{:.2f}'.format(n.editorial.misc['align'])
+
+        if args.type != 'combined':
+            target.score.show('musicxml')
 
     if args.type == 'combined':
         target.score.toWrittenPitch(inPlace=True)
@@ -156,6 +169,9 @@ def command_reduce(args):
     else:
         logging.info('Displaying output')
         result.show('musicxml')
+
+    if args.heat:
+        plt.show()
 
     logging.info('Done')
 
@@ -244,6 +260,8 @@ if __name__ == '__main__':
                                default='combined')
     reduce_parser.add_argument('--heat', action='store_true',
                                help='Output heat map')
+    reduce_parser.add_argument('--label', action='store_true',
+                               help='Add labels in heat map')
 
     inspect_parser = subparsers.add_parser('inspect',
                                            help='Inspect sample pair')
