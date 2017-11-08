@@ -25,7 +25,7 @@ class MotifAnalyzer(object):
 
         self.initialize()
 
-    def load_notegrams_by_part_id(self, part):
+    def load_notegrams_by_part(self, part):
         # TODO: support multiple voice
         note_list = [item for item in part.recurse().getElementsByClass(('Note', 'Rest'))]
         result = [[i for i in zip(*[note_list[i:] for i in range(n)])] for n in range(LOWER_N, UPPER_N)]
@@ -41,15 +41,15 @@ class MotifAnalyzer(object):
         return tuple(self.note_map[i] for i in list(noteidgram))
 
     def notegram_to_noteidgram(self, notegram):
-        for note in list(notegram):
+        for note in notegram:
             self.note_map[id(note)] = note
-        return tuple(id(i) for i in list(notegram))
+        return tuple(id(i) for i in notegram)
 
     def initialize(self):
         self.noteidgrams = []
         self.score_by_noteidgram = {}
         for part in self.score.recurse().getElementsByClass('Part'):
-            self.noteidgrams = self.noteidgrams + [self.notegram_to_noteidgram(i) for i in self.load_notegrams_by_part_id(part)]
+            self.noteidgrams = self.noteidgrams + [self.notegram_to_noteidgram(i) for i in self.load_notegrams_by_part(part)]
 
     def start_run(self, sequence_func, score_func, threshold = 0, multipier = 1):
         freq_by_sequence = {}
