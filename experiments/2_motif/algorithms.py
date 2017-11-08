@@ -1,108 +1,91 @@
-#!/usr/bin/env python3
-
 import music21
 import math
 import numpy as np
-
-# static_var decorator
-def static_var(varname, value):
-    def decorate(func):
-        setattr(func, varname, value)
-        return func
-    return decorate
+import re
 
 class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
-    @static_var("note_list_length", 3)
     def note_sequence_func(note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return []
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return []
-        # use the note name as the sequence character
-        new_item = curr_note.name
-        if curr_note.name == 'rest':
-            new_item = 'R'
-        return [(new_item, [curr_note])]
+        results = []
+        for curr_note in note_list:
+            results.append(curr_note.name)
+        return results
 
     @staticmethod
-    @static_var("note_list_length", 3)
-    def note_transition_sequence_func(note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return []
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return []
-        # record the transition of note
-        new_item = None
-        prev_is_rest = isinstance(prev_note, music21.note.Rest)
-        curr_is_rest = isinstance(curr_note, music21.note.Rest)
-        if not prev_is_rest and not curr_is_rest:
-            new_item = str(curr_note.pitch.ps - prev_note.pitch.ps)
-        else:
-            new_item = 'R'
-        return [(new_item, [curr_note])]
-
-    @staticmethod
-    @static_var("note_list_length", 3)
-    def rhythm_transition_sequence_func(note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return []
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note.name == 'rest':
-            return []
-        # record the transition of note
-        new_item = None
-        prev_is_rest = isinstance(prev_note, music21.note.Rest)
-        curr_is_rest = isinstance(curr_note, music21.note.Rest)
-        if not prev_is_rest and not curr_is_rest:
-            if prev_note.duration.quarterLength - 0.0 < 1e-2:
-                new_item = 'R'
-            else:
-                new_item = '{0:.2f}'.format(curr_note.duration.quarterLength / prev_note.duration.quarterLength)
-        else:
-            new_item = 'R'
-        return [(new_item, [prev_note, curr_note])]
-
-    @staticmethod
-    @static_var("note_list_length", 3)
     def rhythm_sequence_func(note_list):
-        prev_note, curr_note, next_note = note_list
-        # we process iff the reading frame all have notes
-        if prev_note is None or curr_note is None or next_note is None:
-            return []
-        # merge rest together as a single rest
-        if curr_note.name == 'rest' and next_note is not None and next_note.name == 'rest':
-            return []
-        # use the note duration length as the sequence character
-        new_item = str(curr_note.duration.quarterLength)
-        return [(new_item, [curr_note])]
+        results = []
+        for curr_note in note_list:
+            results.append(str(curr_note.duration.quarterLength))
+        # last note rhythm might sustain => replace with 1
+        if len(results) > 0:
+            results[-1] = '1.0'
+        return results
 
     @staticmethod
-    def simple_note_score_func(ngram, freq, maps):
-        ngram_chars = ngram.split(';')
-        score = freq * math.sqrt(len(ngram_chars))
-        # extreme: motif should not have a Rest
-        if 'R' in ngram_chars:
-            score = -1
+    def notename_transition_sequence_func(note_list):
+        results = []
+        for i in range(1, len(note_list)):
+            prev_note, curr_note = note_list[i-1:i+1]
+            curr_note_name = re.sub('[^A-G]', '', curr_note.name)
+            prev_note_name = re.sub('[^A-G]', '', prev_note.name)
+            results.append(str(ord(curr_note_name) - ord(prev_note_name)))
+        return results
+
+    @staticmethod
+    def note_contour_sequence_func(note_list):
+        results = []
+        for i in range(1, len(note_list)):
+            prev_note, curr_note = note_list[i-1:i+1]
+            if prev_note.pitch.ps == curr_note.pitch.ps:
+                results.append('=')
+            elif prev_note.pitch.ps < curr_note.pitch.ps:
+                results.append('<')
+            else:
+                results.append('>')
+        return results
+
+    @staticmethod
+    def note_transition_sequence_func(note_list):
+        results = []
+        for i in range(1, len(note_list)):
+            prev_note, curr_note = note_list[i-1:i+1]
+            results.append(str(curr_note.pitch.ps - prev_note.pitch.ps))
+        return results
+
+    @staticmethod
+    def rhythm_transition_sequence_func(note_list):
+        results = []
+        for i in range(1, len(note_list)):
+            prev_note, curr_note = note_list[i-1:i+1]
+            curr_note_length = curr_note.duration.quarterLength
+            if i == len(note_list) - 1: # last note
+                curr_note_length = 1 # expand the last note to quarter note
+            results.append('{0:.2f}'.format(float(curr_note_length / prev_note.duration.quarterLength)))
+        return results
+
+    @staticmethod
+    def freq_score_func(notegram, sequence, freq):
+        return freq
+
+    @staticmethod
+    def simple_note_score_func(notegram, sequence, freq):
+        score = len(sequence) * (freq ** 0.5)
         return score
 
     @staticmethod
-    def entropy_note_score_func(ngram, freq, maps):
-        ngram_chars = ngram.split(';')
-        probabilities = { item: ngram_chars.count(item) / len(ngram_chars) for item in ngram_chars}
+    def distance_entropy_score_func(notegram, sequence, freq):
+        score = 0
+        sequence = [int(i) for i in sequence]
+        distances = [(i-j) for i in sequence for j in sequence if i != j]
+        probabilities = {item: distances.count(item) / len(distances) for item in distances}
         probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * math.sqrt(len(ngram_chars))
+        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
+        return score
 
-        if 'R' in ngram_chars:
-            score = -1
-
+    @staticmethod
+    def entropy_note_score_func(notegram, sequence, freq):
+        probabilities = {item: sequence.count(item) / len(sequence) for item in list(sequence)}
+        probs = np.array(list(probabilities.values()))
+        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         return score
