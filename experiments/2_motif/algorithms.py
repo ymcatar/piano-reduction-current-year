@@ -33,6 +33,19 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
+    def note_contour_sequence_func(note_list):
+        results = []
+        for i in range(1, len(note_list)):
+            prev_note, curr_note = note_list[i-1:i+1]
+            if prev_note.pitch.ps == curr_note.pitch.ps:
+                results.append('=')
+            elif prev_note.pitch.ps < curr_note.pitch.ps:
+                results.append('<')
+            else:
+                results.append('>')
+        return results
+
+    @staticmethod
     def note_transition_sequence_func(note_list):
         results = []
         for i in range(1, len(note_list)):
@@ -57,7 +70,7 @@ class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
     def simple_note_score_func(notegram, sequence, freq):
-        score = len(sequence) * freq
+        score = len(sequence) * (freq ** 0.5)
         return score
 
     @staticmethod
