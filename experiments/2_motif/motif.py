@@ -8,7 +8,7 @@ from matplotlib import cm, colors
 from algorithms import MotifAnalyzerAlgorithms
 
 LOWER_N = 3
-UPPER_N = 10
+UPPER_N = 10  # Exclusive
 
 class MotifAnalyzer(object):
 
@@ -26,15 +26,47 @@ class MotifAnalyzer(object):
         self.initialize()
 
     def load_notegrams_by_part(self, part):
-        # TODO: support multiple voice
-        note_list = [item for item in part.recurse().getElementsByClass(('Note', 'Rest'))]
-        result = [[i for i in zip(*[note_list[i:] for i in range(n)])] for n in range(LOWER_N, UPPER_N)]
-        result = sum(result, []) # flatten the list
-        result = [notegram for notegram in result if not any(
-            (isinstance(note, music21.note.Rest) or
-            note.name == 'rest' or
-            note.duration.quarterLength - 0.0 < 1e-2) for note in notegram
-        )]
+        measures = list(part.getElementsByClass('Measure'))
+
+        vids = set(str(v.id) for measure in measures for v in measure.voices)
+        vids.add('1')  # Default voice
+
+        result = []
+
+        for vid in sorted(vids):
+            note_list = []
+            vid_list = []
+            for measure in measures:
+                if measure.voices:
+                    voice = next(
+                        (v for v in measure.voices if str(v.id) == vid), None)
+                    real_vid = vid
+                else:
+                    voice = measure
+                    real_vid = '1'
+
+                for n in voice.notesAndRests:
+                    offset = measure.offset + n.offset  # TODO: Use me
+                    if isinstance(n, music21.chord.Chord):
+                        # Use only the highest-pitched note
+                        note_list.append(max(n, key=lambda i: i.pitch.ps))
+                    else:
+                        note_list.append(n)
+                    vid_list.append(real_vid)
+
+            for n in range(LOWER_N, UPPER_N):
+                notegram_it = zip(*[note_list[i:] for i in range(n)])
+                vid_it = zip(*[vid_list[i:] for i in range(n)])
+                for notegram, vidgram in zip(notegram_it, vid_it):
+                    if vid not in vidgram:
+                        continue
+                    if any(n.name == 'rest' or
+                           float(n.duration.quarterLength) < 1e-2
+                           for n in notegram):
+                        continue
+
+                    result.append(notegram)
+
         return result
 
     def noteidgram_to_notegram(self, noteidgram):
@@ -74,14 +106,15 @@ class MotifAnalyzer(object):
 
         total_score_to_add = sum(score_to_add_by_noteidgram.values())
 
-        for noteidgram, _ in sequence_by_noteidgram.items():
-            if noteidgram in score_to_add_by_noteidgram:
-                self.score_by_noteidgram[noteidgram] = \
-                    self.score_by_noteidgram[noteidgram] + \
-                    score_to_add_by_noteidgram[noteidgram] / \
-                    total_score_to_add * \
-                    multipier * \
-                    len(score_to_add_by_noteidgram)
+        if abs(total_score_to_add) > 1e-6:
+            for noteidgram, _ in sequence_by_noteidgram.items():
+                if noteidgram in score_to_add_by_noteidgram:
+                    self.score_by_noteidgram[noteidgram] = \
+                        self.score_by_noteidgram[noteidgram] + \
+                        score_to_add_by_noteidgram[noteidgram] / \
+                        total_score_to_add * \
+                        multipier * \
+                        len(score_to_add_by_noteidgram)
 
     def get_top_distinct_score_motifs(self, top_count = 1):
         noteidgram_by_score = {}
