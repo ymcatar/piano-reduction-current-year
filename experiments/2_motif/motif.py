@@ -3,12 +3,13 @@
 import music21
 import os
 import sys
+from collections import defaultdict
 from matplotlib import cm, colors
 
 from algorithms import MotifAnalyzerAlgorithms
 
 LOWER_N = 3
-UPPER_N = 10
+UPPER_N = 4
 
 class MotifAnalyzer(object):
 
@@ -21,7 +22,7 @@ class MotifAnalyzer(object):
         self.note_map = {}
 
         self.noteidgrams = []
-        self.score_by_noteidgram = {}
+        self.score_by_noteidgram = defaultdict(lambda: 0)
 
         self.initialize()
 
@@ -47,20 +48,18 @@ class MotifAnalyzer(object):
 
     def initialize(self):
         self.noteidgrams = []
-        self.score_by_noteidgram = {}
+        self.score_by_noteidgram = defaultdict(lambda: 0)
         for part in self.score.recurse().getElementsByClass('Part'):
             self.noteidgrams = self.noteidgrams + [self.notegram_to_noteidgram(i) for i in self.load_notegrams_by_part(part)]
 
     def start_run(self, sequence_func, score_func, threshold = 0, multipier = 1):
-        freq_by_sequence = {}
+        freq_by_sequence = defaultdict(lambda: 0)
         sequence_by_noteidgram = {}
         score_to_add_by_noteidgram = {}
 
         for noteidgram in self.noteidgrams:
             notegram = self.noteidgram_to_notegram(noteidgram)
             sequence = tuple(sequence_func(notegram))
-            if sequence not in freq_by_sequence:
-                freq_by_sequence[sequence] = 0
             freq_by_sequence[sequence] = freq_by_sequence[sequence] + 1
             sequence_by_noteidgram[noteidgram] = sequence
 
@@ -68,8 +67,6 @@ class MotifAnalyzer(object):
             notegram = self.noteidgram_to_notegram(noteidgram)
             score = score_func(notegram, sequence, freq_by_sequence[sequence])
             if score >= threshold:
-                if noteidgram not in self.score_by_noteidgram:
-                    self.score_by_noteidgram[noteidgram] = 0
                 score_to_add_by_noteidgram[noteidgram] = score
 
         total_score_to_add = sum(score_to_add_by_noteidgram.values())
@@ -84,10 +81,8 @@ class MotifAnalyzer(object):
                     len(score_to_add_by_noteidgram)
 
     def get_top_distinct_score_motifs(self, top_count = 1):
-        noteidgram_by_score = {}
+        noteidgram_by_score = defaultdict(lambda: [])
         for noteidgram, score in self.score_by_noteidgram.items():
-            if score not in noteidgram_by_score:
-                noteidgram_by_score[score] = []
             noteidgram_by_score[score] = noteidgram_by_score[score] + [noteidgram]
 
         results = []
