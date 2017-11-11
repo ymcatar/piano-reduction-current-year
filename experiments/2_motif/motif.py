@@ -8,8 +8,8 @@ from matplotlib import cm, colors
 
 from algorithms import MotifAnalyzerAlgorithms
 
-LOWER_N = 3
-UPPER_N = 10  # Exclusive
+LOWER_N = 4
+UPPER_N = 5
 
 class MotifAnalyzer(object):
 
@@ -46,14 +46,15 @@ class MotifAnalyzer(object):
                     voice = measure
                     real_vid = '1'
 
-                for n in voice.notesAndRests:
-                    offset = measure.offset + n.offset  # TODO: Use me
-                    if isinstance(n, music21.chord.Chord):
-                        # Use only the highest-pitched note
-                        note_list.append(max(n, key=lambda i: i.pitch.ps))
-                    else:
-                        note_list.append(n)
-                    vid_list.append(real_vid)
+                if voice is not None:
+                    for n in voice.notesAndRests:
+                        offset = measure.offset + n.offset  # TODO: Use me
+                        if isinstance(n, music21.chord.Chord):
+                            # Use only the highest-pitched note
+                            note_list.append(max(n, key=lambda i: i.pitch.ps))
+                        else:
+                            note_list.append(n)
+                        vid_list.append(real_vid)
 
             for n in range(LOWER_N, UPPER_N):
                 notegram_it = zip(*[note_list[i:] for i in range(n)])
@@ -178,4 +179,4 @@ for i in range(0, len(motifs)):
         )))
     )
 
-analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
+# analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
