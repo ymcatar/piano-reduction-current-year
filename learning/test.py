@@ -3,20 +3,28 @@
 
 import os
 import music21
-from . import piano
+from piano import piano
 
 xml_path = os.getcwd() + '/sample/'
 
 target_xml = 'input/i_0001_spring_sonata_I.xml'
-target_xml = 'input/i_0000_Beethoven_op18_no1-4.xml'
-
 
 sample_in_xml = [
     'input/i_0000_Beethoven_op18_no1-4.xml',
+    # 'input/i_0001_Spring_sonata_I.xml',
+    'input/i_0002_Beethoven_Symphony_No5_Mov1.xml',
+    'input/i_0003_Beethoven_Symphony_No7_Mov2.xml',
+    'input/i_0004_Mozart_Symphony_No25.xml',
+    'input/i_0005_Mozart_Symphony_No40.xml'
 ]
 
 sample_out_xml = [
-    'output/o_0000_Beethoven_op18_no1-4.xml',
+    'output/i_0000_Beethoven_op18_no1-4.xml',
+    # 'output/i_0001_Spring_sonata_I.xml',
+    'output/i_0002_Beethoven_Symphony_No5_Mov1.xml',
+    'output/i_0003_Beethoven_Symphony_No7_Mov2.xml',
+    'output/i_0004_Mozart_Symphony_No25.xml',
+    'output/i_0005_Mozart_Symphony_No40.xml'
 ]
 
 # ------------------------------------------------------------------------------
