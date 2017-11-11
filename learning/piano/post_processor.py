@@ -1,273 +1,223 @@
-from music21 import (chord, clef, duration as duration_, instrument, layout,
-    note, stream)
+from music21 import (chord, clef, duration as duration, instrument, key,
+                     layout, note, meter, stream)
+from .algorithm.base import iter_notes
 import numpy as np
+from itertools import count
+from collections import defaultdict
+
+
+LEFT_HAND = 1
+RIGHT_HAND = 2
+
+
+def default_keep_func(n):
+    return n.editorial.misc['align'] >= 0.5
 
 
 class PostProcessor(object):
     def generate_piano_score(self, score_obj, reduced=True, playable=True,
-                             measures=None):
-        leftRest = []
-        leftHand = []
+                             assign_hands=True):
+        if assign_hands:
+            keep_func = default_keep_func if reduced else lambda n: True
+            self.assign_hands(score_obj, keep_func=keep_func)
 
-        rightRest = []
-        rightHand = []
+        HANDS = [LEFT_HAND, RIGHT_HAND]
+        parts = [stream.Part(), stream.Part()]
 
-        measureLength = []
-        measureOffset = []
-        signature = []
+        measure_offset = 0
+        for i in count(0):
+            bar = score_obj.score.measure(i, collect=(), gatherSpanners=False)
+            measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
+            if not measures:
+                # Measure 0 is the pickup (partial) measure and may not exist
+                if i == 0: continue
+                else: break
 
-        for part in score_obj.score.parts:
-            for mid, measure in enumerate(part.getElementsByClass(stream.Measure)):
-                while len(leftRest) < mid + 1:
-                    leftRest.append([])
-                while len(leftHand) < mid + 1:
-                    leftHand.append([])
+            bar_length = measures[0].barDuration.quarterLength
 
-                while len(rightRest) < mid + 1:
-                    rightRest.append([])
-                while len(rightHand) < mid + 1:
-                    rightHand.append([])
+            for hand, part in zip(HANDS, parts):
+                key_signature, time_signature = None, None
+                notes, rest_sets = [], []
 
-                while len(measureLength) < mid + 1:
-                    measureLength.append(0)
-                while len(measureOffset) < mid + 1:
-                    measureOffset.append(0)
-                measureOffset[mid] = measure.offset
+                for p in bar.parts:
+                    rests = []
+                    for elem in p.recurse(skipSelf=False):
+                        if isinstance(elem, key.KeySignature):
+                            key_signature = elem
 
-                while len(signature) < mid + 1:
-                    signature.append((None, None))
-                signature[mid] = (measure.keySignature,
-                                  measure.timeSignature)
-                for voice in measure.voices:
-                    restList = []
-                    noteList = []
-                    notePs = []
+                        elif isinstance(elem, meter.TimeSignature):
+                            time_signature = elem
 
-                    for noteObj in voice.notesAndRests:
-                        measureLength[mid] = max(
-                            measureLength[mid], noteObj.offset + noteObj.quarterLength)
+                        elif isinstance(elem, note.Note):
+                            if elem.editorial.misc.get('hand') == hand:
+                                notes.append((
+                                    elem.offset, elem.pitch.ps, elem.tie))
 
-                        if isinstance(noteObj, note.Rest):
-                            restList.append(
-                                (noteObj.offset, noteObj.offset + noteObj.quarterLength))
-                        elif isinstance(noteObj, chord.Chord):
-                            for ch_note in noteObj:
-                                if not reduced or ch_note.editorial.misc['align'] >= 0.5:
-                                    notePs.append(ch_note.ps)
-                                    noteList.append(
-                                        (noteObj.offset, ch_note.nameWithOctave, ch_note.tie))
-                        elif isinstance(noteObj, note.Note):
-                            if not reduced or noteObj.editorial.misc['align'] >= 0.5:
-                                notePs.append(noteObj.ps)
-                                noteList.append(
-                                    (noteObj.offset, noteObj.nameWithOctave, noteObj.tie))
+                        elif isinstance(elem, chord.Chord):
+                            for n in elem:
+                                if elem.editorial.misc.get('hand') == hand:
+                                    notes.append((
+                                        elem.offset, n.pitch.ps, n.tie))
 
-                    if len(noteList) > 0:
-                        median = np.median(notePs)
+                        elif isinstance(elem, note.Rest):
+                            rests.append((
+                                elem.offset,
+                                elem.offset + elem.duration.quarterLength))
 
-                        if median < 60:
-                            leftRest[mid].append(restList)
-                            leftHand[mid].extend(noteList)
                         else:
-                            rightRest[mid].append(restList)
-                            rightHand[mid].extend(noteList)
+                            # Ignore other stuff by default
+                            pass
 
-        leftStaff = stream.Part()
-        rightStaff = stream.Part()
+                    rest_sets.append(rests)
 
-        leftTie = dict()
-        rightTie = dict()
+                out_measure = self._create_measure(
+                    notes=notes, rest_sets=rest_sets, measure_length=bar_length)
 
-        for mid in range(0, len(leftHand)):
-            if measures is None or mid in measures:
-                rightMeasure = self._createMeasure(
-                    notes=rightHand[mid], rests=rightRest[mid],
-                    tieRef=rightTie, measureLength=measureLength[mid],
-                    playable=playable, mid=None)
-                leftMeasure = self._createMeasure(
-                    notes=leftHand[mid], rests=leftRest[mid], tieRef=leftTie,
-                    measureLength=measureLength[mid], playable=playable,
-                    mid=None)
+                if key_signature:
+                    out_measure.insert(key_signature)
+                if time_signature:
+                    out_measure.insert(time_signature)
 
-                if mid == 0:
-                    rightMeasure.clef = clef.TrebleClef()
-                    leftMeasure.clef = clef.BassClef()
+                part.insert(measure_offset, out_measure)
 
-                rightMeasure.keySignature = signature[mid][0]
-                rightMeasure.timeSignature = signature[mid][1]
+            measure_offset += bar_length
 
-                leftMeasure.keySignature = signature[mid][0]
-                leftMeasure.timeSignature = signature[mid][1]
-
-                leftStaff.insert(measureOffset[mid], leftMeasure)
-                rightStaff.insert(measureOffset[mid], rightMeasure)
-
-        result = stream.Score()
-
-        result.insert(0, rightStaff)
-        result.insert(0, leftStaff)
-
-        for part in [leftStaff, rightStaff]:
-            # Change the instrument to piano
-            instruments = list(part.getElementsByClass('Instrument'))
-            part.remove(instruments)
-
+        clefs = [clef.BassClef(), clef.TrebleClef()]
+        for part, clef_ in zip(parts, clefs):
+            # Set the instrument to piano
             piano = instrument.fromString('Piano')
             part.insert(0, piano)
+            part.insert(0, clef_)
 
-        staffGroup = layout.StaffGroup(
-            [rightStaff, leftStaff], name='Piano', abbreviation='Pno.',
+        result = stream.Score()
+        result.insert(0, parts[1])  # Right hand
+        result.insert(0, parts[0])  # Left hand
+
+        staff_group = layout.StaffGroup(
+            [parts[1], parts[0]], name='Piano', abbreviation='Pno.',
             symbol='brace')
-        staffGroup.barTogether = 'yes'
+        staff_group.barTogether = 'yes'
 
-        result.insert(0, staffGroup)
+        result.insert(0, staff_group)
 
         return result
 
-    def _createMeasure(self, notes=[], rests=[], tieRef=dict(),
-                       measureLength=0, playable=True, mid=None):
-        result = stream.Measure()
+    def assign_hands(self, score_obj, keep_func=default_keep_func,
+                     threshold=60):
+        for bar in score_obj.by_bar:
+            for measure in bar.recurse(
+                    skipSelf=False).getElementsByClass(stream.Measure):
+                for voice in measure.voices:
+                    pss = [n.pitch.ps for n in iter_notes(measure, recurse=True)
+                           if keep_func(n)]
 
-        _notes = dict()
-        for noteTuple in notes:
-            if noteTuple[0] not in _notes:
-                _notes[noteTuple[0]] = []
-            _notes[noteTuple[0]].append((noteTuple[1], noteTuple[2]))
+                    if pss:
+                        median = np.median(pss)
+                        hand = RIGHT_HAND if median >= 60 else LEFT_HAND
 
-        _rests = dict()
-        for restList in rests:
-            for restTuple in restList:
-                if restTuple[0] not in _rests:
-                    _rests[restTuple[0]] = 0
-                _rests[restTuple[0]] = _rests[restTuple[0]] + 1
-                if restTuple[1] not in _rests:
-                    _rests[restTuple[1]] = 0
-                _rests[restTuple[1]] = _rests[restTuple[1]] - 1
+                        for n in iter_notes(measure, recurse=True):
+                            if keep_func(n):
+                                n.editorial.misc['hand'] = hand
 
-        realNotes = []
-        restCount = 0
-        restStart = -1
+    def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(),
+                       measure_length=0, playable=True):
+        # list of [offset, quarter length, list of (ps, tie)]
+        out_notes = []
 
-        for offset in _rests:
-            restCount = restCount + _rests[offset]
-            if restStart == -1 and restCount == len(rests):
-                restStart = offset
-            elif restStart != -1 and restCount != len(rests):
-                realNotes.append([restStart, 0, []])
-                restStart = -1
+        # Add all notes to output
+        notes_by_offset = defaultdict(lambda: [])
+        for offset, pitch, tie in notes:
+            notes_by_offset[offset].append((pitch, tie))
 
-        for offset in _notes:
-            realNotes.append([offset, 0, _notes[offset]])
+        for offset, notes in notes_by_offset.items():
+            out_notes.append([offset, 0, notes])
 
-        realNotes = sorted(realNotes)
+        # Find the change in the number of occurring notes at each offset
+        rest_diffs = defaultdict(lambda: 0)
+        for rests in rest_sets:
+            for start, end in rests:
+                rest_diffs[start] += 1
+                rest_diffs[end] -= 1
 
-        if len(realNotes) > 0:
-            first_note = realNotes[0]
-            if len(first_note[2]) == 0:
+        # Find durations where all voices are silent and add them to output
+        rest_count = 0
+        rest_start = None
+        for offset, diff in sorted(rest_diffs.items()):
+            rest_count += diff
+            if rest_start is None and rest_count == len(rests):
+                rest_start = offset
+            elif rest_start is not None and rest_count != len(rests):
+                out_notes.append([rest_start, 0, []])
+                rest_start = None
+
+        out_notes = sorted(out_notes)
+
+        if out_notes:
+            # Add a rest at the measure start if there is a gap
+            offset, length, notes = first_note = out_notes[0]
+            if not notes:
                 first_note[1] = first_note[1] + first_note[0]
                 first_note[0] = 0
-            elif abs(first_note[0]) > 1e-4:
-                realNotes.append([0, first_note[0], []])
+            elif abs(offset) > 1e-4:
+                out_notes.insert(0, [0, offset, []])
 
-        realNotes = sorted(realNotes)
+            # Change the end of each note to the start of next note
+            for nid in range(0, len(out_notes) - 1):
+                this_note, next_note = out_notes[nid:nid+2]
+                this_note[1] = next_note[0] - this_note[0]
+            out_notes[-1][1] = measure_length - out_notes[-1][0]
 
-        if len(realNotes) > 1:
-            for nid in range(0, len(realNotes) - 1):
-                realNotes[nid][1] = realNotes[nid + 1][0] - realNotes[nid][0]
-            realNotes[len(realNotes) - 1][1] = measureLength - \
-                (realNotes[len(realNotes) - 1][0])
+        pss = set()
+        for _, _, notes in out_notes:
+            if len(notes) > 0:
+                for ps, tie in notes:
+                    if tie is None or tie.type == 'start':
+                        pss.add(ps)
+        median = np.median(list(pss)) if pss else 60
 
-        ps = []
-        for noteTuple in sorted(realNotes):
-            _notes = noteTuple[2]
+        result = stream.Measure()
+        for offset, length, notes in out_notes:
+            pss = set()
+            for ps, tie in notes:
+                if tie is None or tie.type == 'start':
+                    pss.add(ps)
 
-            if len(_notes) > 0:
-                for _pitch in _notes:
-                    if _pitch[1] is None or _pitch[1].type == 'start':
-                        ps.append(note.Note(_pitch[0]).ps)
+            pss = set(pss)
+            note_to_insert = None
 
-        median = 60
-        if len(ps) > 0:
-            median = np.median(ps)
-        # print median, ps
-
-        if mid == 4:
-            print(sorted(realNotes))
-            print(realNotes)
-
-        for noteTuple in sorted(realNotes):
-            offset = noteTuple[0]
-            duration = noteTuple[1]
-            _notes = noteTuple[2]
-
-            pitch = set()
-            if len(_notes) > 0:
-                for _pitch in _notes:
-                    if _pitch[1] is None or _pitch[1].type == 'start':
-                        pitch.add(_pitch[0])
-
-            pitch = list(pitch)
-            insertNote = None
-
-            if len(pitch) > 1:
-
-                ch_notes = []
-
-                ch_max_ps = 0
-                ch_max_note = None
-                ch_min_ps = 1024
-                ch_min_note = None
-
-                for p in pitch:
-                    noteObj = note.Note(
-                        p, duration=duration_.Duration(duration))
-                    ch_notes.append(noteObj)
-                    if noteObj.ps > ch_max_ps:
-                        ch_max_ps = noteObj.ps
-                        ch_max_note = noteObj
-                    if noteObj.ps < ch_min_ps:
-                        ch_min_ps = noteObj.ps
-                        ch_min_note = noteObj
-
+            if len(pss) > 1:
                 if playable:
-
-                    while ch_max_ps - ch_min_ps > 12:
+                    # Transform chords to playable ones
+                    max_ps, min_ps = max(pss), min(pss)
+                    while max(pss) - min(pss) > 12:
                         if median > 60:
-                            ch_min_note.octave = ch_min_note.pitch.implicitOctave + 1
+                            pss.add(min_ps + 12)
+                            pss.remove(min_ps)
                         else:
-                            ch_max_note.octave = ch_max_note.pitch.implicitOctave - 1
+                            pss.add(max_ps - 12)
+                            pss.remove(max_ps)
+                        max_ps, min_ps = max(pss), min(pss)
 
-                        ch_max_ps = 0
-                        ch_max_note = None
-                        ch_min_ps = 1024
-                        ch_min_note = None
-                        for noteObj in ch_notes:
-                            if noteObj.ps > ch_max_ps:
-                                ch_max_ps = noteObj.ps
-                                ch_max_note = noteObj
-                            if noteObj.ps < ch_min_ps:
-                                ch_min_ps = noteObj.ps
-                                ch_min_note = noteObj
+                chord_notes = []
+                for ps in pss:
+                    n = note.Note(ps, duration=duration.Duration(length))
+                    chord_notes.append(n)
 
-                insertNote = chord.Chord(ch_notes)
-                insertNote.duration = duration_.Duration(duration)
-            elif len(pitch) == 1:
-                insertNote = note.Note(
-                    pitch[0], duration=duration_.Duration(duration))
+                note_to_insert = chord.Chord(
+                    chord_notes, duration=duration.Duration(length))
+
+            elif len(pss) == 1:
+                note_to_insert = note.Note(
+                    list(pss)[0], duration=duration.Duration(length))
+
             else:
-                insertNote = note.Rest(
-                    duration=duration_.Duration(duration))
+                note_to_insert = note.Rest(duration=duration.Duration(length))
 
-            if mid == 4:
-                print(insertNote, offset, duration, insertNote.quarterLength)
-            if duration > 1e-2:
-                result.insert(offset, insertNote)
+            if length > 1e-2:
+                result.insert(offset, note_to_insert)
 
         if not result.notesAndRests:
             result.insert(0, note.Rest(
-                duration=duration_.Duration(measureLength)))
-
-        if mid == 4:
-            result.show('text')
+                duration=duration.Duration(measure_length)))
 
         return result

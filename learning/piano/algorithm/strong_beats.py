@@ -2,8 +2,6 @@ from .base import ReductionAlgorithm, get_markings, iter_notes_with_offset
 
 
 class StrongBeats(ReductionAlgorithm):
-    _type = 'beat'
-
     def __init__(self, division=1):
         super(StrongBeats, self).__init__()
         self.division = division  # in terms of quarter length

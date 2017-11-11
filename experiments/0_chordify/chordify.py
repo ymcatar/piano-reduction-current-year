@@ -15,7 +15,8 @@ for c in chords.recurse().getElementsByClass('Chord'):
 
 prev = None
 for c in chords.recurse().getElementsByClass('Chord'):
-    rn = str(music21.roman.romanNumeralFromChord(c, music21.key.Key('C')).figure)
+    rn = str(
+        music21.roman.romanNumeralFromChord(c, music21.key.Key('C')).figure)
     if rn != prev:
         c.addLyric(rn)
     prev = rn

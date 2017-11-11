@@ -29,3 +29,27 @@
     ```sh
     flake8
     ```
+
+-   Unit testing:
+
+    ```sh
+    pytest
+    ```
+
+## Command line interface
+
+To access to command line, use:
+
+```sh
+python3 -m learning <args...>
+
+# For help
+python3 -m learning --help
+python3 -m learning <command> --help
+
+# Train model and reduce
+python3 -m learning reduce [-o <output file>] <input file>
+
+# Inspect sample pair
+python3 -m learning inspect <original file>:<reduced file>
+```

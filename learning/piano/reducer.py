@@ -11,7 +11,7 @@ class Reducer(object):
 
         # Set the key for each algorithm
         for i, algo in enumerate(self.algorithms):
-            algo.key = i
+            algo.key_prefix = str(i)
 
         self._all_keys = sorted(
             key for algo in self.algorithms for key in algo.all_keys)
@@ -43,8 +43,8 @@ class Reducer(object):
         X = np.zeros((note_count, len(self.all_keys)), dtype='float')
         for i, n in enumerate(self.iter_notes(input_score_objs)):
             markings = get_markings(n)
-            X[i,:] = np.fromiter((markings[k] for k in self.all_keys),
-                                 dtype='float', count=len(self.all_keys))
+            X[i, :] = np.fromiter((markings[k] for k in self.all_keys),
+                                  dtype='float', count=len(self.all_keys))
         return X
 
     def create_alignment_markings_on(self, input_score_objs, output_score_objs):
@@ -54,7 +54,7 @@ class Reducer(object):
             output_score_objs = [output_score_objs]
 
         for input, output in zip(input_score_objs, output_score_objs):
-            mark_alignment(input.score, output.score, ignore_parts=True)
+            mark_alignment(input.score, output.score)
 
         note_count = sum(1 for _ in self.iter_notes(input_score_objs))
         y = np.fromiter((n.editorial.misc['align']
@@ -68,7 +68,7 @@ class Reducer(object):
 
         if X is None:
             X = self.create_markings_on(input_score_objs)
-        y = model.predict(X)
+        y = model.predict_proba(X)[:,1]
 
         for i, n in enumerate(self.iter_notes(input_score_objs)):
             n.editorial.misc['align'] = y[i]

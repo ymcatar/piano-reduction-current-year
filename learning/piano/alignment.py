@@ -56,7 +56,7 @@ def align_scores(left_score, right_score, precision=1024,
     Returns: an Alignment object.
     '''
 
-    # index[part index][measure offset] \
+    # index[part index][measure index] \
     #   [(local offset, duration, pitch space)] = list(notes)
     # The tuple can be completely determined from the Note object itself
     scores = [left_score, right_score]
@@ -72,12 +72,11 @@ def align_scores(left_score, right_score, precision=1024,
             # corresponding voice, but only the corresponding score. This is
             # because putting the note in a different voice still gives a
             # similarly looking score -- so the voice number is not informative.
-            for measure in part.getElementsByClass(stream.Measure):
-                mo = int(measure.offset * precision)
+            for mi, measure in enumerate(part.getElementsByClass(stream.Measure)):
                 # Recurse on voices
                 for n, offset in iter_notes_with_offset(measure, recurse=True):
                     key = key_func(n, offset, precision)
-                    index[i][mo][key].append(n)
+                    index[i][mi][key].append(n)
 
     # For each score, look up the other Note object index
     lookups = [{} for _ in range(2)]
@@ -85,19 +84,42 @@ def align_scores(left_score, right_score, precision=1024,
         for i, part in enumerate(score.parts):
             if ignore_parts:
                 i = 0
-            for measure in part.getElementsByClass(stream.Measure):
-                mo = int(measure.offset * precision)
+            for mi, measure in enumerate(part.getElementsByClass(stream.Measure)):
                 # Recurse on voices
                 for n, offset in iter_notes_with_offset(measure, recurse=True):
                     key = key_func(n, offset, precision)
                     assert id(n) not in lookups, 'Note object not unique!'
-                    lookup[id(n)] = other_index[i][mo][key]
+                    lookup[id(n)] = other_index[i][mi][key]
 
     return Alignment(*lookups)
 
 
-def mark_alignment(input_score, output_score, **kwargs):
-    alignment = align_scores(input_score, output_score, **kwargs)
+def mark_alignment(input_score, output_score):
+    def key_func(n, offset, precision):
+        # On making matches, only consider offset and pitch class, but not
+        # duration and octave
+        return (int(offset * precision), n.pitch.pitchClass)
+
+    def same_duration(n, m, precision=1024):
+        return int(n.duration.quarterLength * precision) == \
+            int(m.duration.quarterLength * precision)
+
+    def same_pitch(n, m):
+        return n.pitch == m.pitch
+
+    alignment = align_scores(input_score, output_score, ignore_parts=True,
+                             key_func=key_func)
+
     for n in iter_notes(input_score, recurse=True):
-        n.editorial.misc['align'] = bool(alignment[n])
+        if any(same_duration(i, n) and same_pitch(i, n)
+               for i in alignment[n]):
+            align_type = 'all'
+        elif any(same_pitch(i, n) for i in alignment[n]):
+            align_type = 'pitch space'
+        elif alignment[n]:
+            align_type = 'pitch class'
+        else:
+            align_type = None
+        n.editorial.misc['align_type'] = align_type
+        n.editorial.misc['align'] = bool(align_type)
     return input_score

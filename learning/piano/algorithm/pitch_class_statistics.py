@@ -8,8 +8,6 @@ PITCH_CLASSES = list(range(12))
 
 
 class PitchClassStatistics(ReductionAlgorithm):
-    _type = 'pitch'
-
     @property
     def all_keys(self):
         return ['{}_{!s}'.format(self.key, pc) for pc in PITCH_CLASSES]

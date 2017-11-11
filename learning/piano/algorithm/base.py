@@ -3,38 +3,26 @@ from music21 import chord
 
 class ReductionAlgorithm(object):
     '''
-    Base class of all parameters, each contains a list of labels to allow
-    multiple markings by one parameter
+    Base class for a feature constructor involving a single note. Each feature
+    constructor can create mulitple markings.
     '''
 
-    _type = 'unknown'
-
-    @property
-    def type(self):
-        return self.__class__._type
+    def __init__(self):
+        # To be determined by the reducer
+        self.key_prefix = '!'
 
     @property
     def all_keys(self):
+        # Key(s) of the markings created by this algorithm
         return [self.key]
 
     @property
     def key(self):
-        return str(self._key) + '_' + str(self.__class__._type)
+        # Generate a default main key, for convenience
+        return str(self.key_prefix) + '_' + str(self.__class__.__name__)
 
-    @key.setter
-    def key(self, key):
-        self._key = key
-
-    @property
-    def parts(self):
-        return self._parts
-
-    def __init__(self):
-        super(ReductionAlgorithm, self).__init__()
-        self._key = '!'
-
-    def createMarkingsOn(self, score):
-        pass
+    def create_markings_on(self, score_obj):
+        raise NotImplementedError()
 
 
 def get_markings(n):
