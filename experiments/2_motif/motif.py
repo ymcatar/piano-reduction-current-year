@@ -8,8 +8,8 @@ from matplotlib import cm, colors
 
 from algorithms import MotifAnalyzerAlgorithms
 
-LOWER_N = 4
-UPPER_N = 5
+LOWER_N = 3
+UPPER_N = 4
 
 class MotifAnalyzer(object):
 
@@ -179,4 +179,4 @@ for i in range(0, len(motifs)):
         )))
     )
 
-# analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
+analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
