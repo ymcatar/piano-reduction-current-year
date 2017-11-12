@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import music21
 import math
 import numpy as np

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import music21
 import os
 import sys
