@@ -82,12 +82,12 @@ class MotifAnalyzerAlgorithms(object):
         distances = [(i-j) for i in sequence for j in sequence if i != j]
         probabilities = {item: distances.count(item) / len(distances) for item in distances}
         probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * (len(sequence) ** 0.5)
+        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         return score
 
     @staticmethod
     def entropy_note_score_func(notegram, sequence, freq):
         probabilities = {item: sequence.count(item) / len(sequence) for item in list(sequence)}
         probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * (len(sequence) ** 0.5)
+        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         return score
