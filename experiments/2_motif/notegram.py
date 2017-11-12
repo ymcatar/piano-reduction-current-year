@@ -17,10 +17,10 @@ class Notegram(object):
         return id(self)
 
     def __str__(self):
-        return str(list(zip(
+        return ';'.join(i[0] + ',' + i[1] for i in zip(
             MotifAnalyzerAlgorithms.note_sequence_func(self.note_list),
             MotifAnalyzerAlgorithms.rhythm_sequence_func(self.note_list)
-        )))
+        ))
 
     def get_note_list(self):
         return self.note_list

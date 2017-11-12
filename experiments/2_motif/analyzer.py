@@ -6,7 +6,7 @@ from collections import defaultdict
 from notegram import Notegram
 
 LOWER_N = 3
-UPPER_N = 4
+UPPER_N = 10
 
 class MotifAnalyzer(object):
 
@@ -15,10 +15,8 @@ class MotifAnalyzer(object):
         self.score = music21.converter.parse(filepath)
         self.score.toSoundingPitch()
 
-        # resolve note unique id back to note object
-        self.notegrams = []
-        self.notegram_map = {}
-        self.score_by_notegram = defaultdict(lambda: 0)
+        self.notegram_groups = defaultdict(lambda: [])
+        self.score_by_notegram_group = defaultdict(lambda: 0)
 
         self.algorithms = []
 
@@ -65,70 +63,71 @@ class MotifAnalyzer(object):
                         continue
 
                     temp = Notegram(list(i[1] for i in notegram), list(i[0] for i in notegram))
-                    self.notegram_map[temp] = temp
                     result.append(temp)
 
         return result
 
     def initialize(self):
-        self.notegrams = []
-        self.score_by_notegram = defaultdict(lambda: 0)
+        self.notegram_groups = defaultdict(lambda: [])
+        self.score_by_notegram_group = defaultdict(lambda: 0)
         for part in self.score.recurse().getElementsByClass('Part'):
-            self.notegrams += self.load_notegrams_by_part(part)
+            for notegram in self.load_notegrams_by_part(part):
+                self.notegram_groups[str(notegram)].append(notegram)
 
     def add_algorithm(self, algorithm_tuple):
         self.algorithms.append(algorithm_tuple)
 
     def run(self, sequence_func, score_func, threshold = 0, multipier = 1):
         freq_by_sequence = defaultdict(lambda: 0)
-        sequence_by_notegram = {}
-        score_to_add_by_notegram = {}
+        sequence_by_notegram_group = {}
+        score_to_add_by_notegram_group = {}
 
-        for notegram in self.notegrams:
-            sequence = tuple(sequence_func(notegram.get_note_list()))
+        for notegram_group, value in self.notegram_groups.items():
+            sequence = tuple(sequence_func(value[0].get_note_list()))
             freq_by_sequence[sequence] += 1
-            sequence_by_notegram[notegram] = sequence
+            sequence_by_notegram_group[notegram_group] = sequence
 
-        for notegram_id, sequence in sequence_by_notegram.items():
-            notegram = self.notegram_map[notegram_id]
-            score = score_func(notegram.get_note_list(), sequence, freq_by_sequence[sequence])
+        for notegram_group, sequence in sequence_by_notegram_group.items():
+            notegram = self.notegram_groups[notegram_group][0]
+            group_size = len(self.notegram_groups[notegram_group])
+            score = score_func(notegram.get_note_list(), sequence, freq_by_sequence[sequence]) * group_size
             if score >= threshold:
-                score_to_add_by_notegram[notegram] = score
+                score_to_add_by_notegram_group[notegram_group] = score
 
-        total_score_to_add = sum(score_to_add_by_notegram.values())
+        total_score_to_add = sum(score_to_add_by_notegram_group.values())
 
         if abs(total_score_to_add) > 1e-6:
-            for notegram_id, _ in sequence_by_notegram.items():
-                notegram = self.notegram_map[notegram_id]
-                if notegram in score_to_add_by_notegram:
-                    self.score_by_notegram[notegram] = \
-                        self.score_by_notegram[notegram] + \
-                        score_to_add_by_notegram[notegram] / \
+            for notegram_group, _ in sequence_by_notegram_group.items():
+                if notegram_group in score_to_add_by_notegram_group:
+                    self.score_by_notegram_group[notegram_group] = \
+                        self.score_by_notegram_group[notegram_group] + \
+                        score_to_add_by_notegram_group[notegram_group] / \
                         total_score_to_add * \
                         multipier * \
-                        len(score_to_add_by_notegram)
+                        len(score_to_add_by_notegram_group)
 
     def run_all(self):
-        self.score_by_notegram = defaultdict(lambda: 0)
+        self.score_by_notegram_group = defaultdict(lambda: 0)
         for algorithm in self.algorithms:
             self.run(*algorithm)
 
-    def get_top_distinct_score_motifs(self, top_count = 1):
-        notegram_by_score = defaultdict(lambda: [])
-        for notegram, score in self.score_by_notegram.items():
-            notegram_by_score[score].append(notegram)
+    def get_top_motif_group(self): # TODO: add clustering
+        notegram_group_by_score = defaultdict(lambda: [])
+        for notegram_group, score in self.score_by_notegram_group.items():
+            notegram_group_by_score[score].append(notegram_group)
 
         results = []
-        for i in range(0, min(len(notegram_by_score), top_count)):
-            max_score = max(k for k, v in notegram_by_score.items())
-            results.append(notegram_by_score.pop(max_score))
+        for i in range(0, min(len(notegram_group_by_score), 1)):
+            max_score = max(k for k, v in notegram_group_by_score.items())
+            results.append(notegram_group_by_score.pop(max_score))
 
         return results
 
-    def highlight_noteidgram(self, notegram, color):
-        for note in notegram.get_note_list():
-            note.style.color = color
-            if note.lyric is None:
-                note.lyric = '1'
-            else:
-                note.lyric = str(int(note.lyric) + 1)
+    def highlight_noteidgram_group(self, notegram_group, color):
+        for value in self.notegram_groups[notegram_group]:
+            for note in value.get_note_list():
+                note.style.color = color
+                if note.lyric is None:
+                    note.lyric = '1'
+                else:
+                    note.lyric = str(int(note.lyric) + 1)

@@ -9,7 +9,7 @@ from analyzer import MotifAnalyzer
 from algorithms import MotifAnalyzerAlgorithms
 
 if len(sys.argv) != 4:
-    print("Usage: $0 [path of the input MusicXML file] [output path] [top count]")
+    print("Usage: $0 [path of the input MusicXML file] [output path]")
     exit()
 
 filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
@@ -21,27 +21,29 @@ colors = ['#{:02X}{:02X}{:02X}'.format(*(int(x*255) for x in color[:3])) for col
 
 analyzer = MotifAnalyzer(sys.argv[1])
 
-analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5))
-analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 5))
-analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_contour_sequence_func, MotifAnalyzerAlgorithms.simple_note_score_func, 0, 10))
+analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
+analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
+analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_contour_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 10))
 analyzer.add_algorithm((MotifAnalyzerAlgorithms.notename_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 8))
 analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
 
 analyzer.run_all()
-motifs = analyzer.get_top_distinct_score_motifs(top_count = top_count)
+motifs = analyzer.get_top_motif_group()
 
-print('#\t\tScore\t\tSequence')
-print('-\t\t-----\t\t--------')
+print('Score\tSequence')
+print('-----\t--------')
 for i in range(0, len(motifs)):
-    motif_notegram_list = motifs[i]
-    for motif_noteidgram in motif_notegram_list:
-        analyzer.highlight_noteidgram(motif_noteidgram, colors[i])
+    motif_notegram_group_list = motifs[i]
+    # print to screen
     print(
-        str(len(motif_notegram_list)) +
-        '\t\t' +
-        str('{0:.2f}'.format(analyzer.score_by_notegram[motif_notegram_list[0]])) +
-        '\t\t' +
-        str(motif_notegram_list[0])
+        str('{0:.2f}'.format(analyzer.score_by_notegram_group[motif_notegram_group_list[0]])) +
+        '\t' +
+        str(' / '.join(
+            '(' + str(len(analyzer.notegram_groups[item])) + ') ' + str(item) for item in motif_notegram_group_list
+        ))
     )
+    # highlight in file
+    for notegram_group in motif_notegram_group_list:
+        analyzer.highlight_noteidgram_group(notegram_group, colors[i])
 
 # analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))
