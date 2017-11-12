@@ -15,10 +15,17 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
+    def notename_sequence_func(note_list):
+        results = []
+        for curr_note in note_list:
+            results.append(re.sub('[^A-G]', '', curr_note.name))
+        return results
+
+    @staticmethod
     def rhythm_sequence_func(note_list):
         results = []
         for curr_note in note_list:
-            results.append(str(curr_note.duration.quarterLength))
+            results.append(str(float(curr_note.duration.quarterLength)))
         # last note rhythm might sustain => replace with 1
         if len(results) > 0:
             results[-1] = '1.0'
