@@ -6,7 +6,7 @@ from collections import defaultdict
 from notegram import Notegram
 
 LOWER_N = 3
-UPPER_N = 10
+UPPER_N = 4
 
 class MotifAnalyzer(object):
 

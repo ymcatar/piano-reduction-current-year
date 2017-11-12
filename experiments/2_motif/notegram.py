@@ -16,7 +16,7 @@ class Notegram(object):
     def __hash__(self):
         return id(self)
 
-    def __str__(self):
+    def __str__(self): # this determines how notegram are grouped together
         return ';'.join(i[0] + ',' + i[1] for i in zip(
             MotifAnalyzerAlgorithms.note_sequence_func(self.note_list),
             MotifAnalyzerAlgorithms.rhythm_sequence_func(self.note_list)
