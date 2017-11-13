@@ -3,7 +3,7 @@
 import music21
 import os
 import sys
-from Bio import pairwise2
+import editdistance
 
 from algorithms import MotifAnalyzerAlgorithms
 
@@ -18,21 +18,17 @@ def normalize_sequences(first, second):
         results.append(mapping[character])
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
-def align_sequences(first, second):
-    first, second = normalize_sequences(first, second)
-    score = pairwise2.align.globalms(first, second, 2, -1, -0.5, -0.1, score_only = True)
-    return score
-
 def get_similarity(first, second):
     sequence_func_list = [
         MotifAnalyzerAlgorithms.note_sequence_func,
         MotifAnalyzerAlgorithms.rhythm_sequence_func
     ]
-    score = 0.0
+    score = []
     for sequence_func in sequence_func_list:
         first_sequence = sequence_func(first)
         second_sequence = sequence_func(second)
-        score += align_sequences(first_sequence, second_sequence)
+        first_sequence, second_sequence = normalize_sequences(first_sequence, second_sequence)
+        score.append(editdistance.eval(first_sequence, second_sequence))
     return score
 
 # def score_to_notegram(score):
