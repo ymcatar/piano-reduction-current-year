@@ -1,6 +1,8 @@
 import argparse
 import datetime
 import functools
+import importlib
+import json
 import logging
 import sys
 import textwrap
@@ -9,13 +11,11 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from .piano import algorithm
 from .piano.alignment import mark_alignment
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
-from .models.nn import LogisticModel, NNModel
+from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
 
 
@@ -30,8 +30,21 @@ DEFAULT_SAMPLES = [
     # 'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/i_0007_Tchaikovsky_nutcracker_march.xml'
     ]
 
-DefaultModel = functools.partial(WrappedSklearnModel, LogisticRegression)
-DefaultModel = NNModel
+# (path.to.Class, args, kwargs)
+DEFAULT_ALGORITHMS = [
+    ('learning.piano.algorithm.ActiveRhythm', [], {}),
+    ('learning.piano.algorithm.BassLine', [], {}),
+    ('learning.piano.algorithm.EntranceEffect', [], {}),
+    ('learning.piano.algorithm.Occurrence', [], {}),
+    ('learning.piano.algorithm.OnsetAfterRest', [], {}),
+    ('learning.piano.algorithm.PitchClassStatistics', [], {}),
+    ('learning.piano.algorithm.RhythmVariety', [], {}),
+    ('learning.piano.algorithm.StrongBeats', [], {'division': 0.5}),
+    ('learning.piano.algorithm.SustainedRhythm', [], {}),
+    ('learning.piano.algorithm.VerticalDoubling', [], {}),
+    ]
+
+DEFAULT_MODEL = 'learning.models.nn.NNModel'
 
 def configure_logger():
     logger = logging.getLogger()
@@ -66,10 +79,50 @@ def merge_reduced_to_original(original, reduced):
     original.insert(0, group)
 
 
-def command_reduce(args):
-    logging.info('Reading input score')
-    target = ScoreObject.from_file(args.file)
+def import_symbol(path):
+    module, symbol = path.rsplit('.', 1)
+    return getattr(importlib.import_module(module), symbol)
 
+
+def create_reducer_and_model(algorithms, model_str):
+    algorithm_objs = [import_symbol(path)(*args, **kwargs)
+                      for path, args, kwargs in algorithms]
+    reducer = Reducer(algorithms=algorithm_objs)
+    Model = import_symbol(model_str)
+    if not issubclass(Model, BaseModel):
+        # Wrap sklearn models automagically
+        Model = functools.partial(WrappedSklearnModel, Model)
+
+    return reducer, Model(reducer)
+
+
+def save(reducer, model, filename, algorithms, model_str):
+    logging.info('Saving model to {}'.format(filename))
+    model.save(filename)
+
+    metadata = {
+        'algorithms': algorithms,
+        'model_str': model_str,
+        }
+    with open(filename + '.metadata', 'w') as f:
+        json.dump(metadata, f)
+
+
+def load(filename):
+    with open(filename + '.metadata', 'r') as f:
+        metadata = json.load(f)
+
+    logging.info('Initializing model')
+    reducer, model = create_reducer_and_model(
+        metadata['algorithms'], metadata['model_str'])
+
+    logging.info('Loading model parameters')
+    model.load(filename)
+
+    return reducer, model
+
+
+def train(args, save_model=False):
     logging.info('Reading sample scores')
     sample_paths = args.sample or DEFAULT_SAMPLES
     sample_in = []
@@ -80,19 +133,7 @@ def command_reduce(args):
         sample_out.append(ScoreObject.from_file(out_path))
 
     logging.info('Extracting features for sample scores')
-    reducer = Reducer(
-        algorithms=[
-            algorithm.ActiveRhythm(),
-            algorithm.BassLine(),
-            algorithm.EntranceEffect(),
-            algorithm.Occurrence(),
-            algorithm.OnsetAfterRest(),
-            algorithm.PitchClassStatistics(),
-            algorithm.RhythmVariety(),
-            algorithm.StrongBeats(division=0.5),
-            algorithm.SustainedRhythm(),
-            algorithm.VerticalDoubling(),
-            ])
+    reducer, model = create_reducer_and_model(DEFAULT_ALGORITHMS, args.model)
 
     X = reducer.create_markings_on(sample_in)
     y = reducer.create_alignment_markings_on(sample_in, sample_out)
@@ -102,11 +143,35 @@ def command_reduce(args):
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
     logging.info('Training ML model')
 
-    model = DefaultModel(reducer)
     model.fit(X, y)
     logging.info('Training metric = {}'.format(model.evaluate(X, y)))
 
+    if save_model:
+        save(reducer, model, args.output, algorithms=DEFAULT_ALGORITHMS,
+             model_str=args.model)
+
+    logging.info('Done training')
+
+    return reducer, model
+
+
+def command_train(args):
+    train(args, save_model=True)
+
+
+def command_reduce(args):
+    sample_paths = args.sample or DEFAULT_SAMPLES
+    if args.model:
+        reducer, model = load(args.model)
+    else:
+        reducer, model = train(args)
+
+    logging.info('Reading input score')
+    target = ScoreObject.from_file(args.file)
+
+    logging.info('Extracting features for input score')
     X_test = reducer.create_markings_on(target)
+    logging.info('Predicting')
     reducer.predict_from(model, target, X=X_test)
 
     post_processor = PostProcessor()
@@ -247,7 +312,9 @@ def command_inspect(args):
 
 
 def main(args):
-    if args.command == 'reduce':
+    if args.command == 'train':
+        command_train(args)
+    elif args.command == 'reduce':
         command_reduce(args)
     elif args.command == 'inspect':
         command_inspect(args)
@@ -265,6 +332,16 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(dest='command', help='Command')
     subparsers.required = True
 
+    train_parser = subparsers.add_parser('train', help='Train model')
+    reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
+
+    for subparser in [train_parser, reduce_parser]:
+        subparser.add_argument('--model', '-m', default=DEFAULT_MODEL,
+                               help='Model class')
+
+    train_parser.add_argument('--output', '-o', required=True,
+                              help='Output to file')
+
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
     reduce_parser.add_argument('file', help='Input file')
     reduce_parser.add_argument('--output', '-o', help='Output to file')
@@ -275,6 +352,7 @@ if __name__ == '__main__':
                                help='Output heat map')
     reduce_parser.add_argument('--label', action='store_true',
                                help='Add labels in heat map')
+    reduce_parser.add_argument('--model', '-m', help='Model file')
 
     inspect_parser = subparsers.add_parser('inspect',
                                            help='Inspect sample pair')
