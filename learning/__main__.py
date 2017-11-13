@@ -90,6 +90,7 @@ def command_reduce(args):
             algorithm.StrongBeats(division=0.5),
             algorithm.SustainedRhythm(),
             algorithm.VerticalDoubling(),
+            algorithm.Motif()
             ])
 
     X = reducer.create_markings_on(sample_in)

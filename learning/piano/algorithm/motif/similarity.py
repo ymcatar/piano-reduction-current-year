@@ -5,7 +5,7 @@ import os
 import sys
 import editdistance
 
-from algorithms import MotifAnalyzerAlgorithms
+from .algorithms import MotifAnalyzerAlgorithms
 
 
 def normalize_sequences(first, second):

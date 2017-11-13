@@ -13,7 +13,7 @@ if len(sys.argv) != 3:
 filename = os.path.splitext(os.path.basename(sys.argv[1]))[0]
 output_path = sys.argv[2]
 
-analyzer = MotifAnalyzer(sys.argv[1])
+analyzer = MotifAnalyzer(music21.converter.parse(sys.argv[1]))
 
 analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_sequence_func,
                         MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
