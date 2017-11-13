@@ -2,11 +2,13 @@
 
 from algorithms import MotifAnalyzerAlgorithms
 
+
 class Notegram(object):
 
     def __init__(self, note_list, offset):
         if len(note_list) != len(offset):
-            raise ValueError('Length of note_list mismatches with length of offset')
+            raise ValueError(
+                'Length of note_list mismatches with length of offset')
         self.note_list = note_list
         self.offset = offset
 
@@ -16,7 +18,7 @@ class Notegram(object):
     def __hash__(self):
         return id(self)
 
-    def __str__(self): # this determines how notegram are grouped together
+    def __str__(self):  # this determines how notegram are grouped together
         return ';'.join(i[0] + ',' + i[1] for i in zip(
             MotifAnalyzerAlgorithms.note_sequence_func(self.note_list),
             MotifAnalyzerAlgorithms.rhythm_sequence_func(self.note_list)

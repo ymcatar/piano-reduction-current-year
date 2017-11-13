@@ -8,6 +8,7 @@ from notegram import Notegram
 LOWER_N = 3
 UPPER_N = 4
 
+
 class MotifAnalyzer(object):
 
     def __init__(self, filepath):
@@ -35,7 +36,8 @@ class MotifAnalyzer(object):
             vid_list = []
             for measure in measures:
                 if measure.voices:
-                    voice = next((v for v in measure.voices if str(v.id) == vid), None)
+                    voice = next(
+                        (v for v in measure.voices if str(v.id) == vid), None)
                     real_vid = vid
                 else:
                     voice = measure
@@ -46,7 +48,8 @@ class MotifAnalyzer(object):
                         offset = measure.offset + n.offset
                         if isinstance(n, music21.chord.Chord):
                             # Use only the highest-pitched note
-                            note_list.append((offset, max(n, key=lambda i: i.pitch.ps)))
+                            note_list.append(
+                                (offset, max(n, key=lambda i: i.pitch.ps)))
                         else:
                             note_list.append((offset, n))
                         vid_list.append(real_vid)
@@ -62,7 +65,8 @@ class MotifAnalyzer(object):
                            for n in notegram):
                         continue
 
-                    temp = Notegram(list(i[1] for i in notegram), list(i[0] for i in notegram))
+                    temp = Notegram(list(i[1] for i in notegram), list(
+                        i[0] for i in notegram))
                     result.append(temp)
 
         return result
@@ -80,14 +84,15 @@ class MotifAnalyzer(object):
     def get_first_notegram_from_group(self, notegram_group):
         return self.notegram_groups[notegram_group][0]
 
-    def run(self, sequence_func, score_func, threshold = 0, multipier = 1):
+    def run(self, sequence_func, score_func, threshold=0, multipier=1):
         freq_by_sequence = defaultdict(lambda: 0)
         sequence_by_notegram_group = {}
         score_to_add_by_notegram_group = {}
 
         for notegram_group, _ in self.notegram_groups.items():
             sequence = tuple(
-                sequence_func(self.get_first_notegram_from_group(notegram_group).get_note_list())
+                sequence_func(self.get_first_notegram_from_group(
+                    notegram_group).get_note_list())
             )
             freq_by_sequence[sequence] += 1
             sequence_by_notegram_group[notegram_group] = sequence
@@ -95,7 +100,8 @@ class MotifAnalyzer(object):
         for notegram_group, sequence in sequence_by_notegram_group.items():
             notegram = self.get_first_notegram_from_group(notegram_group)
             group_size = len(self.notegram_groups[notegram_group])
-            score = score_func(notegram.get_note_list(), sequence, freq_by_sequence[sequence]) * group_size
+            score = score_func(notegram.get_note_list(), sequence,
+                               freq_by_sequence[sequence]) * group_size
             if score >= threshold:
                 score_to_add_by_notegram_group[notegram_group] = score
 
@@ -116,7 +122,7 @@ class MotifAnalyzer(object):
         for algorithm in self.algorithms:
             self.run(*algorithm)
 
-    def get_top_motif_cluster(self): # TODO: add clustering
+    def get_top_motif_cluster(self):  # TODO: add clustering
         notegram_group_by_score = defaultdict(lambda: [])
         for notegram_group, score in self.score_by_notegram_group.items():
             notegram_group_by_score[score].append(notegram_group)

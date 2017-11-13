@@ -5,6 +5,7 @@ import math
 import numpy as np
 import re
 
+
 class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
@@ -35,7 +36,7 @@ class MotifAnalyzerAlgorithms(object):
     def notename_transition_sequence_func(note_list):
         results = []
         for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i-1:i+1]
+            prev_note, curr_note = note_list[i - 1:i + 1]
             curr_note_name = re.sub('[^A-G]', '', curr_note.name)
             prev_note_name = re.sub('[^A-G]', '', prev_note.name)
             results.append(str(ord(curr_note_name) - ord(prev_note_name)))
@@ -45,7 +46,7 @@ class MotifAnalyzerAlgorithms(object):
     def note_contour_sequence_func(note_list):
         results = []
         for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i-1:i+1]
+            prev_note, curr_note = note_list[i - 1:i + 1]
             if prev_note.pitch.ps == curr_note.pitch.ps:
                 results.append('=')
             elif prev_note.pitch.ps < curr_note.pitch.ps:
@@ -58,7 +59,7 @@ class MotifAnalyzerAlgorithms(object):
     def note_transition_sequence_func(note_list):
         results = []
         for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i-1:i+1]
+            prev_note, curr_note = note_list[i - 1:i + 1]
             results.append(str(curr_note.pitch.ps - prev_note.pitch.ps))
         return results
 
@@ -66,11 +67,12 @@ class MotifAnalyzerAlgorithms(object):
     def rhythm_transition_sequence_func(note_list):
         results = []
         for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i-1:i+1]
+            prev_note, curr_note = note_list[i - 1:i + 1]
             curr_note_length = curr_note.duration.quarterLength
-            if i == len(note_list) - 1: # last note
-                curr_note_length = 1 # expand the last note to quarter note
-            results.append('{0:.2f}'.format(float(curr_note_length / prev_note.duration.quarterLength)))
+            if i == len(note_list) - 1:  # last note
+                curr_note_length = 1  # expand the last note to quarter note
+            results.append('{0:.2f}'.format(
+                float(curr_note_length / prev_note.duration.quarterLength)))
         return results
 
     @staticmethod
@@ -86,15 +88,17 @@ class MotifAnalyzerAlgorithms(object):
     def distance_entropy_score_func(notegram, sequence, freq):
         score = 0
         sequence = [int(i) for i in sequence]
-        distances = [(i-j) for i in sequence for j in sequence if i != j]
-        probabilities = {item: distances.count(item) / len(distances) for item in distances}
+        distances = [(i - j) for i in sequence for j in sequence if i != j]
+        probabilities = {item: distances.count(
+            item) / len(distances) for item in distances}
         probs = np.array(list(probabilities.values()))
         score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         return score
 
     @staticmethod
     def entropy_note_score_func(notegram, sequence, freq):
-        probabilities = {item: sequence.count(item) / len(sequence) for item in list(sequence)}
+        probabilities = {item: sequence.count(
+            item) / len(sequence) for item in list(sequence)}
         probs = np.array(list(probabilities.values()))
         score = - probs.dot(np.log2(probs)) * freq * len(sequence)
         return score

@@ -7,6 +7,7 @@ import editdistance
 
 from algorithms import MotifAnalyzerAlgorithms
 
+
 def normalize_sequences(first, second):
     results = []
     mapping = {}
@@ -18,6 +19,7 @@ def normalize_sequences(first, second):
         results.append(mapping[character])
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
+
 def get_similarity(first, second):
     sequence_func_list = [
         MotifAnalyzerAlgorithms.note_sequence_func,
@@ -27,7 +29,8 @@ def get_similarity(first, second):
     for sequence_func in sequence_func_list:
         first_sequence = sequence_func(first)
         second_sequence = sequence_func(second)
-        first_sequence, second_sequence = normalize_sequences(first_sequence, second_sequence)
+        first_sequence, second_sequence = normalize_sequences(
+            first_sequence, second_sequence)
         score.append(editdistance.eval(first_sequence, second_sequence))
     return score
 
