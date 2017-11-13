@@ -89,7 +89,7 @@ class MotifAnalyzer(object):
     def get_first_notegram_from_group(self, notegram_group):
         return self.notegram_groups[notegram_group][0]
 
-    def run(self, sequence_func, score_func, threshold=0, multipier=1):
+    def run(self, sequence_func, score_func, threshold=0, multiplier=1):
         freq_by_sequence = defaultdict(lambda: 0)
         sequence_by_notegram_group = {}
         score_to_add_by_notegram_group = {}
@@ -119,7 +119,7 @@ class MotifAnalyzer(object):
                         self.score_by_notegram_group[notegram_group] + \
                         score_to_add_by_notegram_group[notegram_group] / \
                         total_score_to_add * \
-                        multipier * \
+                        multiplier * \
                         len(score_to_add_by_notegram_group)
 
     def run_all(self):
@@ -179,7 +179,7 @@ class MotifAnalyzer(object):
                 total_score_by_label[label] += \
                     self.score_by_notegram_group[str(notegram_group)]
 
-        # # for printing out clustering result
+        # for printing out clustering result
         # for group in set(i for i in db.labels_) - {-1}:
         #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
         #         if label == group:
