@@ -29,3 +29,15 @@ class BaseModel(object):
         Returns a short description of the model.
         '''
         return type(self).__name__
+
+    def save(self, fp):
+        '''
+        Save the model parameters to the given file object.
+        '''
+        raise NotImplementedError()
+
+    def load(self, fp):
+        '''
+        Load the model parameters from the given file object.
+        '''
+        raise NotImplementedError()
