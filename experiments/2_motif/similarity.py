@@ -23,7 +23,11 @@ def normalize_sequences(first, second):
 def get_similarity(first, second):
     sequence_func_list = [
         MotifAnalyzerAlgorithms.note_sequence_func,
-        MotifAnalyzerAlgorithms.rhythm_sequence_func
+        MotifAnalyzerAlgorithms.rhythm_sequence_func,
+        MotifAnalyzerAlgorithms.note_contour_sequence_func,
+        MotifAnalyzerAlgorithms.notename_transition_sequence_func,
+        # MotifAnalyzerAlgorithms.note_transition_sequence_func,
+        MotifAnalyzerAlgorithms.rhythm_transition_sequence_func
     ]
     score = []
     for sequence_func in sequence_func_list:
@@ -32,7 +36,7 @@ def get_similarity(first, second):
         first_sequence, second_sequence = normalize_sequences(
             first_sequence, second_sequence)
         score.append(editdistance.eval(first_sequence, second_sequence))
-    return score
+    return sum((i ** 0.5 for i in score), 0) ** 2
 
 # def score_to_notegram(score):
 #     notegram = []

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
 import music21
+import numpy as np
 from collections import defaultdict
+from sklearn.cluster import DBSCAN
 
 from notegram import Notegram
+from similarity import get_similarity
 
-LOWER_N = 3
-UPPER_N = 4
+LOWER_N = 4
+UPPER_N = 5
+
+CLUTSER_INIT_N = 100
 
 
 class MotifAnalyzer(object):
@@ -128,14 +133,61 @@ class MotifAnalyzer(object):
             notegram_group_by_score[score].append(notegram_group)
 
         results = []
-        top_100_scoring_group = []
-        for i in range(0, min(len(notegram_group_by_score), 100)):
+
+        # retrieve the top scoring 100 notegram groups
+        top_n_scoring_notegram_groups = []
+        for i in range(0, min(len(notegram_group_by_score), CLUTSER_INIT_N)):
             max_score = max(k for k, v in notegram_group_by_score.items())
-            top_100_scoring_group += notegram_group_by_score.pop(max_score)
+            top_n_scoring_notegram_groups += notegram_group_by_score.pop(
+                max_score)
 
-        # print(len(top_100_scoring_group))
+        # create the distance matrix for top n notegram groups
+        actual_cluster_init_n = len(top_n_scoring_notegram_groups)
+        top_n_scoring_group_notegrams = [self.get_first_notegram_from_group(
+            i) for i in top_n_scoring_notegram_groups]
 
-        return results
+        distance_matrix = np.zeros(
+            (actual_cluster_init_n, actual_cluster_init_n))
+
+        for i, ni in enumerate(top_n_scoring_group_notegrams):
+            for j, nj in enumerate(top_n_scoring_group_notegrams):
+                if i == j:
+                    continue
+                if j > i:
+                    break
+                distance_matrix[i, j] = get_similarity(
+                    ni.get_note_list(), nj.get_note_list())
+
+        distance_matrix = distance_matrix + \
+            distance_matrix.T - np.diag(np.diag(distance_matrix))
+
+        # print(distance_matrix)
+
+        model = DBSCAN(metric='precomputed', eps=5, min_samples=3)
+        db = model.fit(distance_matrix)
+
+        notegram_group_by_label = defaultdict(lambda: [])
+        for i, label in enumerate(db.labels_):
+            if label == -1:
+                continue
+            notegram_group_by_label[label].append(
+                top_n_scoring_group_notegrams[i])
+
+        total_score_by_label = defaultdict(lambda: 0)
+        for label, notegram_groups in notegram_group_by_label.items():
+            for notegram_group in notegram_groups:
+                total_score_by_label[label] += \
+                    self.score_by_notegram_group[str(notegram_group)]
+
+        # # for printing out clustering result
+        # for group in set(i for i in db.labels_) - {-1}:
+        #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
+        #         if label == group:
+        #             print(str(label) + '\t\t' + str(notegram_group))
+
+        return list(str(i) for i in notegram_group_by_label[
+            max(total_score_by_label, key=total_score_by_label.get)
+        ])
 
     def highlight_noteidgram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:
