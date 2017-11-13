@@ -77,18 +77,23 @@ class MotifAnalyzer(object):
     def add_algorithm(self, algorithm_tuple):
         self.algorithms.append(algorithm_tuple)
 
+    def get_first_notegram_from_group(self, notegram_group):
+        return self.notegram_groups[notegram_group][0]
+
     def run(self, sequence_func, score_func, threshold = 0, multipier = 1):
         freq_by_sequence = defaultdict(lambda: 0)
         sequence_by_notegram_group = {}
         score_to_add_by_notegram_group = {}
 
-        for notegram_group, value in self.notegram_groups.items():
-            sequence = tuple(sequence_func(value[0].get_note_list()))
+        for notegram_group, _ in self.notegram_groups.items():
+            sequence = tuple(
+                sequence_func(self.get_first_notegram_from_group(notegram_group).get_note_list())
+            )
             freq_by_sequence[sequence] += 1
             sequence_by_notegram_group[notegram_group] = sequence
 
         for notegram_group, sequence in sequence_by_notegram_group.items():
-            notegram = self.notegram_groups[notegram_group][0]
+            notegram = self.get_first_notegram_from_group(notegram_group)
             group_size = len(self.notegram_groups[notegram_group])
             score = score_func(notegram.get_note_list(), sequence, freq_by_sequence[sequence]) * group_size
             if score >= threshold:
@@ -111,15 +116,18 @@ class MotifAnalyzer(object):
         for algorithm in self.algorithms:
             self.run(*algorithm)
 
-    def get_top_motif_group(self): # TODO: add clustering
+    def get_top_motif_cluster(self): # TODO: add clustering
         notegram_group_by_score = defaultdict(lambda: [])
         for notegram_group, score in self.score_by_notegram_group.items():
             notegram_group_by_score[score].append(notegram_group)
 
         results = []
-        for i in range(0, min(len(notegram_group_by_score), 1)):
+        top_100_scoring_group = []
+        for i in range(0, min(len(notegram_group_by_score), 100)):
             max_score = max(k for k, v in notegram_group_by_score.items())
-            results.append(notegram_group_by_score.pop(max_score))
+            top_100_scoring_group += notegram_group_by_score.pop(max_score)
+
+        # print(len(top_100_scoring_group))
 
         return results
 
