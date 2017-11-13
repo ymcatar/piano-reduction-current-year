@@ -122,7 +122,7 @@ def load(filename):
     return reducer, model
 
 
-def train(args, save_model=False):
+def train(args, model_str, save_model=False):
     logging.info('Reading sample scores')
     sample_paths = args.sample or DEFAULT_SAMPLES
     sample_in = []
@@ -133,7 +133,7 @@ def train(args, save_model=False):
         sample_out.append(ScoreObject.from_file(out_path))
 
     logging.info('Extracting features for sample scores')
-    reducer, model = create_reducer_and_model(DEFAULT_ALGORITHMS, args.model)
+    reducer, model = create_reducer_and_model(DEFAULT_ALGORITHMS, model_str)
 
     X = reducer.create_markings_on(sample_in)
     y = reducer.create_alignment_markings_on(sample_in, sample_out)
@@ -148,7 +148,7 @@ def train(args, save_model=False):
 
     if save_model:
         save(reducer, model, args.output, algorithms=DEFAULT_ALGORITHMS,
-             model_str=args.model)
+             model_str=model_str)
 
     logging.info('Done training')
 
@@ -156,7 +156,7 @@ def train(args, save_model=False):
 
 
 def command_train(args):
-    train(args, save_model=True)
+    train(args, model_str=args.model, save_model=True)
 
 
 def command_reduce(args):
@@ -164,7 +164,7 @@ def command_reduce(args):
     if args.model:
         reducer, model = load(args.model)
     else:
-        reducer, model = train(args)
+        reducer, model = train(args, model_str=DEFAULT_MODEL)
 
     logging.info('Reading input score')
     target = ScoreObject.from_file(args.file)
