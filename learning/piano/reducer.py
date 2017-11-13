@@ -59,7 +59,7 @@ class Reducer(object):
         note_count = sum(1 for _ in self.iter_notes(input_score_objs))
         y = np.fromiter((n.editorial.misc['align']
                          for n in self.iter_notes(input_score_objs)),
-                        dtype='float', count=note_count)
+                        dtype='uint8', count=note_count)
         return y
 
     def predict_from(self, model, input_score_objs, X=None):
@@ -68,9 +68,9 @@ class Reducer(object):
 
         if X is None:
             X = self.create_markings_on(input_score_objs)
-        y = model.predict_proba(X)[:,1]
+        y = model.predict(X)
 
         for i, n in enumerate(self.iter_notes(input_score_objs)):
-            n.editorial.misc['align'] = y[i]
+            n.editorial.misc['align'] = float(y[i])
 
         return y

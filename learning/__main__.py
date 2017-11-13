@@ -1,7 +1,7 @@
 import argparse
 import datetime
+import functools
 import logging
-import os.path
 import sys
 import textwrap
 from music21 import chord, expressions, layout
@@ -9,11 +9,14 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
+from sklearn.linear_model import LogisticRegression
 from .piano import algorithm
 from .piano.alignment import mark_alignment
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
+from .models.nn import LogisticModel, NNModel
+from .models.sk import WrappedSklearnModel
 
 
 DEFAULT_SAMPLES = [
@@ -24,6 +27,9 @@ DEFAULT_SAMPLES = [
     'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
     'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml'
     ]
+
+DefaultModel = functools.partial(WrappedSklearnModel, LogisticRegression)
+DefaultModel = NNModel
 
 def configure_logger():
     logger = logging.getLogger()
@@ -88,14 +94,15 @@ def command_reduce(args):
 
     X = reducer.create_markings_on(sample_in)
     y = reducer.create_alignment_markings_on(sample_in, sample_out)
+    y = y[:, np.newaxis]
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
     logging.info('Training ML model')
-    from sklearn.linear_model import LogisticRegression
-    model = LogisticRegression()
+
+    model = DefaultModel(reducer)
     model.fit(X, y)
-    logging.info('Training accuracy = {}'.format(model.score(X, y)))
+    logging.info('Training metric = {}'.format(model.evaluate(X, y)))
 
     X_test = reducer.create_markings_on(target)
     reducer.predict_from(model, target, X=X_test)
@@ -153,7 +160,7 @@ def command_reduce(args):
             Blue notes indicate the notes that are kept.
             Model: {} ({} samples)
             Generated at {}
-            '''.format(type(model).__name__, len(sample_paths),
+            '''.format(model.describe(), len(sample_paths),
                        datetime.datetime.now().isoformat()))
         add_description_to_score(target.score, description)
 
@@ -163,7 +170,7 @@ def command_reduce(args):
             Reduced score.
             Model: {} ({} samples)
             Generated at {}
-            '''.format(type(model).__name__, len(sample_paths),
+            '''.format(model.describe(), len(sample_paths),
                        datetime.datetime.now().isoformat()))
         add_description_to_score(result, description)
 
