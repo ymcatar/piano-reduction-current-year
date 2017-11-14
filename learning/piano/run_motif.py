@@ -2,9 +2,10 @@
 
 import os
 import sys
+import music21
 
-from analyzer import MotifAnalyzer
-from algorithms import MotifAnalyzerAlgorithms
+from algorithm.motif.analyzer import MotifAnalyzer
+from algorithm.motif.algorithms import MotifAnalyzerAlgorithms
 
 if len(sys.argv) != 3:
     print("Usage: $0 [path of the input MusicXML file] [output path]")
@@ -32,6 +33,8 @@ analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
 
 analyzer.run_all()
 motifs = analyzer.get_top_motif_cluster()
+
+print('\n'.join(motifs))
 
 # highlight in file
 for notegram_group in motifs:
