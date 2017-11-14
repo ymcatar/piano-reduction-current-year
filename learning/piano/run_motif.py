@@ -33,7 +33,7 @@ analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
 
 analyzer.run_all()
 motifs = analyzer.get_top_motif_cluster()
-exit()
+
 print('\n'.join(motifs))
 
 # highlight in file
