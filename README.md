@@ -50,6 +50,12 @@ python3 -m learning <command> --help
 # Train model and reduce
 python3 -m learning reduce [-o <output file>] <input file>
 
+# Train model only
+python3 -m learning train [-m <path.to.Model>] -o <output model file>
+
+# Reduce from trained model
+python3 -m learning reduce -m <model file> [-o <output file>] <input file>
+
 # Inspect sample pair
 python3 -m learning inspect <original file>:<reduced file>
 ```
