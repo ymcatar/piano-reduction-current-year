@@ -9,9 +9,9 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity
 
 LOWER_N = 4
-UPPER_N = 5
+UPPER_N = 9
 
-CLUTSER_INIT_N = 100
+CLUTSER_INIT_N = 50
 
 
 class MotifAnalyzer(object):
@@ -141,27 +141,28 @@ class MotifAnalyzer(object):
 
         # create the distance matrix for top n notegram groups
         actual_cluster_init_n = len(top_n_scoring_notegram_groups)
-        top_n_scoring_group_notegrams = [self.get_first_notegram_from_group(
-            i) for i in top_n_scoring_notegram_groups]
 
         distance_matrix = np.zeros(
             (actual_cluster_init_n, actual_cluster_init_n))
 
-        for i, ni in enumerate(top_n_scoring_group_notegrams):
-            for j, nj in enumerate(top_n_scoring_group_notegrams):
+        top_scoring_notegram_groups_list = [
+            self.notegram_groups[i] for i in top_n_scoring_notegram_groups
+        ]
+
+        for i, ni in enumerate(top_scoring_notegram_groups_list):
+            for j, nj in enumerate(top_scoring_notegram_groups_list):
                 if i == j:
                     continue
                 if j > i:
                     break
-                distance_matrix[i, j] = get_dissimilarity(
-                    ni.get_note_list(), nj.get_note_list())
+                distance_matrix[i, j] = get_dissimilarity(ni, nj)
 
         distance_matrix = distance_matrix + \
             distance_matrix.T - np.diag(np.diag(distance_matrix))
 
         # print(distance_matrix)
 
-        model = DBSCAN(metric='precomputed', eps=20, min_samples=2)
+        model = DBSCAN(metric='precomputed', eps=5, min_samples=2)
         db = model.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -169,7 +170,7 @@ class MotifAnalyzer(object):
             if label == -1:
                 continue
             notegram_group_by_label[label].append(
-                top_n_scoring_group_notegrams[i])
+                top_n_scoring_notegram_groups[i])
 
         total_score_by_label = defaultdict(lambda: 0)
         for label, notegram_groups in notegram_group_by_label.items():
@@ -179,9 +180,9 @@ class MotifAnalyzer(object):
 
         # # for printing out clustering result
         # for group in set(i for i in db.labels_) - {-1}:
-        #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
+        #     for label, notegram_group in zip(db.labels_, top_n_scoring_notegram_groups):
         #         if label == group:
-        #             print(str(label) + '\t' + notegram_group.to_nice_string())
+        #             print(str(label) + '\t' + notegram_group[0].to_nice_string())
 
         if len(total_score_by_label) > 0:
             return list(str(i) for i in notegram_group_by_label[
@@ -190,7 +191,7 @@ class MotifAnalyzer(object):
         else:
             return list()
 
-    def highlight_noteidgram_group(self, notegram_group, color):
+    def highlight_notegram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:
             for note in value.get_note_list():
                 note.style.color = color

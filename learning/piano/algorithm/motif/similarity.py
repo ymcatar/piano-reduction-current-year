@@ -4,6 +4,7 @@ import music21
 import os
 import sys
 import editdistance
+from intervaltree import Interval, IntervalTree
 
 from .algorithms import MotifAnalyzerAlgorithms
 
@@ -20,23 +21,48 @@ def normalize_sequences(first, second):
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
 
+def has_overlap(first, second):
+    first_intervals = [Interval(*i) for i in first]
+    second_intervals = [Interval(*i) for i in second]
+    tree = IntervalTree(first_intervals)
+    for interval in second_intervals:
+        if tree.search(*interval):
+            return True
+    return False
+
+# determine similarity of notegram groups
 def get_dissimilarity(first, second):
+    first_offsets = [(notegram.get_note_offset_by_index(
+        0), notegram.get_note_offset_by_index(-1)) for notegram in first]
+
+    second_offsets = [(notegram.get_note_offset_by_index(
+        0), notegram.get_note_offset_by_index(-1)) for notegram in second]
+
+    if has_overlap(first_offsets, second_offsets):
+        return 0 # must merge
+
+    # get a single notegram to represent the whole group
+    first_note_list = first[0].get_note_list()
+    second_note_list = second[0].get_note_list()
+    diff_in_len = abs(len(first_note_list) - len(second_note_list))
+
     sequence_func_list = [
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 3),
         (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
         (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
     ]
+
     score = []
     for item in sequence_func_list:
         sequence_func, multplier = item
-        first_sequence = sequence_func(first)
-        second_sequence = sequence_func(second)
+        first_sequence = sequence_func(first_note_list)
+        second_sequence = sequence_func(second_note_list)
         first_sequence, second_sequence = normalize_sequences(
             first_sequence, second_sequence)
-        score.append(editdistance.eval(
-            first_sequence, second_sequence) * multplier)
+        score.append((editdistance.eval(
+            first_sequence, second_sequence)) * multplier)
 
     # remove the top dissimilar feature, not a good idea it seems
     # score.remove(max(score))
@@ -44,19 +70,3 @@ def get_dissimilarity(first, second):
     # return sum((i for i in score), 0) # Manhatten distance
     return sum((i ** 2 for i in score), 0)  # squared sum
     # return sum((i ** 0.5 for i in score), 0) ** 2  # variation of Euclidean distance
-
-# def score_to_notegram(score):
-#     notegram = []
-#     for note in score.recurse().getElementsByClass(('Note', 'Rest')):
-#         notegram.append(note)
-#     return notegram
-
-# first = music21.converter.parse("tinynotation: 4/4 b4 b b ebw")
-# second = music21.converter.parse("tinynotation: 4/4 b8 b b eb4")
-
-# first_notegram = score_to_notegram(first)
-# second_notegram = score_to_notegram(second)
-
-# print(
-#     get_dissimilarity(first_notegram, second_notegram)
-# )
