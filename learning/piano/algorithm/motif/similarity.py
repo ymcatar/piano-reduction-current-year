@@ -21,14 +21,17 @@ def normalize_sequences(first, second):
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
 
-def all_has_overlap(first, second):
+# most = > 50%
+def most_has_overlap(first, second):
     first_intervals = [Interval(*i) for i in first]
     second_intervals = [Interval(*i) for i in second]
     tree = IntervalTree(first_intervals)
+
+    count = 0
     for interval in second_intervals:
-        if not tree.search(*interval):
-            return False
-    return True
+        if tree.search(*interval):
+            count += 1
+    return (count / len(second_intervals)) > 0.5
 
 # determine similarity of notegram groups
 def get_dissimilarity(first, second):
@@ -38,7 +41,7 @@ def get_dissimilarity(first, second):
     second_offsets = [(notegram.get_note_offset_by_index(
         0), notegram.get_note_offset_by_index(-1)) for notegram in second]
 
-    if all_has_overlap(first_offsets, second_offsets):
+    if most_has_overlap(first_offsets, second_offsets):
         return 0 # must merge
 
     # get a single notegram to represent the whole group
