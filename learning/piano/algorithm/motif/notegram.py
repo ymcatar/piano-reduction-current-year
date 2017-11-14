@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from algorithms import MotifAnalyzerAlgorithms
+from .algorithms import MotifAnalyzerAlgorithms
 
 
 class Notegram(object):

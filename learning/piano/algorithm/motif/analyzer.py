@@ -5,8 +5,8 @@ import numpy as np
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
 
-from notegram import Notegram
-from similarity import get_similarity
+from .notegram import Notegram
+from .similarity import get_similarity
 
 LOWER_N = 4
 UPPER_N = 5
@@ -16,10 +16,8 @@ CLUTSER_INIT_N = 100
 
 class MotifAnalyzer(object):
 
-    def __init__(self, filepath):
-        self.filepath = filepath
-        self.score = music21.converter.parse(filepath)
-        self.score.toSoundingPitch()
+    def __init__(self, score):
+        self.score = score
 
         self.notegram_groups = defaultdict(lambda: [])
         self.score_by_notegram_group = defaultdict(lambda: 0)

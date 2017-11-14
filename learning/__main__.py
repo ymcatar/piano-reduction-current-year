@@ -42,6 +42,7 @@ DEFAULT_ALGORITHMS = [
     ('learning.piano.algorithm.StrongBeats', [], {'division': 0.5}),
     ('learning.piano.algorithm.SustainedRhythm', [], {}),
     ('learning.piano.algorithm.VerticalDoubling', [], {}),
+    ('learning.piano.algorithm.Motif', [], {})
     ]
 
 DEFAULT_MODEL = 'learning.models.nn.NNModel'
