@@ -32,7 +32,7 @@ analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
 # print(len(analyzer.notegram_groups))
 
 analyzer.run_all()
-motifs = analyzer.get_top_motif_cluster()
+motifs = analyzer.get_top_motif_cluster(verbose = True)
 
 print('\n'.join(motifs))
 

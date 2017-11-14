@@ -6,10 +6,10 @@ import numpy as np
 import re
 
 def is_rest(note):
-    return isinstance(note, music21.note.Rest) or (
-        isinstance(note, music21.note.Note) and \
-        (note.name == 'rest' or float(note.duration.quarterLength) < 1e-2)
-    )
+    return note is None or \
+        isinstance(note, music21.note.Rest) or \
+        (isinstance(note, music21.note.Note) and \
+        (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
 
 class MotifAnalyzerAlgorithms(object):
 

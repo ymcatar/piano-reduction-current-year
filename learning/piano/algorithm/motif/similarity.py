@@ -52,7 +52,7 @@ def get_dissimilarity(first, second):
     sequence_func_list = [
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 3),
+        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 5),
         (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
         (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
     ]

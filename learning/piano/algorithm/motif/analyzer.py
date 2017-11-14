@@ -12,6 +12,14 @@ from .similarity import get_dissimilarity
 LOWER_N = 4
 UPPER_N = 5
 
+
+def is_rest(note):
+    return note is None or \
+        isinstance(note, music21.note.Rest) or \
+        (isinstance(note, music21.note.Note) and
+         (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
+
+
 class MotifAnalyzer(object):
 
     def __init__(self, score):
@@ -62,14 +70,15 @@ class MotifAnalyzer(object):
                     if vid not in vidgram:
                         continue
 
-                    # reject notegram starting with a rest
-                    if notegram[0][1].name == 'rest' or \
-                           float(notegram[-1][1].duration.quarterLength) < 1e-2:
+                    # reject notegram starting/ending with a rest
+                    if is_rest(notegram[0][1]) or is_rest(notegram[-1][1]):
                         continue
 
-                    # reject notegram ending with a rest
-                    if notegram[-1][1].name == 'rest' or \
-                            float(notegram[-1][1].duration.quarterLength) < 1e-2:
+                    # reject notegram containing >= half rest
+                    if any(
+                        (is_rest(n[1]) and
+                         n[1].duration.quarterLength - (2.0 - 1e-2) > 0.0)
+                            for n in notegram):
                         continue
 
                     temp = Notegram(list(i[1] for i in notegram), list(
@@ -118,8 +127,7 @@ class MotifAnalyzer(object):
         if abs(total_score_to_add) > 1e-6:
             for notegram_group, _ in sequence_by_notegram_group.items():
                 if notegram_group in score_to_add_by_notegram_group:
-                    self.score_by_notegram_group[notegram_group] = \
-                        self.score_by_notegram_group[notegram_group] + \
+                    self.score_by_notegram_group[notegram_group] = self.score_by_notegram_group[notegram_group] + \
                         score_to_add_by_notegram_group[notegram_group] / \
                         total_score_to_add * \
                         multiplier * \
@@ -130,7 +138,7 @@ class MotifAnalyzer(object):
         for algorithm in self.algorithms:
             self.run(*algorithm)
 
-    def get_top_motif_cluster(self):  # TODO: add clustering
+    def get_top_motif_cluster(self, verbose=False):  # TODO: add clustering
         notegram_group_by_score = defaultdict(lambda: [])
         for notegram_group, score in self.score_by_notegram_group.items():
             notegram_group_by_score[score].append(notegram_group)
@@ -165,9 +173,11 @@ class MotifAnalyzer(object):
         distance_matrix = distance_matrix + \
             distance_matrix.T - np.diag(np.diag(distance_matrix))
 
-        # print(distance_matrix)
+        if verbose:
+            print(distance_matrix)
+            print("-----------------------\n")
 
-        model = DBSCAN(metric='precomputed', eps=5, min_samples=2)
+        model = DBSCAN(metric='precomputed', eps=50, min_samples=1)
         db = model.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -180,14 +190,15 @@ class MotifAnalyzer(object):
         total_score_by_label = defaultdict(lambda: 0)
         for label, notegram_groups in notegram_group_by_label.items():
             for notegram_group in notegram_groups:
-                total_score_by_label[label] += \
-                    self.score_by_notegram_group[str(notegram_group)]
+                total_score_by_label[label] += len(notegram_group)
 
-        # # for printing out clustering result
-        # for group in set(i for i in db.labels_) - {-1}:
-        #     for label, notegram_group in zip(db.labels_, top_n_scoring_notegram_groups):
-        #         if label == group:
-        #             print(str(label) + '\t' + notegram_group[0].to_nice_string())
+        # for printing out clustering result
+        if verbose:
+            for group in set(i for i in db.labels_) - {-1}:
+                for label, notegram_group in zip(db.labels_, top_n_scoring_notegram_groups):
+                    if label == group:
+                        print(str(label) + '\t' + notegram_group)
+            print("-----------------------\n")
 
         if len(total_score_by_label) > 0:
             return list(str(i) for i in notegram_group_by_label[
