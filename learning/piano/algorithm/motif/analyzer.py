@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import music21
+import math
 import numpy as np
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
@@ -9,10 +10,7 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity
 
 LOWER_N = 4
-UPPER_N = 9
-
-CLUTSER_INIT_N = 50
-
+UPPER_N = 5
 
 class MotifAnalyzer(object):
 
@@ -63,13 +61,20 @@ class MotifAnalyzer(object):
                 for notegram, vidgram in zip(notegram_it, vid_it):
                     if vid not in vidgram:
                         continue
-                    if any(n[1].name == 'rest' or
-                           float(n[1].duration.quarterLength) < 1e-2
-                           for n in notegram):
+
+                    # reject notegram starting with a rest
+                    if notegram[0][1].name == 'rest' or \
+                           float(notegram[-1][1].duration.quarterLength) < 1e-2:
+                        continue
+
+                    # reject notegram ending with a rest
+                    if notegram[-1][1].name == 'rest' or \
+                            float(notegram[-1][1].duration.quarterLength) < 1e-2:
                         continue
 
                     temp = Notegram(list(i[1] for i in notegram), list(
                         i[0] for i in notegram))
+
                     result.append(temp)
 
         return result
@@ -132,9 +137,9 @@ class MotifAnalyzer(object):
 
         results = []
 
-        # retrieve the top scoring 100 notegram groups
+        # retrieve the top 10% scoring notegram groups
         top_n_scoring_notegram_groups = []
-        for i in range(0, min(len(notegram_group_by_score), CLUTSER_INIT_N)):
+        for i in range(0, math.trunc(len(notegram_group_by_score) / 10)):
             max_score = max(k for k, v in notegram_group_by_score.items())
             top_n_scoring_notegram_groups += notegram_group_by_score.pop(
                 max_score)
