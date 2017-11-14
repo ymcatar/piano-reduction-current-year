@@ -11,6 +11,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
+from sklearn import metrics
 from .piano.alignment import mark_alignment
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -168,12 +169,40 @@ def command_reduce(args):
         reducer, model = train(args, model_str=DEFAULT_MODEL)
 
     logging.info('Reading input score')
-    target = ScoreObject.from_file(args.file)
+    in_path, _, out_path = args.file.partition(':')
+    target = ScoreObject.from_file(in_path)
+    target_out = ScoreObject.from_file(out_path) if out_path else None
 
     logging.info('Extracting features for input score')
     X_test = reducer.create_markings_on(target)
+    y_test = (reducer.create_alignment_markings_on(target, target_out)
+              if out_path else None)
     logging.info('Predicting')
-    reducer.predict_from(model, target, X=X_test)
+    y_score = reducer.predict_from(model, target, X=X_test)
+    y_pred = y_score >= 0.5
+
+    if out_path:
+        eval_title = 'Evaluation on {}'.format(in_path.rpartition('/')[2])
+        logging.info('')
+        logging.info(eval_title)
+        logging.info('=' * len(eval_title))
+
+        evals = [
+            ('Accuracy',  metrics.accuracy_score(y_test, y_pred)),
+            ('Precision, TP/(TP+FP)', metrics.precision_score(y_test, y_pred)),
+            ('Recall, TP/(TP+FN)', metrics.recall_score(y_test, y_pred)),
+            ('ROC AUC', metrics.roc_auc_score(y_test, y_score)),
+            ]
+        for name, value in evals:
+            logging.info('{:23} {:>13.4f}'.format(name, value))
+
+        confusion = metrics.confusion_matrix(y_test, y_pred)
+        logging.info('{:23} TN{:>4} FP{:>4}'.format(
+            'Confusion matrix', *confusion[0, :]))
+        logging.info('{:23} FN{:>4} TP{:>4}'.format('', *confusion[1, :]))
+
+        logging.info('Note: This does not account for fabricated notes!')
+        logging.info('')
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(target, reduced=True,
@@ -242,7 +271,9 @@ def command_reduce(args):
                        datetime.datetime.now().isoformat()))
         add_description_to_score(result, description)
 
-    if args.output:
+    if args.no_output:
+        pass
+    elif args.output:
         logging.info('Writing output')
         result.write(fp=args.output)
     else:
@@ -344,7 +375,9 @@ if __name__ == '__main__':
                               help='Output to file')
 
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
-    reduce_parser.add_argument('file', help='Input file')
+    reduce_parser.add_argument(
+        'file', help='Input file. Optionally specify an input-output pair '
+                     'to evaluate test metrics.')
     reduce_parser.add_argument('--output', '-o', help='Output to file')
     reduce_parser.add_argument('--type', '-t', help='Output type',
                                choices=['reduced', 'combined'],
@@ -354,6 +387,8 @@ if __name__ == '__main__':
     reduce_parser.add_argument('--label', action='store_true',
                                help='Add labels in heat map')
     reduce_parser.add_argument('--model', '-m', help='Model file')
+    reduce_parser.add_argument('--no-output', '-s', action='store_true',
+                               help='Disable score output')
 
     inspect_parser = subparsers.add_parser('inspect',
                                            help='Inspect sample pair')
