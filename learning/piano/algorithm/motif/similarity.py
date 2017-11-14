@@ -20,7 +20,7 @@ def normalize_sequences(first, second):
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
 
-def get_similarity(first, second):
+def get_dissimilarity(first, second):
     sequence_func_list = [
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
@@ -58,5 +58,5 @@ def get_similarity(first, second):
 # second_notegram = score_to_notegram(second)
 
 # print(
-#     get_similarity(first_notegram, second_notegram)
+#     get_dissimilarity(first_notegram, second_notegram)
 # )
