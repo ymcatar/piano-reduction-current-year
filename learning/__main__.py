@@ -139,7 +139,7 @@ def train(args, model_str, save_model=False):
         out_paths.append(out_path)
 
     X, y = load_pairs(in_paths, out_paths, reducer, reducer_args,
-                      use_cache=args.cache)
+                      use_cache=getattr(args, 'cache', False))
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
