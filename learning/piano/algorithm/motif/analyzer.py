@@ -6,7 +6,7 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 
 from .notegram import Notegram
-from .similarity import get_similarity
+from .similarity import get_dissimilarity
 
 LOWER_N = 4
 UPPER_N = 5
@@ -153,7 +153,7 @@ class MotifAnalyzer(object):
                     continue
                 if j > i:
                     break
-                distance_matrix[i, j] = get_similarity(
+                distance_matrix[i, j] = get_dissimilarity(
                     ni.get_note_list(), nj.get_note_list())
 
         distance_matrix = distance_matrix + \
