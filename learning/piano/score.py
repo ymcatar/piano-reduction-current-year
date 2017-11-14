@@ -1,8 +1,11 @@
-from music21 import converter, layout, meter, note, stream
-import numpy
+from music21 import converter, layout, note, stream
 from collections import defaultdict
-from itertools import count
+from itertools import zip_longest
+import logging
 
+
+logger = logging.getLogger('learning.piano.score')
+logger.setLevel(logging.WARNING)
 
 def _group_by_voices(part):
     '''
@@ -88,6 +91,7 @@ class ScoreObject(object):
                     result.insert(elem)
             return result
 
+        logger.info('Group voice')
         result = score.cloneEmpty(derivationMethod='preprocess')
         for elem in score:
             if isinstance(elem, stream.Part):
@@ -95,27 +99,33 @@ class ScoreObject(object):
             else:
                 result.insert(elem)
 
+        logger.info('Instrument transposition')
         # Remove instrument transposition
         result.toSoundingPitch(inPlace=True)
 
         self.original_score = score
         self._score = result
 
-        # .measures also collects the context information, e.g. time signature,
-        # to each measure. Each item is a score.
+        logger.info('Bar indexing')
+        # Group each bar into a Score => Part -> Measure object.
         self.by_bar = []
-        for i in count(0):
-            subscore = result.measure(i)
-            if not subscore.recurse(
-                    skipSelf=False).getElementsByClass('Measure'):
-                # Measure 0 is the pickup (partial) measure and may not exist
-                if i == 0: continue
-                else: break
-            self.by_bar.append(subscore)
+        iters = [part.getElementsByClass(stream.Measure)
+                 for part in result.parts]
+        for i, measures in enumerate(zip_longest(*iters)):
+            assert all(measures), 'Measures missing at index {}'.format(i)
+            bar = result.cloneEmpty(derivationMethod='by_bar')
+            for part, m in zip(result.parts, measures):
+                p = part.cloneEmpty(derivationMethod='by_bar')
+                p.insert(0, m)
+                bar.insert(0, p)
+            self.by_bar.append(bar)
 
+        logger.info('Voice grouping')
         self.voices_by_part = []
         for part in result.parts:
             self.voices_by_part.append(_group_by_voices(part))
+
+        logger.info('Done')
 
     @classmethod
     def from_file(cls, fp, *args, **kwargs):

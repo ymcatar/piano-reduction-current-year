@@ -51,13 +51,13 @@ class PostProcessor(object):
                         elif isinstance(elem, note.Note):
                             if elem.editorial.misc.get('hand') == hand:
                                 notes.append((
-                                    elem.offset, elem.pitch.ps, elem.tie))
+                                    elem.offset, elem.pitch, elem.tie))
 
                         elif isinstance(elem, chord.Chord):
                             for n in elem:
                                 if elem.editorial.misc.get('hand') == hand:
                                     notes.append((
-                                        elem.offset, n.pitch.ps, n.tie))
+                                        elem.offset, n.pitch, n.tie))
 
                         elif isinstance(elem, note.Rest):
                             rests.append((
@@ -168,19 +168,25 @@ class PostProcessor(object):
             out_notes[-1][1] = measure_length - out_notes[-1][0]
 
         pss = set()
+        enharmonic_map = {}
         for _, _, notes in out_notes:
             if len(notes) > 0:
-                for ps, tie in notes:
+                for pitch, tie in notes:
                     if tie is None or tie.type == 'start':
-                        pss.add(ps)
+                        pss.add(pitch.ps)
+                        enharmonic_map[pitch.ps % 12.0] = pitch.name
         median = np.median(list(pss)) if pss else 60
+
+        def find_enharmonic(ps):
+            ans = '{}{}'.format(enharmonic_map[ps % 12.0], int(ps / 12) - 1)
+            return ans
 
         result = stream.Measure()
         for offset, length, notes in out_notes:
             pss = set()
-            for ps, tie in notes:
+            for pitch, tie in notes:
                 if tie is None or tie.type == 'start':
-                    pss.add(ps)
+                    pss.add(pitch.ps)
 
             pss = set(pss)
             note_to_insert = None
@@ -200,7 +206,8 @@ class PostProcessor(object):
 
                 chord_notes = []
                 for ps in pss:
-                    n = note.Note(ps, duration=duration.Duration(length))
+                    n = note.Note(find_enharmonic(ps),
+                                  duration=duration.Duration(length))
                     chord_notes.append(n)
 
                 note_to_insert = chord.Chord(
@@ -208,7 +215,8 @@ class PostProcessor(object):
 
             elif len(pss) == 1:
                 note_to_insert = note.Note(
-                    list(pss)[0], duration=duration.Duration(length))
+                    find_enharmonic(list(pss)[0]),
+                    duration=duration.Duration(length))
 
             else:
                 note_to_insert = note.Rest(duration=duration.Duration(length))
