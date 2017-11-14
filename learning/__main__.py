@@ -13,6 +13,7 @@ from matplotlib import colors
 import numpy as np
 from sklearn import metrics
 from .piano.alignment import mark_alignment
+from .piano.dataset import load_pairs
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -125,21 +126,20 @@ def load(filename):
 
 
 def train(args, model_str, save_model=False):
-    logging.info('Reading sample scores')
-    sample_paths = args.sample or DEFAULT_SAMPLES
-    sample_in = []
-    sample_out = []
-    for paths in sample_paths:
-        in_path, out_path = paths.split(':')
-        sample_in.append(ScoreObject.from_file(in_path))
-        sample_out.append(ScoreObject.from_file(out_path))
-
-    logging.info('Extracting features for sample scores')
+    logging.info('Initializing model')
+    reducer_args = {'algorithms': DEFAULT_ALGORITHMS}
     reducer, model = create_reducer_and_model(DEFAULT_ALGORITHMS, model_str)
 
-    X = reducer.create_markings_on(sample_in)
-    y = reducer.create_alignment_markings_on(sample_in, sample_out)
-    y = y[:, np.newaxis]
+    logging.info('Reading sample scores')
+    sample_paths = args.sample or DEFAULT_SAMPLES
+    in_paths, out_paths = [], []
+    for paths in sample_paths:
+        in_path, out_path = paths.split(':')
+        in_paths.append(in_path)
+        out_paths.append(out_path)
+
+    X, y = load_pairs(in_paths, out_paths, reducer, reducer_args,
+                      use_cache=args.cache)
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
@@ -368,9 +368,11 @@ if __name__ == '__main__':
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
 
     for subparser in [train_parser, reduce_parser]:
-        subparser.add_argument('--model', '-m', default=DEFAULT_MODEL,
-                               help='Model class')
+        subparser.add_argument('--cache', '-c', action='store_true',
+                               help='Use preprocessing cache')
 
+    train_parser.add_argument('--model', '-m', default=DEFAULT_MODEL,
+                              help='Model class')
     train_parser.add_argument('--output', '-o', required=True,
                               help='Output to file')
 
