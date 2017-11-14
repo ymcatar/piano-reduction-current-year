@@ -53,8 +53,8 @@ python3 -m learning reduce [-o <output file>] <input file>
 # Train model only
 python3 -m learning train [-m <path.to.Model>] -o <output model file>
 
-# Reduce from trained model
-python3 -m learning reduce -m <model file> [-o <output file>] <input file>
+# Reduce from trained model (Supply the reduced file to evaluate test metrics)
+python3 -m learning reduce -m <model file> [-o <output file>] <input file>[:<reduced file>]
 
 # Inspect sample pair
 python3 -m learning inspect <original file>:<reduced file>
