@@ -104,3 +104,4 @@ ENV/
 env
 
 /sample/cache
+trained/
