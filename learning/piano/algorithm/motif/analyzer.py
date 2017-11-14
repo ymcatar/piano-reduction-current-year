@@ -6,7 +6,7 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 
 from .notegram import Notegram
-from .similarity import get_similarity
+from .similarity import get_dissimilarity
 
 LOWER_N = 4
 UPPER_N = 5
@@ -153,7 +153,7 @@ class MotifAnalyzer(object):
                     continue
                 if j > i:
                     break
-                distance_matrix[i, j] = get_similarity(
+                distance_matrix[i, j] = get_dissimilarity(
                     ni.get_note_list(), nj.get_note_list())
 
         distance_matrix = distance_matrix + \
@@ -161,7 +161,7 @@ class MotifAnalyzer(object):
 
         # print(distance_matrix)
 
-        model = DBSCAN(metric='precomputed', eps=5, min_samples=3)
+        model = DBSCAN(metric='precomputed', eps=20, min_samples=2)
         db = model.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -177,15 +177,18 @@ class MotifAnalyzer(object):
                 total_score_by_label[label] += \
                     self.score_by_notegram_group[str(notegram_group)]
 
-        # for printing out clustering result
+        # # for printing out clustering result
         # for group in set(i for i in db.labels_) - {-1}:
         #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
         #         if label == group:
-        #             print(str(label) + '\t\t' + str(notegram_group))
+        #             print(str(label) + '\t' + notegram_group.to_nice_string())
 
-        return list(str(i) for i in notegram_group_by_label[
-            max(total_score_by_label, key=total_score_by_label.get)
-        ])
+        if len(total_score_by_label) > 0:
+            return list(str(i) for i in notegram_group_by_label[
+                max(total_score_by_label, key=total_score_by_label.get)
+            ])
+        else:
+            return list()
 
     def highlight_noteidgram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:

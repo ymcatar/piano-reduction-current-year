@@ -20,23 +20,30 @@ def normalize_sequences(first, second):
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
 
-def get_similarity(first, second):
+def get_dissimilarity(first, second):
     sequence_func_list = [
-        MotifAnalyzerAlgorithms.note_sequence_func,
-        MotifAnalyzerAlgorithms.rhythm_sequence_func,
-        MotifAnalyzerAlgorithms.note_contour_sequence_func,
-        MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-        # MotifAnalyzerAlgorithms.note_transition_sequence_func,
-        MotifAnalyzerAlgorithms.rhythm_transition_sequence_func
+        (MotifAnalyzerAlgorithms.note_sequence_func, 1),
+        (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
+        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
+        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
     ]
     score = []
-    for sequence_func in sequence_func_list:
+    for item in sequence_func_list:
+        sequence_func, multplier = item
         first_sequence = sequence_func(first)
         second_sequence = sequence_func(second)
         first_sequence, second_sequence = normalize_sequences(
             first_sequence, second_sequence)
-        score.append(editdistance.eval(first_sequence, second_sequence))
-    return sum((i ** 0.5 for i in score), 0) ** 2
+        score.append(editdistance.eval(
+            first_sequence, second_sequence) * multplier)
+
+    # remove the top dissimilar feature, not a good idea it seems
+    # score.remove(max(score))
+
+    # return sum((i for i in score), 0) # Manhatten distance
+    return sum((i ** 2 for i in score), 0)  # squared sum
+    # return sum((i ** 0.5 for i in score), 0) ** 2  # variation of Euclidean distance
 
 # def score_to_notegram(score):
 #     notegram = []
@@ -51,5 +58,5 @@ def get_similarity(first, second):
 # second_notegram = score_to_notegram(second)
 
 # print(
-#     get_similarity(first_notegram, second_notegram)
+#     get_dissimilarity(first_notegram, second_notegram)
 # )

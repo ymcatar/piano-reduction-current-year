@@ -24,6 +24,12 @@ class Notegram(object):
             MotifAnalyzerAlgorithms.rhythm_sequence_func(self.note_list)
         ))
 
+    def to_nice_string(self):
+        return '; '.join(i[0].rjust(2) + ', ' + i[1] for i in zip(
+            MotifAnalyzerAlgorithms.note_sequence_func(self.note_list),
+            MotifAnalyzerAlgorithms.rhythm_sequence_func(self.note_list)
+        ))
+
     def get_note_list(self):
         return self.note_list
 
