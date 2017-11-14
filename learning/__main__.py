@@ -28,7 +28,7 @@ DEFAULT_SAMPLES = [
     'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
     'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml',
     'sample/input/i_0006_Dvorak_New_World_Symphony_No9_Mov2.xml:sample/output/o_0006_Dvorak_New_World_Symphony_No9_Mov2.xml',
-    'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/i_0007_Tchaikovsky_nutcracker_march.xml'
+    'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/o_0007_Tchaikovsky_nutcracker_march.xml'
     ]
 
 # (path.to.Class, args, kwargs)
