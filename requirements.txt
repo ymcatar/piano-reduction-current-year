@@ -8,3 +8,4 @@ tflearn==0.3.2
 h5py==2.7.1
 editdistance==0.4
 scipy==1.0.0
+intervaltree==2.1.0
