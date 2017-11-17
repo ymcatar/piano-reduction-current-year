@@ -19,15 +19,20 @@ def normalize_sequences(first, second):
         results.append(mapping[character])
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
+RHYTHM_SEQUENCE_FUNC_LIST = [
+    (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
+    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
+]
 
-def get_dissimilarity(first, second):
-    sequence_func_list = [
-        (MotifAnalyzerAlgorithms.note_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
-        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
-        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
-    ]
+PITCH_SEQUENCE_FUNC_LIST = [
+    (MotifAnalyzerAlgorithms.note_sequence_func, 1),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
+]
+
+ALL_SEQUENCE_FUNC_LIST = RHYTHM_SEQUENCE_FUNC_LIST + PITCH_SEQUENCE_FUNC_LIST
+
+def get_dissimilarity(first, second, sequence_func_list=ALL_SEQUENCE_FUNC_LIST):
     score = []
     for item in sequence_func_list:
         sequence_func, multplier = item

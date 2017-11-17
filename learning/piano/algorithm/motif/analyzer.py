@@ -6,7 +6,7 @@ from collections import defaultdict
 from sklearn.cluster import DBSCAN
 
 from .notegram import Notegram
-from .similarity import get_dissimilarity
+from .similarity import get_dissimilarity, RHYTHM_SEQUENCE_FUNC_LIST, PITCH_SEQUENCE_FUNC_LIST
 
 LOWER_N = 4
 UPPER_N = 5
@@ -146,6 +146,10 @@ class MotifAnalyzer(object):
 
         distance_matrix = np.zeros(
             (actual_cluster_init_n, actual_cluster_init_n))
+        distance_matrix_rhythm = np.zeros(
+            (actual_cluster_init_n, actual_cluster_init_n))
+        distance_matrix_pitch = np.zeros(
+            (actual_cluster_init_n, actual_cluster_init_n))
 
         for i, ni in enumerate(top_n_scoring_group_notegrams):
             for j, nj in enumerate(top_n_scoring_group_notegrams):
@@ -155,9 +159,17 @@ class MotifAnalyzer(object):
                     break
                 distance_matrix[i, j] = get_dissimilarity(
                     ni.get_note_list(), nj.get_note_list())
+                distance_matrix_rhythm[i, j] = get_dissimilarity(
+                    ni.get_note_list(), nj.get_note_list(), RHYTHM_SEQUENCE_FUNC_LIST)
+                distance_matrix_pitch[i, j] = get_dissimilarity(
+                    ni.get_note_list(), nj.get_note_list(), PITCH_SEQUENCE_FUNC_LIST)
 
         distance_matrix = distance_matrix + \
             distance_matrix.T - np.diag(np.diag(distance_matrix))
+        distance_matrix_rhythm = distance_matrix_rhythm + \
+            distance_matrix_rhythm.T - np.diag(np.diag(distance_matrix_rhythm))
+        distance_matrix_pitch = distance_matrix_pitch + \
+            distance_matrix_pitch.T - np.diag(np.diag(distance_matrix_pitch))
 
         # print(distance_matrix)
 
@@ -182,6 +194,36 @@ class MotifAnalyzer(object):
         #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
         #         if label == group:
         #             print(str(label) + '\t' + notegram_group.to_nice_string())
+
+        # Visualization
+        smoothing_term = \
+            np.ones_like(distance_matrix) - np.identity(actual_cluster_init_n)
+        X = distance_matrix + smoothing_term
+
+        from matplotlib import pyplot as plt
+
+        from sklearn.decomposition import PCA
+        Z1 = PCA(n_components=1).fit_transform(distance_matrix_rhythm + smoothing_term)
+        Z2 = PCA(n_components=1).fit_transform(distance_matrix_pitch + smoothing_term)
+        plt.scatter(Z1, Z2, s=4, c=db.labels_, cmap='hsv')
+        plt.xlabel('Rhythm'); plt.ylabel('Pitch')
+        plt.title('Two sets of PCAs on smoothed distance matrix')
+
+        plt.figure(2)
+        Z = PCA(n_components=2).fit_transform(X)
+        plt.scatter(Z[:, 0], Z[:, 1], s=4, c=db.labels_, cmap='hsv')
+        plt.title('2D PCA on smoothed distance matrix')
+
+        plt.figure(3)
+        from sklearn.manifold import TSNE
+        tsne = TSNE(n_components=2, metric='precomputed')
+        Z = tsne.fit_transform(X)
+
+        plt.scatter(Z[:, 0], Z[:, 1], s=4, c=db.labels_, cmap='hsv')
+        plt.title('2D t-SNE on smoothed distance matrix')
+        plt.show()
+
+        import sys; sys.exit(0)
 
         if len(total_score_by_label) > 0:
             return list(str(i) for i in notegram_group_by_label[
