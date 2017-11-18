@@ -4,10 +4,12 @@ from .alignment import Alignment, align_all_notes, default_key_func
 from .pitch_class_onset import (
     align_pitch_class_onset, annotate_pitch_class_onset,
     pitch_class_onset_key_func)
+from .min_octave_hand import align_min_octave_hand, annotate_min_octave_hand
 
 
 ALIGNMENT_METHODS = [
     'pitch_class_onset',
+    'min_octave_hand',
     ]
 
 DEFAULT_ALIGNMENT_METHOD = 'pitch_class_onset'
