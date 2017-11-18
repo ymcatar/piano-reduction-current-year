@@ -1,4 +1,4 @@
-from .algorithm.base import iter_notes, iter_notes_with_offset
+from ..algorithm.base import iter_notes, iter_notes_with_offset
 
 from collections import defaultdict
 from music21 import stream
@@ -42,8 +42,8 @@ def default_key_func(n, offset, precision):
             n.pitch.ps)
 
 
-def align_scores(left_score, right_score, precision=1024,
-                 key_func=default_key_func, ignore_parts=False):
+def align_all_notes(left_score, right_score, precision=1024,
+                    key_func=default_key_func, ignore_parts=False):
     '''
     Aligns each note in the left score with the corresponding note in the
     right score, if any.
@@ -94,32 +94,3 @@ def align_scores(left_score, right_score, precision=1024,
     return Alignment(*lookups)
 
 
-def mark_alignment(input_score, output_score):
-    def key_func(n, offset, precision):
-        # On making matches, only consider offset and pitch class, but not
-        # duration and octave
-        return (int(offset * precision), n.pitch.pitchClass)
-
-    def same_duration(n, m, precision=1024):
-        return int(n.duration.quarterLength * precision) == \
-            int(m.duration.quarterLength * precision)
-
-    def same_pitch(n, m):
-        return n.pitch == m.pitch
-
-    alignment = align_scores(input_score, output_score, ignore_parts=True,
-                             key_func=key_func)
-
-    for n in iter_notes(input_score, recurse=True):
-        if any(same_duration(i, n) and same_pitch(i, n)
-               for i in alignment[n]):
-            align_type = 'all'
-        elif any(same_pitch(i, n) for i in alignment[n]):
-            align_type = 'pitch space'
-        elif alignment[n]:
-            align_type = 'pitch class'
-        else:
-            align_type = None
-        n.editorial.misc['align_type'] = align_type
-        n.editorial.misc['align'] = bool(align_type)
-    return input_score
