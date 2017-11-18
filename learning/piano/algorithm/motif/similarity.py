@@ -52,9 +52,9 @@ def get_dissimilarity(first, second):
     sequence_func_list = [
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 5),
-        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 3),
-        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 3),
+        (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 2),
     ]
 
     score = []
@@ -71,5 +71,6 @@ def get_dissimilarity(first, second):
     # score.remove(max(score))
 
     # return sum((i for i in score), 0) # Manhatten distance
+    # return 1.0 / sum((1.0 / (i + 1) for i in score), 0.0)
     return sum((i ** 2 for i in score), 0)  # squared sum
     # return sum((i ** 0.5 for i in score), 0) ** 2  # variation of Euclidean distance
