@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
 from sklearn import metrics
-from .piano.alignment import mark_alignment
+from .piano.alignment import (
+    align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD)
 from .piano.dataset import load_pairs
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -287,53 +288,22 @@ def command_reduce(args):
 
 
 def command_inspect(args):
-    reducer = Reducer(algorithms=[])
-
     logging.info('Reading files')
     in_path, out_path = args.files.split(':')
     sample_in = ScoreObject.from_file(in_path)
     sample_out = ScoreObject.from_file(out_path)
 
     logging.info('Aligning scores')
-    mark_alignment(sample_in.score, sample_out.score)
-    mark_alignment(sample_out.score, sample_in.score)
 
-    FORWARD_COLORS = {
-        'all': '#0000FF',
-        'pitch space': '#0099FF',
-        'pitch class': '#00CCFF'
-    }
-    for n in reducer.iter_notes(sample_in):
-        n.style.color = FORWARD_COLORS.get(n.editorial.misc['align_type'],
-                                           '#000000')
-    BACKWARD_COLORS = {
-        'all': '#000000',
-        'pitch space': '#FF9900',
-        'pitch class': '#EEEE00'
-    }
-    for n in reducer.iter_notes(sample_out):
-        n.style.color = BACKWARD_COLORS.get(n.editorial.misc['align_type'],
-                                            '#FF0000')
-
+    description = align_and_annotate_scores(sample_in.score, sample_out.score,
+                                            method=args.alignment)
     result = sample_in.score
 
     merge_reduced_to_original(sample_in.score, sample_out.score)
 
-    description = textwrap.dedent('''\
-        [Original]
-        Blue = Used directly
-        Cyan = Used with octave transposition
-        Light blue  = Used with duration change
-
-        [Reduced]
-        Black = Kept directly
-        Yellow = Kept with octave transposition
-        Orange = Kept with duration change
-        Red = Fabricated by arranger
-
-        Generated at {}
-        '''.format(datetime.datetime.now().isoformat()))
     add_description_to_score(sample_in.score, description)
+
+    logging.info(description)
 
     if args.output:
         logging.info('Writing output')
@@ -397,6 +367,9 @@ if __name__ == '__main__':
     inspect_parser.add_argument(
         'files', help='Input file pair, separated by a colon (:).')
     inspect_parser.add_argument('--output', '-o', help='Output to file')
+    inspect_parser.add_argument('--alignment', '-a', help='Alignment method',
+                                choices=ALIGNMENT_METHODS,
+                                default=DEFAULT_ALIGNMENT_METHOD)
 
     args = parser.parse_args()
     ret = main(args)
