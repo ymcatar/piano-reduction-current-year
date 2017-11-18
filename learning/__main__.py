@@ -13,7 +13,8 @@ from matplotlib import colors
 import numpy as np
 from sklearn import metrics
 from .piano.alignment import (
-    align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD)
+    align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
+    LEFT_HAND, RIGHT_HAND)
 from .piano.dataset import load_pairs
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -88,24 +89,26 @@ def import_symbol(path):
     return getattr(importlib.import_module(module), symbol)
 
 
-def create_reducer_and_model(algorithms, model_str):
-    algorithm_objs = [import_symbol(path)(*args, **kwargs)
-                      for path, args, kwargs in algorithms]
-    reducer = Reducer(algorithms=algorithm_objs)
+def create_reducer_and_model(reducer_args, model_str):
+    reducer_args = dict(reducer_args)
+    reducer_args['algorithms'] = [
+        import_symbol(path)(*args, **kwargs)
+        for path, args, kwargs in reducer_args['algorithms']]
+    reducer = Reducer(**reducer_args)
     Model = import_symbol(model_str)
-    if not issubclass(Model, BaseModel):
+    if type(Model) == type and not issubclass(Model, BaseModel):
         # Wrap sklearn models automagically
         Model = functools.partial(WrappedSklearnModel, Model)
 
     return reducer, Model(reducer)
 
 
-def save(reducer, model, filename, algorithms, model_str):
+def save(reducer, model, filename, reducer_args, model_str):
     logging.info('Saving model to {}'.format(filename))
     model.save(filename)
 
     metadata = {
-        'algorithms': algorithms,
+        'reducer_args': reducer_args,
         'model_str': model_str,
         }
     with open(filename + '.metadata', 'w') as f:
@@ -118,7 +121,7 @@ def load(filename):
 
     logging.info('Initializing model')
     reducer, model = create_reducer_and_model(
-        metadata['algorithms'], metadata['model_str'])
+        metadata['reducer_args'], metadata['model_str'])
 
     logging.info('Loading model parameters')
     model.load(filename)
@@ -128,8 +131,11 @@ def load(filename):
 
 def train(args, model_str, save_model=False):
     logging.info('Initializing model')
-    reducer_args = {'algorithms': DEFAULT_ALGORITHMS}
-    reducer, model = create_reducer_and_model(DEFAULT_ALGORITHMS, model_str)
+    reducer_args = {
+        'algorithms': DEFAULT_ALGORITHMS,
+        'alignment': getattr(args, 'alignment', DEFAULT_ALIGNMENT_METHOD)
+        }
+    reducer, model = create_reducer_and_model(reducer_args, model_str)
 
     logging.info('Reading sample scores')
     sample_paths = args.sample or DEFAULT_SAMPLES
@@ -150,7 +156,7 @@ def train(args, model_str, save_model=False):
     logging.info('Training metric = {}'.format(model.evaluate(X, y)))
 
     if save_model:
-        save(reducer, model, args.output, algorithms=DEFAULT_ALGORITHMS,
+        save(reducer, model, args.output, reducer_args=reducer_args,
              model_str=model_str)
 
     logging.info('Done training')
@@ -179,8 +185,22 @@ def command_reduce(args):
     y_test = (reducer.create_alignment_markings_on(target, target_out)
               if out_path else None)
     logging.info('Predicting')
-    y_score = reducer.predict_from(model, target, X=X_test)
-    y_pred = y_score >= 0.5
+
+    y_proba = reducer.predict_from(model, target, X=X_test)
+
+    # We also calculate metrics for the binary keep/no keep prediction, so that
+    # binary vs. multi-class models can be somewhat compared.
+    y_test_bin = y_test != 0
+
+    if reducer.label_type == 'align':
+        y_pred_bin = y_pred = y_proba >= 0.5
+        y_proba_bin = y_proba
+    elif reducer.label_type == 'hand':
+        y_pred = np.argmax(y_proba, axis=1)
+        y_proba_bin = np.sum(y_proba[:, 1:], axis=1)
+        y_pred_bin = y_proba_bin >= 0.5
+    else:
+        raise NotImplementedError()
 
     if out_path:
         eval_title = 'Evaluation on {}'.format(in_path.rpartition('/')[2])
@@ -190,17 +210,21 @@ def command_reduce(args):
 
         evals = [
             ('Accuracy',  metrics.accuracy_score(y_test, y_pred)),
-            ('Precision, TP/(TP+FP)', metrics.precision_score(y_test, y_pred)),
-            ('Recall, TP/(TP+FN)', metrics.recall_score(y_test, y_pred)),
-            ('ROC AUC', metrics.roc_auc_score(y_test, y_score)),
+            ('(0-1) Accuracy',  metrics.accuracy_score(y_test_bin, y_pred_bin)),
+            ('(0-1) Precision, TP/(TP+FP)', metrics.precision_score(y_test_bin, y_pred_bin)),
+            ('(0-1) Recall, TP/(TP+FN)', metrics.recall_score(y_test_bin, y_pred_bin)),
+            ('(0-1) ROC AUC', metrics.roc_auc_score(y_test_bin, y_proba_bin)),
             ]
         for name, value in evals:
-            logging.info('{:23} {:>13.4f}'.format(name, value))
+            logging.info('{:31} {:>13.4f}'.format(name, value))
 
         confusion = metrics.confusion_matrix(y_test, y_pred)
-        logging.info('{:23} TN{:>4} FP{:>4}'.format(
-            'Confusion matrix', *confusion[0, :]))
-        logging.info('{:23} FN{:>4} TP{:>4}'.format('', *confusion[1, :]))
+        logging.info('Confusion matrix\n{!r}'.format(confusion))
+
+        confusion = metrics.confusion_matrix(y_test_bin, y_pred_bin)
+        logging.info('{:31} TN{:>4} FP{:>4}'.format(
+            '(0-1) Confusion matrix', *confusion[0, :]))
+        logging.info('{:31} FN{:>4} TP{:>4}'.format('', *confusion[1, :]))
 
         logging.info('Note: This does not account for fabricated notes!')
         logging.info('')
@@ -245,11 +269,19 @@ def command_reduce(args):
     if args.type == 'combined':
         target.score.toWrittenPitch(inPlace=True)
 
+        COLORS = {
+            LEFT_HAND: '#009900',
+            RIGHT_HAND: '#0000FF'
+            }
+
         # Combine scores
         if not args.heat:
             for n in reducer.iter_notes(target):
-                n.style.color = ('#0000FF' if n.editorial.misc['align'] >= 0.5
-                                 else '#000000')
+                if reducer.label_type == 'align':
+                    n.style.color = ('#0000FF' if n.editorial.misc['align'] >= 0.5
+                                     else '#000000')
+                elif reducer.label_type == 'hand':
+                    n.style.color = COLORS.get(n.editorial.misc['hand'], '#000000')
 
         merge_reduced_to_original(target.score, result)
 
@@ -327,7 +359,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Piano Reduction System')
 
-    parser.add_argument('--sample', '-s', nargs='*',
+    parser.add_argument('--sample', '-S', nargs='*',
                         help='A sample file pair, separated by a colon (:). '
                              'If unspecified, the default set of samples will '
                              'be used.')
@@ -336,6 +368,13 @@ if __name__ == '__main__':
 
     train_parser = subparsers.add_parser('train', help='Train model')
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
+    inspect_parser = subparsers.add_parser('inspect',
+                                           help='Inspect sample pair')
+
+    for subparser in [train_parser, inspect_parser]:
+        subparser.add_argument(
+            '--alignment', '-a', help='Alignment method',
+            choices=ALIGNMENT_METHODS, default=DEFAULT_ALIGNMENT_METHOD)
 
     for subparser in [train_parser, reduce_parser]:
         subparser.add_argument('--cache', '-c', action='store_true',
@@ -362,14 +401,9 @@ if __name__ == '__main__':
     reduce_parser.add_argument('--no-output', '-s', action='store_true',
                                help='Disable score output')
 
-    inspect_parser = subparsers.add_parser('inspect',
-                                           help='Inspect sample pair')
     inspect_parser.add_argument(
         'files', help='Input file pair, separated by a colon (:).')
     inspect_parser.add_argument('--output', '-o', help='Output to file')
-    inspect_parser.add_argument('--alignment', '-a', help='Alignment method',
-                                choices=ALIGNMENT_METHODS,
-                                default=DEFAULT_ALIGNMENT_METHOD)
 
     args = parser.parse_args()
     ret = main(args)

@@ -40,6 +40,8 @@ def align_pitch_class_onset(input_score, output_score):
         n.editorial.misc['align'] = bool(align_type)
     return input_score
 
+align_pitch_class_onset.label_type = 'align'
+
 
 def annotate_pitch_class_onset(input_score, output_score):
     align_pitch_class_onset(input_score, output_score)

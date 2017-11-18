@@ -80,6 +80,8 @@ def align_min_octave_hand(input_score, output_score):
 
     return input_score
 
+align_min_octave_hand.label_type = 'hand'
+
 
 def annotate_min_octave_hand(input_score, output_score):
     align_min_octave_hand(input_score, output_score)

@@ -4,7 +4,8 @@ from .alignment import Alignment, align_all_notes, default_key_func
 from .pitch_class_onset import (
     align_pitch_class_onset, annotate_pitch_class_onset,
     pitch_class_onset_key_func)
-from .min_octave_hand import align_min_octave_hand, annotate_min_octave_hand
+from .min_octave_hand import (
+    align_min_octave_hand, annotate_min_octave_hand, LEFT_HAND, RIGHT_HAND)
 
 
 ALIGNMENT_METHODS = [
@@ -15,11 +16,16 @@ ALIGNMENT_METHODS = [
 DEFAULT_ALIGNMENT_METHOD = 'pitch_class_onset'
 
 
-def align_scores(input_score, output_score,
-                 method=DEFAULT_ALIGNMENT_METHOD):
+def get_alignment_func(method):
     align_func = globals().get('align_' + method)
     assert align_func, 'Alignment method "{}" not found'.format(method)
 
+    return align_func
+
+
+def align_scores(input_score, output_score,
+                 method=DEFAULT_ALIGNMENT_METHOD):
+    align_func = get_alignment_func(method)
     align_func(input_score, output_score)
 
 

@@ -39,3 +39,11 @@ class WrappedSklearnModel(BaseModel):
     def load(self, filename):
         with open(filename, 'rb') as f:
             self.model = pickle.load(f)
+
+
+MultinomialLogistic = functools.partial(
+    WrappedSklearnModel,
+    functools.partial(
+        LogisticRegression, multi_class='multinomial', solver='sag',
+        max_iter=1000)
+    )
