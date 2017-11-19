@@ -47,13 +47,14 @@ python3 -m learning <args...>
 python3 -m learning --help
 python3 -m learning <command> --help
 
-# Train model and reduce
-python3 -m learning reduce [-o <output file>] <input file>
-
 # Train model only
-python3 -m learning train [-m <path.to.Model>] -o <output model file>
+# This defaults to saving the model to "trained/<model name>.model".
+python3 -m learning.models.<model name> train
 
-# Reduce from trained model (Supply the reduced file to evaluate test metrics)
+# Reduce from trained model
+# This defaults to loading from the above file.
+python3 -m learning.models.<model name> reduce [-o <output file>] <input file>[:<reduced file>]
+
 python3 -m learning reduce -m <model file> [-o <output file>] <input file>[:<reduced file>]
 
 # Inspect sample pair
