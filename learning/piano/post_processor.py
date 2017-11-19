@@ -6,8 +6,8 @@ from itertools import count
 from collections import defaultdict
 
 
-RIGHT_HAND = 1
-LEFT_HAND = 2
+LEFT_HAND = 1
+RIGHT_HAND = 2
 
 
 def default_keep_func(n):
@@ -16,8 +16,8 @@ def default_keep_func(n):
 
 class PostProcessor(object):
     def generate_piano_score(self, score_obj, reduced=True, playable=True,
-                             label_type='align'):
-        if label_type == 'align':
+                             assign_hands=True):
+        if assign_hands:
             keep_func = default_keep_func if reduced else lambda n: True
             self.assign_hands(score_obj, keep_func=keep_func)
 
