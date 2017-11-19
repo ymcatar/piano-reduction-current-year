@@ -25,13 +25,20 @@ def normalize_sequences(first, second):
 def most_has_overlap(first, second):
     first_intervals = [Interval(*i) for i in first]
     second_intervals = [Interval(*i) for i in second]
-    tree = IntervalTree(first_intervals)
 
     count = 0
+
+    tree = IntervalTree(first_intervals)
     for interval in second_intervals:
         if tree.search(*interval):
             count += 1
-    return (count / len(second_intervals)) > 0.5
+
+    tree = IntervalTree(second_intervals)
+    for interval in first_intervals:
+        if tree.search(*interval):
+            count += 1
+
+    return (count / (len(first_intervals) + len(second_intervals))) > 0.5
 
 # determine similarity of notegram groups
 def get_dissimilarity(first, second):
