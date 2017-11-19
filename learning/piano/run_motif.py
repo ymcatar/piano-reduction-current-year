@@ -32,12 +32,12 @@ analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
 # print(len(analyzer.notegram_groups))
 
 analyzer.run_all()
-motifs = analyzer.get_top_motif_cluster()
+motifs = analyzer.get_top_motif_cluster(verbose = True)
 
 print('\n'.join(motifs))
 
 # highlight in file
 for notegram_group in motifs:
-    analyzer.highlight_noteidgram_group(notegram_group, '#ff0000')
+    analyzer.highlight_notegram_group(notegram_group, '#ff0000')
 
 analyzer.score.write('musicxml', os.path.join(output_path, filename + '.xml'))

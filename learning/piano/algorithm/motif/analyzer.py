@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import music21
+import math
 import numpy as np
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
@@ -11,11 +12,15 @@ from .similarity import get_dissimilarity
 LOWER_N = 4
 UPPER_N = 5
 
-CLUTSER_INIT_N = 100
+
+def is_rest(note):
+    return note is None or \
+        isinstance(note, music21.note.Rest) or \
+        (isinstance(note, music21.note.Note) and
+         (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
 
 
 class MotifAnalyzer(object):
-
     def __init__(self, score):
         self.score = score
 
@@ -51,8 +56,9 @@ class MotifAnalyzer(object):
                         offset = measure.offset + n.offset
                         if isinstance(n, music21.chord.Chord):
                             # Use only the highest-pitched note
-                            note_list.append(
-                                (offset, max(n, key=lambda i: i.pitch.ps)))
+                            note_list.append((offset,
+                                              max(n,
+                                                  key=lambda i: i.pitch.ps)))
                         else:
                             note_list.append((offset, n))
                         vid_list.append(real_vid)
@@ -63,13 +69,20 @@ class MotifAnalyzer(object):
                 for notegram, vidgram in zip(notegram_it, vid_it):
                     if vid not in vidgram:
                         continue
-                    if any(n[1].name == 'rest' or
-                           float(n[1].duration.quarterLength) < 1e-2
-                           for n in notegram):
+
+                    # reject notegram starting/ending with a rest
+                    if is_rest(notegram[0][1]) or is_rest(notegram[-1][1]):
                         continue
 
-                    temp = Notegram(list(i[1] for i in notegram), list(
-                        i[0] for i in notegram))
+                    # reject notegram containing >= half rest
+                    if any((is_rest(n[1]) and n[1].duration.quarterLength -
+                            (2.0 - 1e-2) > 0.0) for n in notegram):
+                        continue
+
+                    temp = Notegram(
+                        list(i[1] for i in notegram),
+                        list(i[0] for i in notegram))
+
                     result.append(temp)
 
         return result
@@ -94,9 +107,9 @@ class MotifAnalyzer(object):
 
         for notegram_group, _ in self.notegram_groups.items():
             sequence = tuple(
-                sequence_func(self.get_first_notegram_from_group(
-                    notegram_group).get_note_list())
-            )
+                sequence_func(
+                    self.get_first_notegram_from_group(notegram_group)
+                    .get_note_list()))
             freq_by_sequence[sequence] += 1
             sequence_by_notegram_group[notegram_group] = sequence
 
@@ -125,76 +138,84 @@ class MotifAnalyzer(object):
         for algorithm in self.algorithms:
             self.run(*algorithm)
 
-    def get_top_motif_cluster(self):  # TODO: add clustering
+    def get_top_motif_cluster(self, verbose=False):
         notegram_group_by_score = defaultdict(lambda: [])
         for notegram_group, score in self.score_by_notegram_group.items():
             notegram_group_by_score[score].append(notegram_group)
 
         results = []
 
-        # retrieve the top scoring 100 notegram groups
+        # retrieve the top 10% scoring notegram groups
         top_n_scoring_notegram_groups = []
-        for i in range(0, min(len(notegram_group_by_score), CLUTSER_INIT_N)):
+        for i in range(0, math.trunc(len(notegram_group_by_score) / 10)):
             max_score = max(k for k, v in notegram_group_by_score.items())
             top_n_scoring_notegram_groups += notegram_group_by_score.pop(
                 max_score)
 
         # create the distance matrix for top n notegram groups
         actual_cluster_init_n = len(top_n_scoring_notegram_groups)
-        top_n_scoring_group_notegrams = [self.get_first_notegram_from_group(
-            i) for i in top_n_scoring_notegram_groups]
 
-        distance_matrix = np.zeros(
-            (actual_cluster_init_n, actual_cluster_init_n))
+        distance_matrix = np.zeros((actual_cluster_init_n,
+                                    actual_cluster_init_n))
 
-        for i, ni in enumerate(top_n_scoring_group_notegrams):
-            for j, nj in enumerate(top_n_scoring_group_notegrams):
+        top_scoring_notegram_groups_list = [
+            self.notegram_groups[i] for i in top_n_scoring_notegram_groups
+        ]
+
+        for i, ni in enumerate(top_scoring_notegram_groups_list):
+            for j, nj in enumerate(top_scoring_notegram_groups_list):
                 if i == j:
                     continue
                 if j > i:
                     break
-                distance_matrix[i, j] = get_dissimilarity(
-                    ni.get_note_list(), nj.get_note_list())
+                distance_matrix[i, j] = get_dissimilarity(ni, nj)
 
         distance_matrix = distance_matrix + \
             distance_matrix.T - np.diag(np.diag(distance_matrix))
 
-        # print(distance_matrix)
+        if verbose:
+            print(distance_matrix)
+            print("-----------------------\n")
 
-        model = DBSCAN(metric='precomputed', eps=20, min_samples=2)
-        db = model.fit(distance_matrix)
+        weights = [self.score_by_notegram_group[i] for i in top_n_scoring_notegram_groups]
+
+        model = DBSCAN(metric='precomputed', eps=50, min_samples=5)
+        db = model.fit(distance_matrix, sample_weight=weights)
 
         notegram_group_by_label = defaultdict(lambda: [])
         for i, label in enumerate(db.labels_):
             if label == -1:
                 continue
             notegram_group_by_label[label].append(
-                top_n_scoring_group_notegrams[i])
+                top_n_scoring_notegram_groups[i])
 
         total_score_by_label = defaultdict(lambda: 0)
         for label, notegram_groups in notegram_group_by_label.items():
             for notegram_group in notegram_groups:
-                total_score_by_label[label] += \
-                    self.score_by_notegram_group[str(notegram_group)]
+                total_score_by_label[label] += len(notegram_group)
 
-        # # for printing out clustering result
-        # for group in set(i for i in db.labels_) - {-1}:
-        #     for label, notegram_group in zip(db.labels_, top_n_scoring_group_notegrams):
-        #         if label == group:
-        #             print(str(label) + '\t' + notegram_group.to_nice_string())
+        # for printing out clustering result
+        if verbose:
+            for group in set(i for i in db.labels_) - {-1}:
+                for label, notegram_group in zip(
+                        db.labels_, top_n_scoring_notegram_groups):
+                    if label == group:
+                        print(str(label) + '\t' + notegram_group)
+            print("-----------------------\n")
 
         if len(total_score_by_label) > 0:
-            return list(str(i) for i in notegram_group_by_label[
-                max(total_score_by_label, key=total_score_by_label.get)
-            ])
+            return list(
+                str(i)
+                for i in notegram_group_by_label[max(
+                    total_score_by_label, key=total_score_by_label.get)])
         else:
             return list()
 
-    def highlight_noteidgram_group(self, notegram_group, color):
+    def highlight_notegram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:
             for note in value.get_note_list():
                 note.style.color = color
-                if note.lyric is None:
-                    note.lyric = '1'
-                else:
-                    note.lyric = str(int(note.lyric) + 1)
+                # if note.lyric is None:
+                #     note.lyric = '1'
+                # else:
+                #     note.lyric = str(int(note.lyric) + 1)
