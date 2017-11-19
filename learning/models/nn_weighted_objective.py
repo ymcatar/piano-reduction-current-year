@@ -3,7 +3,7 @@ import tflearn
 from .tf import TflearnModel
 
 
-class NN(TflearnModel):
+class NNWeightedObjective(TflearnModel):
     def __init__(self, reducer):
         n_features = len(reducer.all_keys)
 
@@ -12,12 +12,14 @@ class NN(TflearnModel):
         net = tflearn.fully_connected(net, 1, activation='sigmoid')
 
         optimizer = tflearn.optimizers.Adam(learning_rate=1e-4)
-        net = tflearn.regression(net, optimizer=optimizer, loss='binary_crossentropy')
+        def loss(y_pred, y_true):
+            return tflearn.objectives.weighted_crossentropy(y_pred, y_true, 0.7)
+        net = tflearn.regression(net, optimizer=optimizer, loss=loss)
 
         super().__init__(reducer, net)
 
     def fit(self, X, Y):
-        super().fit(X, Y, n_epoch=10)
+        super().fit(X, Y, n_epoch=100)
 
 
 reducer_args = {
@@ -38,7 +40,7 @@ reducer_args = {
     }
 
 
-Model = NN
+Model = NNWeightedObjective
 
 
 if __name__ == '__main__':

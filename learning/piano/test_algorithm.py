@@ -3,7 +3,7 @@ import pytest
 from . import algorithm
 from .algorithm.base import get_markings, iter_notes, iter_notes_with_offset
 from .score import ScoreObject
-from .alignment import align_scores
+from .alignment import align_all_notes
 
 import numpy as np
 
@@ -29,7 +29,7 @@ def test_binary_algorithms(algo, output_name):
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
     algo.create_markings_on(s)
-    alignment = align_scores(input, output)
+    alignment = align_all_notes(input, output)
 
     for measure in input.recurse(
             skipSelf=False).getElementsByClass(stream.Measure):
@@ -62,7 +62,7 @@ def test_continuous_algorithms(algo, output_name):
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
     algo.create_markings_on(s)
-    alignment = align_scores(input, output)
+    alignment = align_all_notes(input, output)
 
     for measure in input.recurse(
             skipSelf=False).getElementsByClass(stream.Measure):

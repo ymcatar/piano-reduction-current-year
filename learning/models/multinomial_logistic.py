@@ -1,23 +1,14 @@
-import tensorflow as tf
-import tflearn
-from .tf import TflearnModel
+import functools
+from .sk import WrappedSklearnModel
+from sklearn.linear_model import LogisticRegression
 
 
-class NN(TflearnModel):
-    def __init__(self, reducer):
-        n_features = len(reducer.all_keys)
-
-        net = tflearn.input_data(dtype=tf.float32, shape=[None, n_features])
-        net = tflearn.fully_connected(net, 2 * n_features, activation='sigmoid')
-        net = tflearn.fully_connected(net, 1, activation='sigmoid')
-
-        optimizer = tflearn.optimizers.Adam(learning_rate=1e-4)
-        net = tflearn.regression(net, optimizer=optimizer, loss='binary_crossentropy')
-
-        super().__init__(reducer, net)
-
-    def fit(self, X, Y):
-        super().fit(X, Y, n_epoch=10)
+class MultinomialLogistic(WrappedSklearnModel):
+    def __init__(self, *args, **kwargs):
+        Model = functools.partial(
+            LogisticRegression, multi_class='multinomial', solver='sag',
+            max_iter=1000)
+        super().__init__(Model, *args, **kwargs)
 
 
 reducer_args = {
@@ -34,11 +25,11 @@ reducer_args = {
         ('learning.piano.algorithm.VerticalDoubling', [], {}),
         ('learning.piano.algorithm.Motif', [], {})
         ],
-    'alignment': 'pitch_class_onset',
+    'alignment': 'min_octave_hand',
     }
 
 
-Model = NN
+Model = MultinomialLogistic
 
 
 if __name__ == '__main__':
