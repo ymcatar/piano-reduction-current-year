@@ -1,4 +1,6 @@
+import functools
 import pickle
+from sklearn.linear_model import LogisticRegression
 from .base import BaseModel
 
 
@@ -24,7 +26,7 @@ class WrappedSklearnModel(BaseModel):
 
         # If the model is binary, output only the probabilities for the
         # positive class.
-        if len(result.shape) == 2:
+        if len(result.shape) == 2 and result.shape[1] == 2:
             return result[:, 1:2]
 
         return result

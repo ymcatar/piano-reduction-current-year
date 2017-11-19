@@ -80,7 +80,7 @@ class Reducer(object):
 
         y_proba = model.predict(X)
         if self.label_type == 'align':
-            y = np.squeeze(axis=1)
+            y = np.squeeze(y_proba, axis=1)
         elif self.label_type == 'hand':
             y = np.argmax(y_proba, axis=1)
         else:
