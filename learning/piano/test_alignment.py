@@ -1,9 +1,9 @@
 from music21 import converter
-from ..algorithm.base import iter_notes
-from .alignment import align_all_notes
+from .algorithm.base import iter_notes
+from .alignment import align_scores
 
 
-def test_align_all_notes():
+def test_align_scores():
     # In the samples, black notes have no correponding notes; colored notes
     # correspond to each other.
 
@@ -17,7 +17,7 @@ def test_align_all_notes():
         converter.parse('learning/piano/test_sample/alignment_b.xml'),
         ]
 
-    alignments = [align_all_notes(scores[0], scores[1])]
+    alignments = [align_scores(scores[0], scores[1])]
     alignments.append(alignments[0].reverse)
 
     for score, alignment in zip(scores, alignments):
