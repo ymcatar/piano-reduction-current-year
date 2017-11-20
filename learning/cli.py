@@ -314,7 +314,7 @@ def command_reduce(args, **kwargs):
     logging.info('Done')
 
 
-def command_inspect(args):
+def command_inspect(args, **kwargs):
     logging.info('Reading files')
     in_path, out_path = args.files.split(':')
     sample_in = ScoreObject.from_file(in_path)
