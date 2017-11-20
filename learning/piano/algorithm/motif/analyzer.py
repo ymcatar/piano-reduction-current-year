@@ -15,10 +15,10 @@ from .similarity import get_dissimilarity
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 10
+DBSCAN_EPS = 0.5
 DBSCAN_MIN_SAMPLES = 1
 
-OVERLAP_THRESHOLD = 0.5
+OVERLAP_THRESHOLD = 0.3
 
 DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.note_sequence_func,
@@ -264,14 +264,19 @@ class MotifAnalyzer(object):
         else:
             largest_cluster = set()
 
-        # expand cluster by considering overlapping
-        notegram_group_queue = list(largest_cluster)
+        # expand cluster by considering overlapping with BFS
+        notegram_group_queue = list((i, 0) for i in largest_cluster)
         group_to_add = set()
         notegram_group_visited = set()
 
+        max_extension_count = 0
+        extension_count_freq = defaultdict(lambda: 0)
+
         while len(notegram_group_queue) > 0:
 
-            curr_notegram_group = notegram_group_queue.pop(0)
+            curr_notegram_group, extension_count = notegram_group_queue.pop(0)
+            max_extension_count = max(extension_count, max_extension_count)
+            extension_count_freq[extension_count] += 1
 
             if curr_notegram_group in notegram_group_visited:
                 continue
@@ -282,10 +287,13 @@ class MotifAnalyzer(object):
 
             for out_label in top_n_scoring_notegram_groups:
 
-                if out_label in largest_cluster or out_label in group_to_add:
-                    continue
-
                 out_group = self.notegram_groups[out_label]
+
+                # if out_label in largest_cluster:
+                #     continue
+
+                # if out_label in group_to_add:
+                #     continue
 
                 in_offsets = [(notegram.get_note_offset_by_index(
                     0), notegram.get_note_offset_by_index(-1))
@@ -296,7 +304,8 @@ class MotifAnalyzer(object):
                     for notegram in out_group]
 
                 if is_intervals_overlapping(in_offsets, out_offsets):
-                    notegram_group_queue.append(out_label)
+                    notegram_group_queue.append(
+                        (out_label, extension_count + 1))
                     group_to_add.add(out_label)
 
         if verbose:
@@ -306,6 +315,11 @@ class MotifAnalyzer(object):
             for i in group_to_add:
                 i = '\t'.join(i.split(';'))
                 print(colored(i, 'red'))
+            print(colored('-------------', 'yellow'))
+            print(colored('Longest motif length found:\t' +
+                          str(NGRAM_SIZE + max_extension_count), 'yellow'))
+            print(colored('\n' + '\n'.join(str(key + NGRAM_SIZE) + ': ' + str(value) for key,
+                                    value in extension_count_freq.items()), 'yellow'))
 
         return list(largest_cluster) + list(group_to_add)
 
