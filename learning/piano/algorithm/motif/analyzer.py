@@ -5,6 +5,9 @@ import math
 import numpy as np
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
+from intervaltree import Interval, IntervalTree
+
+from termcolor import colored
 
 from .notegram import Notegram
 from .similarity import get_dissimilarity
@@ -18,6 +21,29 @@ def is_rest(note):
         isinstance(note, music21.note.Rest) or \
         (isinstance(note, music21.note.Note) and
          (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
+
+
+def is_intervals_overlapping(first, second):
+    first_intervals = [Interval(*i) for i in first]
+    second_intervals = [Interval(*i) for i in second]
+
+    count = 0
+    tree = IntervalTree(first_intervals)
+    for interval in second_intervals:
+        if tree.search(*interval):
+            count += 1
+    if count / len(second_intervals) > 0.8:
+        return True
+
+    count = 0
+    tree = IntervalTree(second_intervals)
+    for interval in first_intervals:
+        if tree.search(*interval):
+            count += 1
+    if count / len(first_intervals) > 0.8:
+        return True
+
+    return False
 
 
 class MotifAnalyzer(object):
@@ -70,8 +96,8 @@ class MotifAnalyzer(object):
                     if vid not in vidgram:
                         continue
 
-                    # reject notegram starting/ending with a rest
-                    if is_rest(notegram[0][1]) or is_rest(notegram[-1][1]):
+                    # reject notegram starting with a rest
+                    if is_rest(notegram[0][1]):
                         continue
 
                     # reject notegram containing >= half rest
@@ -177,7 +203,8 @@ class MotifAnalyzer(object):
             print(distance_matrix)
             print("-----------------------\n")
 
-        weights = [self.score_by_notegram_group[i] for i in top_n_scoring_notegram_groups]
+        weights = [self.score_by_notegram_group[i]
+                   for i in top_n_scoring_notegram_groups]
 
         model = DBSCAN(metric='precomputed', eps=50, min_samples=5)
         db = model.fit(distance_matrix, sample_weight=weights)
@@ -204,12 +231,45 @@ class MotifAnalyzer(object):
             print("-----------------------\n")
 
         if len(total_score_by_label) > 0:
-            return list(
-                str(i)
-                for i in notegram_group_by_label[max(
+            largest_cluster = list(
+                str(i) for i in notegram_group_by_label[max(
                     total_score_by_label, key=total_score_by_label.get)])
         else:
-            return list()
+            largest_cluster = list()
+
+        # expand cluster by considering overlapping
+        notegram_group_queue = largest_cluster.copy()
+        groups_to_be_added_to_largest_cluster = []
+        notegram_group_visited = {}
+
+        while len(notegram_group_queue) > 0:
+            curr_notegram_group = notegram_group_queue.pop(0)
+            if curr_notegram_group in notegram_group_visited:
+                continue
+
+            notegram_group_visited[curr_notegram_group] = True
+
+            in_group = self.notegram_groups[curr_notegram_group]
+            for out_label in top_n_scoring_notegram_groups:
+                out_group = self.notegram_groups[out_label]
+                if in_group == out_group:
+                    continue
+                in_offsets = [(notegram.get_note_offset_by_index(
+                    0), notegram.get_note_offset_by_index(-1)) for notegram in in_group]
+                out_offsets = [(notegram.get_note_offset_by_index(
+                    0), notegram.get_note_offset_by_index(-1)) for notegram in out_group]
+
+                if is_intervals_overlapping(in_offsets, out_offsets) and out_label not in notegram_group_visited:
+                    groups_to_be_added_to_largest_cluster.append(out_label)
+                    notegram_group_queue.append(out_label)
+
+        if verbose:
+            for i in largest_cluster:
+                print(i)
+            for i in groups_to_be_added_to_largest_cluster:
+                print(colored(i, 'red'))
+
+        return largest_cluster + groups_to_be_added_to_largest_cluster
 
     def highlight_notegram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:

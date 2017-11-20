@@ -16,11 +16,8 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def note_sequence_func(note_list):
         results = []
-        note_list.insert(0, music21.note.Rest())
-        for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i - 1:i + 1]
-            # merge nearby rest into a single R
-            if not is_rest(prev_note) and is_rest(curr_note):
+        for curr_note in note_list:
+            if is_rest(curr_note):
                 results.append('R')
             else:
                 results.append(curr_note.name)
@@ -29,11 +26,8 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def notename_sequence_func(note_list):
         results = []
-        note_list.insert(0, music21.note.Rest())
-        for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i - 1:i + 1]
-            # merge nearby rest into a single R
-            if not is_rest(prev_note) and is_rest(curr_note):
+        for curr_note in note_list:
+            if is_rest(curr_note):
                 results.append('R')
             else:
                 results.append(re.sub('[^A-G]', '', curr_note.name))
@@ -42,12 +36,8 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def rhythm_sequence_func(note_list):
         results = []
-        note_list.insert(0, music21.note.Rest())
-        for i in range(1, len(note_list)):
-            prev_note, curr_note = note_list[i - 1:i + 1]
-            # merge nearby rest into a single R
-            if (not is_rest(prev_note) and is_rest(curr_note)) or not is_rest(curr_note):
-                results.append(str(float(curr_note.duration.quarterLength)))
+        for curr_note in note_list:
+            results.append(str(float(curr_note.duration.quarterLength)))
         # last note rhythm might sustain => replace with 1
         if len(results) > 0:
             results[-1] = '1.0'

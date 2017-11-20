@@ -19,15 +19,15 @@ class Motif(ReductionAlgorithm):
         analyzer = MotifAnalyzer(score_obj.score)
 
         analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
+                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1))
         analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
+                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1))
         analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_contour_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 10))
+                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1))
         analyzer.add_algorithm((MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 8))
+                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1))
         analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
+                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1))
 
         analyzer.run_all()
         motifs = analyzer.get_top_motif_cluster()
