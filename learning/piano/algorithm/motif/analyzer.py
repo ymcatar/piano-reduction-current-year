@@ -313,7 +313,7 @@ class MotifAnalyzer(object):
         for value in self.notegram_groups[notegram_group]:
             for note in value.get_note_list():
                 note.style.color = color
-                if note.lyric is None:
-                    note.lyric = '1'
-                else:
-                    note.lyric = str(int(note.lyric) + 1)
+                # if note.lyric is None:
+                #     note.lyric = '1'
+                # else:
+                #     note.lyric = str(int(note.lyric) + 1)
