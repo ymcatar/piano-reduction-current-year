@@ -30,7 +30,7 @@ DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func,
      MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 2),
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
 ]
 
 FILTER_PERCENT = 10
@@ -313,7 +313,7 @@ class MotifAnalyzer(object):
         for value in self.notegram_groups[notegram_group]:
             for note in value.get_note_list():
                 note.style.color = color
-                # if note.lyric is None:
-                #     note.lyric = '1'
-                # else:
-                #     note.lyric = str(int(note.lyric) + 1)
+                if note.lyric is None:
+                    note.lyric = '1'
+                else:
+                    note.lyric = str(int(note.lyric) + 1)
