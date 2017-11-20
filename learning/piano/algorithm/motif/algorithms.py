@@ -5,11 +5,13 @@ import math
 import numpy as np
 import re
 
+
 def is_rest(note):
     return note is None or \
         isinstance(note, music21.note.Rest) or \
-        (isinstance(note, music21.note.Note) and \
-        (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
+        (isinstance(note, music21.note.Note) and
+         (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
+
 
 class MotifAnalyzerAlgorithms(object):
 
@@ -82,7 +84,7 @@ class MotifAnalyzerAlgorithms(object):
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
             if is_rest(prev_note) and not is_rest(curr_note):
-                    results.append('<')
+                results.append('<')
             elif not is_rest(prev_note) and is_rest(curr_note):
                 results.append('>')
             elif not is_rest(prev_note) and not is_rest(curr_note):

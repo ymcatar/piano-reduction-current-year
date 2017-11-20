@@ -19,7 +19,6 @@ def normalize_sequences(first, second):
         results.append(mapping[character])
     return ''.join(results[:len(first)]), ''.join(results[len(first):])
 
-# determine similarity of notegram groups
 def get_dissimilarity(first, second):
     # get a single notegram to represent the whole group
     first_note_list = first[0].get_note_list()

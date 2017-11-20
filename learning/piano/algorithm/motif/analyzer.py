@@ -20,6 +20,7 @@ DBSCAN_MIN_SAMPLES = 1
 
 OVERLAP_THRESHOLD = 0.8
 
+
 def is_rest(note):
     return note is None or \
         isinstance(note, music21.note.Rest) or \
@@ -210,7 +211,8 @@ class MotifAnalyzer(object):
         weights = [self.score_by_notegram_group[i]
                    for i in top_n_scoring_notegram_groups]
 
-        model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS, min_samples=DBSCAN_MIN_SAMPLES)
+        model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS,
+                       min_samples=DBSCAN_MIN_SAMPLES)
         db = model.fit(distance_matrix, sample_weight=weights)
 
         notegram_group_by_label = defaultdict(lambda: [])
