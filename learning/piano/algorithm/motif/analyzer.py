@@ -9,23 +9,31 @@ from intervaltree import Interval, IntervalTree
 
 from termcolor import colored
 
+from .algorithms import MotifAnalyzerAlgorithms
 from .notegram import Notegram
 from .similarity import get_dissimilarity
 
-LOWER_N = 3
-UPPER_N = 4
+NGRAM_SIZE = 4
 
-DBSCAN_EPS = 50
+DBSCAN_EPS = 10
 DBSCAN_MIN_SAMPLES = 1
 
-OVERLAP_THRESHOLD = 0.8
+OVERLAP_THRESHOLD = 0.5
 
+DEFAULT_ALGORITHMS = [
+    (MotifAnalyzerAlgorithms.note_sequence_func,
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
+    (MotifAnalyzerAlgorithms.rhythm_sequence_func,
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func,
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func,
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
+    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 2),
+]
 
-def is_rest(note):
-    return note is None or \
-        isinstance(note, music21.note.Rest) or \
-        (isinstance(note, music21.note.Note) and
-         (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
+FILTER_PERCENT = 10
 
 
 def is_intervals_overlapping(first, second):
@@ -54,11 +62,12 @@ def is_intervals_overlapping(first, second):
 class MotifAnalyzer(object):
     def __init__(self, score):
         self.score = score
+        self.score.toSoundingPitch(inPlace=True)
 
         self.notegram_groups = defaultdict(lambda: [])
         self.score_by_notegram_group = defaultdict(lambda: 0)
 
-        self.algorithms = []
+        self.algorithms = DEFAULT_ALGORITHMS
 
         self.initialize()
 
@@ -94,27 +103,42 @@ class MotifAnalyzer(object):
                             note_list.append((offset, n))
                         vid_list.append(real_vid)
 
-            for n in range(LOWER_N, UPPER_N):
-                notegram_it = zip(*[note_list[i:] for i in range(n)])
-                vid_it = zip(*[vid_list[i:] for i in range(n)])
-                for notegram, vidgram in zip(notegram_it, vid_it):
-                    if vid not in vidgram:
-                        continue
+            notegram_it = zip(*[note_list[i:] for i in range(NGRAM_SIZE)])
+            vid_it = zip(*[vid_list[i:] for i in range(NGRAM_SIZE)])
+            for notegram, vidgram in zip(notegram_it, vid_it):
+                if vid not in vidgram:
+                    continue
 
-                    # reject notegram starting with a rest
-                    if is_rest(notegram[0][1]):
-                        continue
+                # reject notegram starting/ending with a rest
+                if notegram[0][1].isRest or notegram[0][-1].isRest:
+                    continue
 
-                    # reject notegram containing >= half rest
-                    if any((is_rest(n[1]) and n[1].duration.quarterLength -
-                            (2.0 - 1e-2) > 0.0) for n in notegram):
-                        continue
+                # reject notegram containing >= quarter rest
+                if any((note[1].isRest and note[1].duration.quarterLength -
+                        (1.0 - 1e-2) > 0.0) for note in notegram):
+                    continue
 
-                    temp = Notegram(
-                        list(i[1] for i in notegram),
-                        list(i[0] for i in notegram))
+                # reject notegram with note of 0 length (it should have been a Rest)
+                if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
+                    continue
 
-                    result.append(temp)
+                # expand notegram ending with tie (at most by one note)
+                for note in notegram:
+                    curr_offset, curr_note = note
+                    if curr_note.tie is not None and curr_note.tie.type == 'start':
+                        next_note = curr_note.next('Note')
+                        if next_note is not None and \
+                                next_note.tie is not None and \
+                                next_note.tie.type == 'stop' and \
+                                curr_note.name == next_note.name:
+                            notegram = list(notegram)
+                            notegram.append(
+                                (curr_offset + curr_note.quarterLength, next_note))
+                            notegram = tuple(notegram)
+
+                result.append(Notegram(
+                    list(i[1] for i in notegram),
+                    list(i[0] for i in notegram)))
 
         return result
 
@@ -124,9 +148,6 @@ class MotifAnalyzer(object):
         for part in self.score.recurse().getElementsByClass('Part'):
             for notegram in self.load_notegrams_by_part(part):
                 self.notegram_groups[str(notegram)].append(notegram)
-
-    def add_algorithm(self, algorithm_tuple):
-        self.algorithms.append(algorithm_tuple)
 
     def get_first_notegram_from_group(self, notegram_group):
         return self.notegram_groups[notegram_group][0]
@@ -178,7 +199,7 @@ class MotifAnalyzer(object):
 
         # retrieve the top 10% scoring notegram groups
         top_n_scoring_notegram_groups = []
-        for i in range(0, math.trunc(len(notegram_group_by_score) / 10)):
+        for i in range(0, math.trunc(len(notegram_group_by_score) * FILTER_PERCENT / 100)):
             max_score = max(k for k, v in notegram_group_by_score.items())
             top_n_scoring_notegram_groups += notegram_group_by_score.pop(
                 max_score)
@@ -267,9 +288,12 @@ class MotifAnalyzer(object):
                 out_group = self.notegram_groups[out_label]
 
                 in_offsets = [(notegram.get_note_offset_by_index(
-                    0), notegram.get_note_offset_by_index(-1)) for notegram in in_group]
+                    0), notegram.get_note_offset_by_index(-1))
+                    for notegram in in_group]
+
                 out_offsets = [(notegram.get_note_offset_by_index(
-                    0), notegram.get_note_offset_by_index(-1)) for notegram in out_group]
+                    0), notegram.get_note_offset_by_index(-1))
+                    for notegram in out_group]
 
                 if is_intervals_overlapping(in_offsets, out_offsets):
                     notegram_group_queue.append(out_label)
@@ -277,8 +301,10 @@ class MotifAnalyzer(object):
 
         if verbose:
             for i in largest_cluster:
+                i = '\t'.join(i.split(';'))
                 print(i)
             for i in group_to_add:
+                i = '\t'.join(i.split(';'))
                 print(colored(i, 'red'))
 
         return list(largest_cluster) + list(group_to_add)

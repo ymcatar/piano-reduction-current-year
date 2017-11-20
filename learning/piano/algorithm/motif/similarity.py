@@ -43,4 +43,4 @@ def get_dissimilarity(first, second):
         score.append((editdistance.eval(
             first_sequence, second_sequence)) * multplier)
 
-    return sum((i ** 2 for i in score), 0) ** 2  # squared sum
+    return sum((i ** 2 for i in score), 0) # squared sum

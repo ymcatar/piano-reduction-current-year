@@ -6,12 +6,12 @@ import numpy as np
 import re
 
 
-def is_rest(note):
-    return note is None or \
-        isinstance(note, music21.note.Rest) or \
-        (isinstance(note, music21.note.Note) and
-         (float(note.duration.quarterLength) < 1e-2 or note.name == 'rest'))
-
+def has_across_tie_to_prev_note(prev_note, curr_note):
+    return prev_note.tie is not None and \
+        curr_note.tie is not None and \
+        prev_note.tie.type == 'start' and \
+        curr_note.tie.type == 'stop' and \
+        prev_note.name == curr_note.name
 
 class MotifAnalyzerAlgorithms(object):
 
@@ -19,7 +19,7 @@ class MotifAnalyzerAlgorithms(object):
     def note_sequence_func(note_list):
         results = []
         for curr_note in note_list:
-            if is_rest(curr_note):
+            if curr_note.isRest:
                 results.append('R')
             else:
                 results.append(curr_note.name)
@@ -29,7 +29,7 @@ class MotifAnalyzerAlgorithms(object):
     def notename_sequence_func(note_list):
         results = []
         for curr_note in note_list:
-            if is_rest(curr_note):
+            if curr_note.isRest:
                 results.append('R')
             else:
                 results.append(re.sub('[^A-G]', '', curr_note.name))
@@ -39,7 +39,8 @@ class MotifAnalyzerAlgorithms(object):
     def rhythm_sequence_func(note_list):
         results = []
         for curr_note in note_list:
-            results.append(str(float(curr_note.duration.quarterLength)))
+            results.append('{0:.1f}'.format(
+                float(curr_note.duration.quarterLength)))
         # last note rhythm might sustain => replace with 1
         if len(results) > 0:
             results[-1] = '1.0'
@@ -50,11 +51,11 @@ class MotifAnalyzerAlgorithms(object):
         results = []
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
-            if is_rest(prev_note) and not is_rest(curr_note):
+            if prev_note.isRest and not curr_note.isRest:
                 results.append('RN')
-            elif not is_rest(prev_note) and is_rest(curr_note):
+            elif not prev_note.isRest and curr_note.isRest:
                 results.append('NR')
-            elif not is_rest(prev_note) and not is_rest(curr_note):
+            elif not prev_note.isRest and not curr_note.isRest:
                 curr_note_name = re.sub('[^A-G]', '', curr_note.name)
                 prev_note_name = re.sub('[^A-G]', '', prev_note.name)
                 results.append(str(ord(curr_note_name) - ord(prev_note_name)))
@@ -65,11 +66,11 @@ class MotifAnalyzerAlgorithms(object):
         results = []
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
-            if is_rest(prev_note) and not is_rest(curr_note):
+            if prev_note.isRest and not curr_note.isRest:
                 results.append('RN')
-            elif not is_rest(prev_note) and is_rest(curr_note):
+            elif not prev_note.isRest and curr_note.isRest:
                 results.append('NR')
-            elif not is_rest(prev_note) and not is_rest(curr_note):
+            elif not prev_note.isRest and not curr_note.isRest:
                 if prev_note.pitch.ps == curr_note.pitch.ps:
                     results.append('=')
                 elif prev_note.pitch.ps < curr_note.pitch.ps:
@@ -83,11 +84,11 @@ class MotifAnalyzerAlgorithms(object):
         results = []
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
-            if is_rest(prev_note) and not is_rest(curr_note):
+            if prev_note.isRest and not curr_note.isRest:
                 results.append('<')
-            elif not is_rest(prev_note) and is_rest(curr_note):
+            elif not prev_note.isRest and curr_note.isRest:
                 results.append('>')
-            elif not is_rest(prev_note) and not is_rest(curr_note):
+            elif not prev_note.isRest and not curr_note.isRest:
                 results.append(str(curr_note.pitch.ps - prev_note.pitch.ps))
         return results
 
@@ -96,11 +97,11 @@ class MotifAnalyzerAlgorithms(object):
         results = []
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
-            if is_rest(prev_note) and not is_rest(curr_note):
+            if prev_note.isRest and not curr_note.isRest:
                 results.append('<')
-            elif not is_rest(prev_note) and is_rest(curr_note):
+            elif not prev_note.isRest and curr_note.isRest:
                 results.append('>')
-            elif not is_rest(prev_note) and not is_rest(curr_note):
+            elif not prev_note.isRest and not curr_note.isRest:
                 curr_note_length = curr_note.duration.quarterLength
                 if i == len(note_list) - 1:  # last note
                     curr_note_length = 1  # expand the last note to quarter note
