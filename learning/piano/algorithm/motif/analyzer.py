@@ -12,9 +12,13 @@ from termcolor import colored
 from .notegram import Notegram
 from .similarity import get_dissimilarity
 
-LOWER_N = 4
-UPPER_N = 5
+LOWER_N = 3
+UPPER_N = 4
 
+DBSCAN_EPS = 50
+DBSCAN_MIN_SAMPLES = 1
+
+OVERLAP_THRESHOLD = 0.8
 
 def is_rest(note):
     return note is None or \
@@ -32,7 +36,7 @@ def is_intervals_overlapping(first, second):
     for interval in second_intervals:
         if tree.search(*interval):
             count += 1
-    if count / len(second_intervals) > 0.8:
+    if count / len(second_intervals) > OVERLAP_THRESHOLD:
         return True
 
     count = 0
@@ -40,7 +44,7 @@ def is_intervals_overlapping(first, second):
     for interval in first_intervals:
         if tree.search(*interval):
             count += 1
-    if count / len(first_intervals) > 0.8:
+    if count / len(first_intervals) > OVERLAP_THRESHOLD:
         return True
 
     return False
@@ -206,7 +210,7 @@ class MotifAnalyzer(object):
         weights = [self.score_by_notegram_group[i]
                    for i in top_n_scoring_notegram_groups]
 
-        model = DBSCAN(metric='precomputed', eps=50, min_samples=5)
+        model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS, min_samples=DBSCAN_MIN_SAMPLES)
         db = model.fit(distance_matrix, sample_weight=weights)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -231,45 +235,51 @@ class MotifAnalyzer(object):
             print("-----------------------\n")
 
         if len(total_score_by_label) > 0:
-            largest_cluster = list(
+            largest_cluster = set(
                 str(i) for i in notegram_group_by_label[max(
                     total_score_by_label, key=total_score_by_label.get)])
         else:
-            largest_cluster = list()
+            largest_cluster = set()
 
         # expand cluster by considering overlapping
-        notegram_group_queue = largest_cluster.copy()
-        groups_to_be_added_to_largest_cluster = []
-        notegram_group_visited = {}
+        notegram_group_queue = list(largest_cluster)
+        group_to_add = set()
+        notegram_group_visited = set()
 
         while len(notegram_group_queue) > 0:
+
             curr_notegram_group = notegram_group_queue.pop(0)
+
             if curr_notegram_group in notegram_group_visited:
                 continue
 
-            notegram_group_visited[curr_notegram_group] = True
+            notegram_group_visited.add(curr_notegram_group)
 
             in_group = self.notegram_groups[curr_notegram_group]
+
             for out_label in top_n_scoring_notegram_groups:
-                out_group = self.notegram_groups[out_label]
-                if in_group == out_group:
+
+                if out_label in largest_cluster or out_label in group_to_add:
                     continue
+
+                out_group = self.notegram_groups[out_label]
+
                 in_offsets = [(notegram.get_note_offset_by_index(
                     0), notegram.get_note_offset_by_index(-1)) for notegram in in_group]
                 out_offsets = [(notegram.get_note_offset_by_index(
                     0), notegram.get_note_offset_by_index(-1)) for notegram in out_group]
 
-                if is_intervals_overlapping(in_offsets, out_offsets) and out_label not in notegram_group_visited:
-                    groups_to_be_added_to_largest_cluster.append(out_label)
+                if is_intervals_overlapping(in_offsets, out_offsets):
                     notegram_group_queue.append(out_label)
+                    group_to_add.add(out_label)
 
         if verbose:
             for i in largest_cluster:
                 print(i)
-            for i in groups_to_be_added_to_largest_cluster:
+            for i in group_to_add:
                 print(colored(i, 'red'))
 
-        return largest_cluster + groups_to_be_added_to_largest_cluster
+        return list(largest_cluster) + list(group_to_add)
 
     def highlight_notegram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:
