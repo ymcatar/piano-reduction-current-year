@@ -6,8 +6,8 @@ import music21
 import argparse
 
 
-from algorithm.motif.analyzer import MotifAnalyzer
-from algorithm.motif.algorithms import MotifAnalyzerAlgorithms
+from .algorithm.motif.analyzer import MotifAnalyzer
+from .algorithm.motif.algorithms import MotifAnalyzerAlgorithms
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="path of the input MusicXML file")

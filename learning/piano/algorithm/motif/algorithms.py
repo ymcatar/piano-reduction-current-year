@@ -24,7 +24,6 @@ def merge_nearby_rest(note_list):
             total_rest_len = note_list[i].quarterLength
             while i + 1 < len(note_list) and note_list[i + 1].isRest:
                 i += 1
-            if i + 1 < len(note_list):
                 total_rest_len += note_list[i].quarterLength
             results.append(music21.note.Rest(quarterLength=total_rest_len))
         else:
