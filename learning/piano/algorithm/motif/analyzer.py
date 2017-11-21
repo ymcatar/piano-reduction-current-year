@@ -123,18 +123,17 @@ class MotifAnalyzer(object):
                     continue
 
                 # expand notegram ending with tie (at most by one note)
-                for note in notegram:
-                    curr_offset, curr_note = note
-                    if curr_note.tie is not None and curr_note.tie.type == 'start':
-                        next_note = curr_note.next('Note')
-                        if next_note is not None and \
-                                next_note.tie is not None and \
-                                next_note.tie.type == 'stop' and \
-                                curr_note.name == next_note.name:
-                            notegram = list(notegram)
-                            notegram.append(
-                                (curr_offset + curr_note.quarterLength, next_note))
-                            notegram = tuple(notegram)
+                curr_offset, curr_note = notegram[-1]
+                if curr_note.tie is not None and curr_note.tie.type == 'start':
+                    next_note = curr_note.next('Note')
+                    if next_note is not None and \
+                            next_note.tie is not None and \
+                            next_note.tie.type == 'stop' and \
+                            curr_note.pitch.ps == next_note.pitch.ps:
+                        notegram = list(notegram)
+                        notegram.append(
+                            (curr_offset + curr_note.quarterLength, next_note))
+                        notegram = tuple(notegram)
 
                 result.append(Notegram(
                     list(i[1] for i in notegram),
@@ -306,7 +305,8 @@ class MotifAnalyzer(object):
                 if is_intervals_overlapping(in_offsets, out_offsets):
                     notegram_group_queue.append(
                         (out_label, extension_count + 1))
-                    group_to_add.add(out_label)
+                    if out_label != in_group:
+                        group_to_add.add(out_label)
 
         if verbose:
             for i in largest_cluster:
@@ -321,7 +321,7 @@ class MotifAnalyzer(object):
             print(colored('\n' + '\n'.join(str(key + NGRAM_SIZE) + ': ' + str(value) for key,
                                     value in extension_count_freq.items()), 'yellow'))
 
-        return list(largest_cluster) + list(group_to_add)
+        return list(set(largest_cluster).union(group_to_add))
 
     def highlight_notegram_group(self, notegram_group, color):
         for value in self.notegram_groups[notegram_group]:
