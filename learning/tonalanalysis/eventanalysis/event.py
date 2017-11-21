@@ -13,11 +13,6 @@ log_file_name = "event_analyzer_2.log"
 log_file_path = os.path.join(config.LOG_DIR, log_file_name)
 logger = logging.getLogger("Analyzer")
 logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(name)s %(levelname)s %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
 
 file = logging.FileHandler(log_file_path, mode = 'w')
 file.setLevel(logging.DEBUG)
@@ -259,8 +254,6 @@ class Event:
         else:
             previous_event_chord = []
 
-        print(self.event_group.measure, self.global_index, previous_modulation)
-
         # Set chord according dissonance
         matching_chords = [previous_modulation[4], previous_modulation[3]]
 
@@ -279,8 +272,6 @@ class Event:
 
         if self._matched_chord == []:
             matching_chords_checked = matching_chords
-
-        print(self.event_group.measure, self.global_index, matching_chords_checked)
 
         min_dissonance = len(self._pitch_classes) + 1
         for chord in matching_chords_checked:

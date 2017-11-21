@@ -10,7 +10,6 @@ entrypoints=(
     learning.tonalanalysis.run_eventanalysis
     learning.tonalanalysis.tonal_parser
     learning.tonalanalysis.eventanalysis.event_analyzer
-    learning.tonalanalysis.eventanalysis.event
     learning.tonalanalysis.eventanalysis.chord_flow
     learning.tonalanalysis.eventanalysis.chord
     learning.tonalanalysis.eventanalysis.lib

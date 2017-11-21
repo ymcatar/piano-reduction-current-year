@@ -55,9 +55,6 @@ def ext_other_key(list, major=True):
         if len(current_dict) != 0:
             result_map[pitch+' min'] = current_dict
 
-    for pitch in result_map:
-        print(pitch, result_map[pitch])
-
     # label the input with Yes
     if major== True:
         output_list = [ row+[row[0]+"-"+row[1],"Yes" , "Major"] for row in list if len(row) != 1]
@@ -73,11 +70,6 @@ def ext_other_key(list, major=True):
                     output_list.append(result + [result[0]+"-"+result[1],"No", "Minor"])
                 else:
                     output_list.append(result + [result[0]+"-"+result[1],"No", "Major"])
-
-    # print result for reference
-    for line in output_list:
-        if 'N/A' not in line:
-            print(line)
 
     return output_list
 

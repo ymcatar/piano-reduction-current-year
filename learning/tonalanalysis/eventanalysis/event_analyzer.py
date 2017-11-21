@@ -61,101 +61,6 @@ class EventAnalyzer:
         self._measures_data = []
         self._modulations = []
 
-    def analyze(self):
-        for i in range(1,self._number_of_measures+1):
-            measure = self._score.measure(i).flat.notes
-
-            # build a list of offset numbers
-            event_group = []
-            for note in measure:
-                event_group.append(note.offset)
-            corr_group = remove_identical(event_group)
-            print("{} {}".format(i, corr_group))
-
-            # extract notes from measures to build a list of events sorted by offset
-            single_measure = []
-            for offset in corr_group:
-                # building a single event
-                single_event = []
-                for note_obj in self._score.measure(i).flat.notes.getElementsByOffset(offset, mustBeginInSpan=True):
-                    if isinstance(note_obj, music21.chord.Chord):
-                        for note in note_obj:
-                            single_event.append(note.name)
-                    else:
-                        single_event.append(note_obj.name)
-                # append the single event without any duplicated notes
-                single_measure.append(remove_identical(single_event))
-
-            # for each events, add pitch classes from 1 event before and 1 event after within the measure
-            step2_event = []
-            for j in range(len(single_measure)):
-                step2 = []
-                if len(single_measure) == 1:
-                    step2 = single_measure[j]
-                else:
-                    if j == 0:
-                        step2 += single_measure[j]
-                        step2 += single_measure[j+1]
-                    elif j == len(single_measure) - 1:
-                        step2 += single_measure[j]
-                        step2 += single_measure[j-1]
-                    else:
-                        step2 += single_measure[j+1]
-                        step2 += single_measure[j]
-                        step2 += single_measure[j-1]
-                step2_event.append(remove_identical(step2))
-
-            # try matching chords
-            parsed = []
-            parsed.append(len(corr_group))
-            for event in step2_event:
-                matched = False
-                partial_matched = False
-                for chord in self._chord_data:
-                    if set(event) == set(chord):
-                        matched = True
-                        parsed.append(''.join(event))
-                        break
-                if not matched:
-                    for chord in self._chord_data:
-                        if set(event) <= set(chord):
-                            partial_matched = True
-                            parsed.append(''.join(chord))
-                            break
-                if not matched and not partial_matched:
-                    parsed.append([])
-
-            # correction
-
-
-            # append all results
-            self._recognized.append(parsed)
-            self._event_mod.append(step2_event)
-            self._event.append(single_measure)
-
-        # print(self._recognized)
-
-        for n in range(len(self._recognized)):
-            incline = 1
-            # print("n: ", n)
-            for i in range(0,int(math.ceil(math.log(self._recognized[n][0],2)))):
-                # print("i: ", i)
-                for j in range(0,self._recognized[n][0],incline*2):
-                    if(len(self._recognized[n]) > j+1+incline):
-                        temp = []
-                        if((not self._recognized[n][j+1]) and (self._recognized[n][j+1+incline])):
-                            temp = self._recognized[n][j+1+incline]
-                        if ((self._recognized[n][j+1]) and (not self._recognized[n][j+1+incline])):
-                            temp = self._recognized[n][j+1]
-                        # print(j+1, j+incline+1, temp)
-                        # print(self._recognized[n][j+1], self._recognized[n][j+incline+1])
-                        if (temp):
-                            for k in range(0,incline*2):
-                                if(len(self._recognized[n])> j+k+1):
-                                    self._recognized[n][j+k+1] = temp
-                            # print(k)
-                incline = incline*2
-
     def set_measure_by_data(self, measure_data):
         # To improve speed on data input by setting the measure_data and number of measure
         self._measures_data = measure_data
@@ -163,20 +68,20 @@ class EventAnalyzer:
 
     def set_measure_by_score(self, scoreObj):
         measure_data = {}
-        for part in scoreObj.score:
-            for voice in part.voices:
-                for measure in voice.getElementsByClass(music21.stream.Measure):
-                    for noteObj in measure.notes:
-                        if measure.measureNumber not in measure_data:
-                            measure_data[measure.measureNumber] = []
-                        measure_data[measure.measureNumber].append(noteObj)
+        for part in scoreObj.score.parts:
+            for midx, measure in enumerate(part.getElementsByClass(music21.stream.Measure)):
+                if midx not in measure_data:
+                    measure_data[midx] = []
+                for voice in measure.voices:
+                    for noteObj in voice.notes:
+                        measure_data[midx].append(noteObj)
         self.set_measure_by_data(measure_data)
 
     def analyze_oo(self, num_of_flow = 4, tolerance = -0.5):
         global_index = 0
         for i in range(1, self._number_of_measures + 1):
             measure = []
-            if(self._measures_data == []):
+            if not self._measures_data:
                 measure = self._score.measure(i).flat.notes
             else:
                 measure = self._measures_data[i-1]
@@ -256,6 +161,8 @@ class EventAnalyzer:
 
     def eliminate_no_out_chord(self):
         events = self.event_container.events
+        if not events:
+            return
         before = events[-1]
         if before.matched_chord == []:
 

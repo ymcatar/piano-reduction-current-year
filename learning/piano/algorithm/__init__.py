@@ -11,3 +11,4 @@ from .strong_beats import StrongBeats
 from .sustained_rhythm import SustainedRhythm
 from .vertical_doubling import VerticalDoubling
 from .motif import Motif
+from .harmony import Harmony

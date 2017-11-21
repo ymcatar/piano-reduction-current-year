@@ -21,7 +21,6 @@ class HarmonyDataLoader:
             # init the parser
             # token: 0 : <file.xml> 1 : <score_name> 2: <composer_name> 3 : number of keys occurred
             p = Parser(token[0], token[1], token[2])
-            print(token[0], token[1], token[2])
             # a loop to read all keys and chords
             for i in range(int(token[3])):
                 line = self._fp.readline()
@@ -29,7 +28,6 @@ class HarmonyDataLoader:
                 token = [token.strip() for token in line.split('\t')]
                 # retrieve the chord marking
                 chord_list = p.get_chords_between_offsets(float(token[0]), float(token[1]))
-                print(token[0], token[1])
                 # pour result to a dictionary
                 p.pour_data(chord_list, token[2], token[3])
             # write the result to a new .txt file with same name

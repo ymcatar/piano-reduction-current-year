@@ -18,6 +18,9 @@ DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 # temporary folder directory
 TEMP_DIR = os.path.join(PROJECT_ROOT, "temp")
 
+if not os.path.exists(LOG_DIR):
+    os.mkdir(LOG_DIR)
+
 if __name__ == "__main__":
     print("Project root directory: ", PROJECT_ROOT)
     print("Library directory: ", LIB_DIR)

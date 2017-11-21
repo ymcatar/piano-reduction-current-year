@@ -32,7 +32,8 @@ reducer_args = {
         ('learning.piano.algorithm.StrongBeats', [], {'division': 0.5}),
         ('learning.piano.algorithm.SustainedRhythm', [], {}),
         ('learning.piano.algorithm.VerticalDoubling', [], {}),
-        ('learning.piano.algorithm.Motif', [], {})
+        ('learning.piano.algorithm.Motif', [], {}),
+        ('learning.piano.algorithm.Harmony', [], {}),
         ],
     'alignment': 'pitch_class_onset',
     }

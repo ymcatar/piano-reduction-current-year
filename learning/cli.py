@@ -16,6 +16,7 @@ from sklearn import metrics
 from .piano.alignment import (
     align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
     LEFT_HAND, RIGHT_HAND)
+from .piano.algorithm.base import get_markings
 from .piano.dataset import load_pairs
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -27,7 +28,7 @@ from .models.sk import WrappedSklearnModel
 DEFAULT_SAMPLES = [
     'sample/input/i_0000_Beethoven_op18_no1-4.xml:sample/output/o_0000_Beethoven_op18_no1-4.xml',
     'sample/input/i_0001_Spring_sonata_I.xml:sample/output/o_0001_Spring_sonata_I.xml',
-    'sample/input/i_0002_Beethoven_Symphony_No5_Mov1.xml:sample/output/o_0002_Beethoven_Symphony_No5_Mov1.xml',
+    # 'sample/input/i_0002_Beethoven_Symphony_No5_Mov1.xml:sample/output/o_0002_Beethoven_Symphony_No5_Mov1.xml',
     'sample/input/i_0003_Beethoven_Symphony_No7_Mov2.xml:sample/output/o_0003_Beethoven_Symphony_No7_Mov2.xml',
     'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
     'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml',
@@ -340,6 +341,27 @@ def command_inspect(args, **kwargs):
         result.show('musicxml')
 
 
+def command_show(args, **kwargs):
+    Algorithm = import_symbol(args.algorithm)
+    algorithm = Algorithm()
+    reducer = Reducer(
+        algorithms=[algorithm],
+        alignment='pitch_class_onset')
+
+    logging.info('Reading file')
+    sample_in = ScoreObject.from_file(args.file)
+
+    logging.info('Creating markings')
+    reducer.create_markings_on(sample_in)
+
+    for n in reducer.iter_notes(sample_in):
+        n.style.color = (
+            '#0000FF' if get_markings(n).get(algorithm.key, 0) else '#000000')
+
+    logging.info('Displaying output')
+    sample_in.score.show('musicxml')
+
+
 def main(args, **kwargs):
     if args.command == 'train':
         command_train(args, **kwargs)
@@ -347,6 +369,10 @@ def main(args, **kwargs):
         command_reduce(args, **kwargs)
     elif args.command == 'inspect':
         command_inspect(args, **kwargs)
+    elif args.command == 'show':
+        command_show(args, **kwargs)
+    else:
+        raise NotImplementedError()
 
 
 def run_model_cli(module):
@@ -363,8 +389,6 @@ def run_model_cli(module):
 
     train_parser = subparsers.add_parser('train', help='Train model')
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
-    inspect_parser = subparsers.add_parser('inspect',
-                                           help='Inspect sample pair')
 
     for subparser in [train_parser, reduce_parser]:
         subparser.add_argument('--cache', '-c', action='store_true',
@@ -388,12 +412,18 @@ def run_model_cli(module):
     reduce_parser.add_argument('--no-output', '-s', action='store_true',
                                help='Disable score output')
 
+    inspect_parser = subparsers.add_parser('inspect',
+                                           help='Inspect sample pair')
     inspect_parser.add_argument(
         '--alignment', '-a', help='Alignment method',
         choices=ALIGNMENT_METHODS, default=DEFAULT_ALIGNMENT_METHOD)
     inspect_parser.add_argument(
         'files', help='Input file pair, separated by a colon (:).')
     inspect_parser.add_argument('--output', '-o', help='Output to file')
+
+    show_parser = subparsers.add_parser('show', help='Show feature in input')
+    show_parser.add_argument('file', help='Input file')
+    show_parser.add_argument('algorithm', help='Algorithm')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]

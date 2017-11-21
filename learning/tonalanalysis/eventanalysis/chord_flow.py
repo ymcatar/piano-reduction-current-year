@@ -12,15 +12,10 @@ log_file_name = "chord_flow.log"
 log_file_path = os.path.join(config.LOG_DIR, log_file_name)
 
 logger = logging.getLogger("Flow")
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(name)s %(levelname)s %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+logger.setLevel(logging.INFO)
 
 file = logging.FileHandler(log_file_path, mode = 'w')
-file.setLevel(logging.INFO)
+file.setLevel(logging.DEBUG)
 
 logger.addHandler(file)
 logger.propagate = False
@@ -393,6 +388,7 @@ class FlowState:
         next_chord = next
         max_key = key
         weight = 0
+        start = float('inf')
 
         for event in output_list:
             for matched_chords_flow in event[2]:
@@ -442,6 +438,10 @@ class FlowState:
         """This function return the modulations of the given event_analyzer by comparing flows between chord """
         output_list = []
         events = event_analyzer.event_container.events
+
+        if not events:
+            return
+
         before = events[0]
 
         for after in events:
