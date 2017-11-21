@@ -2,7 +2,6 @@
 
 from ..base import ReductionAlgorithm, get_markings
 from .analyzer import MotifAnalyzer
-from .algorithms import MotifAnalyzerAlgorithms
 
 from music21 import stream
 import numpy as np
@@ -18,17 +17,6 @@ class Motif(ReductionAlgorithm):
         '''
         analyzer = MotifAnalyzer(score_obj.score)
 
-        analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
-        analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
-        analyzer.add_algorithm((MotifAnalyzerAlgorithms.note_contour_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 10))
-        analyzer.add_algorithm((MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 8))
-        analyzer.add_algorithm((MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-                                MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5))
-
         analyzer.run_all()
         motifs = analyzer.get_top_motif_cluster()
 
@@ -36,3 +24,4 @@ class Motif(ReductionAlgorithm):
             for notegram in analyzer.notegram_groups[notegram_group]:
                 for note in notegram.get_note_list():
                     get_markings(note)[self.key] = 1
+
