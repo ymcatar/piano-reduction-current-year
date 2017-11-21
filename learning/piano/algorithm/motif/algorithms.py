@@ -79,6 +79,16 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
+    def original_rhythm_sequence_func(note_list):
+        results = []
+        note_list = merge_nearby_rest(note_list)
+        note_list = merge_across_tie(note_list)
+        for curr_note in note_list:
+            results.append('{0:.1f}'.format(
+                float(curr_note.duration.quarterLength)))
+        return results
+
+    @staticmethod
     def notename_transition_sequence_func(note_list):
         results = []
         note_list = merge_nearby_rest(note_list)
