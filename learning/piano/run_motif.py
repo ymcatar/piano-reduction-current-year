@@ -19,6 +19,9 @@ args = parser.parse_args()
 filename = os.path.splitext(os.path.basename(args.input))[0]
 output_path = args.output
 
+print("============================================================")
+print(filename + '\n\n')
+
 analyzer = MotifAnalyzer(music21.converter.parse(args.input))
 analyzer.run_all()
 
