@@ -12,7 +12,10 @@ from .algorithm.motif.algorithms import MotifAnalyzerAlgorithms
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="path of the input MusicXML file")
 parser.add_argument("-o", "--output", help="output folder path")
-parser.add_argument("-p", "--print-only", help="print the result only", action='store_true')
+parser.add_argument("-n", "--no-output",
+                    help="print the result only", action='store_true')
+parser.add_argument(
+    "-p", "--pdf", help="output pdf instead of MusicXML", action='store_true')
 
 args = parser.parse_args()
 
@@ -29,11 +32,16 @@ motifs = analyzer.get_top_motif_cluster(verbose=True)
 
 # highlight in file
 for notegram_group in motifs:
-    analyzer.highlight_notegram_group(notegram_group, '#ff0000')
+    analyzer.highlight_notegram_group(notegram_group, 'red')
 
-if not args.print_only:
-    if args.output:
+if not args.no_output:
+    if args.output and not args.pdf:
+        # if args.pdf:
+            # analyzer.score.save('lily.pdf', os.path.join(
+                # output_path, filename))
         analyzer.score.write('musicxml', os.path.join(
             output_path, filename + '.xml'))
+    elif args.pdf:
+        analyzer.score.show('musicxml.pdf')
     else:
         analyzer.score.show()

@@ -62,7 +62,11 @@ def is_intervals_overlapping(first, second):
 class MotifAnalyzer(object):
     def __init__(self, score):
         self.score = score
+
+        # preprocess the score
         self.score.toSoundingPitch(inPlace=True)
+        for measure in self.score.recurse(skipSelf=True).getElementsByClass(music21.stream.Measure):
+            measure.removeByClass([music21.layout.PageLayout, music21.layout.SystemLayout])
 
         self.notegram_groups = defaultdict(lambda: [])
         self.score_by_notegram_group = defaultdict(lambda: 0)
