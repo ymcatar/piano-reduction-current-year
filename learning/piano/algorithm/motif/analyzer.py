@@ -3,8 +3,9 @@
 import music21
 import math
 import numpy as np
-from collections import defaultdict
-from sklearn.cluster import DBSCAN
+from collections import defaultdict, Counter
+import copy
+from sklearn.cluster import DBSCAN, KMeans, AgglomerativeClustering
 from intervaltree import Interval, IntervalTree
 
 from termcolor import colored
@@ -245,6 +246,34 @@ class MotifAnalyzer(object):
                 continue
             notegram_group_by_label[label].append(
                 top_n_scoring_notegram_groups[i])
+
+        if True:
+            # Show clusters in a score-ish thing
+            cscore = music21.stream.Score()
+            for label, notegram_groups in notegram_group_by_label.items():
+                # Each part is a cluster
+                cpart = music21.stream.Part()
+                count_map = Counter()
+                notegram_map = {}
+
+                # Unique notegrams
+                for group_name in notegram_groups:
+                    group = self.notegram_groups[group_name]
+                    for notegram in group:
+                        count_map[str(notegram)] += 1
+                        notegram_map[str(notegram)] = notegram
+
+                notegrams_in_cluster = sorted(notegram_map.values(),
+                                              key=lambda i: -count_map[str(i)])
+                for notegram in notegrams_in_cluster:
+                    cmeasure = music21.stream.Measure()
+                    note_list = copy.deepcopy(notegram.get_note_list())
+                    note_list[0].lyric = str(count_map[str(notegram)])
+                    cmeasure.append(note_list)
+                    cpart.append(cmeasure)
+
+                cscore.insert(0, cpart)
+            cscore.show('musicxml')
 
         total_score_by_label = defaultdict(lambda: 0)
         for label, notegram_groups in notegram_group_by_label.items():
