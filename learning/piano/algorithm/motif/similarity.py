@@ -3,10 +3,15 @@
 import music21
 import os
 import sys
-import editdistance
+from Bio import pairwise2
 
 from .algorithms import MotifAnalyzerAlgorithms
 
+def align_sequences(first, second):
+    first, second = normalize_sequences(first, second)
+    # no gap penalty, if match add 1 else 0
+    score = pairwise2.align.globalxx(first, second, score_only=True)
+    return score
 
 def normalize_sequences(first, second):
     results = []
@@ -29,8 +34,8 @@ def get_dissimilarity(first, second):
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
         (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 1),
+        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 5),
+        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 5),
     ]
 
     score = []
@@ -40,8 +45,7 @@ def get_dissimilarity(first, second):
         second_sequence = sequence_func(second_note_list)
         first_sequence, second_sequence = normalize_sequences(
             first_sequence, second_sequence)
-        score.append((editdistance.eval(
-            first_sequence, second_sequence)) * multplier)
+        score.append(align_sequences(first_sequence, second_sequence) * multplier)
 
     # return sum((i ** 2 for i in score), 0) # squared sum
     return 1.0 / sum((1.0 / (i + 1) for i in score), 0)

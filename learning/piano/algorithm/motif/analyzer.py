@@ -16,8 +16,8 @@ from .similarity import get_dissimilarity
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.3
-DBSCAN_MIN_SAMPLES = 50
+DBSCAN_EPS = 0.5
+DBSCAN_MIN_SAMPLES = 20
 
 OVERLAP_THRESHOLD = 0.5
 
@@ -25,16 +25,16 @@ DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.note_sequence_func,
      MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 3),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.note_contour_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 6),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func,
      MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 3),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
 ]
 
-FILTER_PERCENT = 15
+FILTER_PERCENT = 10
 
 
 def has_across_tie_to_next_note(curr_note, next_note):

@@ -9,11 +9,13 @@ import re
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
         return False
-    return curr_note.tie is not None and \
-        next_note.tie is not None and \
-        curr_note.tie.type == 'start' and \
-        next_note.tie.type == 'stop' and \
-        curr_note.pitch.ps == next_note.pitch.ps
+    if curr_note.tie is None or next_note.tie is None:
+        return False
+    if curr_note.tie.type in ('start', 'continue'):
+        if next_note.tie.type in ('continue', 'stop'):
+            if curr_note.pitch.ps == next_note.pitch.ps:
+                return True
+    return False
 
 
 def merge_nearby_rest(note_list):
@@ -73,6 +75,9 @@ class MotifAnalyzerAlgorithms(object):
         for curr_note in note_list:
             results.append('{0:.1f}'.format(
                 float(curr_note.duration.quarterLength)))
+        # last note rhythm might sustain => replace with 1
+        if len(results) > 0:
+            results[-1] = '1.0'
         return results
 
     @staticmethod
