@@ -34,7 +34,19 @@ DEFAULT_ALGORITHMS = [
      MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 3),
 ]
 
-FILTER_PERCENT = 10
+FILTER_PERCENT = 15
+
+
+def has_across_tie_to_next_note(curr_note, next_note):
+    if curr_note is None or next_note is None:
+        return False
+    if curr_note.tie is None or next_note.tie is None:
+        return False
+    if curr_note.tie.type in ('start', 'continue'):
+        if next_note.tie.type in ('continue', 'stop'):
+            if curr_note.pitch.ps == next_note.pitch.ps:
+                return True
+    return False
 
 
 def is_intervals_overlapping(first, second):
@@ -112,8 +124,12 @@ class MotifAnalyzer(object):
                 if vid not in vidgram:
                     continue
 
+                # reject notegram if starting with a tie
+                if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
+                    continue
+
                 # reject notegram starting/ending with a rest
-                if notegram[0][1].isRest or notegram[0][-1].isRest:
+                if notegram[0][1].isRest or notegram[-1][1].isRest:
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -125,18 +141,29 @@ class MotifAnalyzer(object):
                 if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
                     continue
 
-                # expand notegram ending with tie (at most by one note)
-                curr_offset, curr_note = notegram[-1]
-                if curr_note.tie is not None and curr_note.tie.type == 'start':
-                    next_note = curr_note.next('Note')
-                    if next_note is not None and \
-                            next_note.tie is not None and \
-                            next_note.tie.type == 'stop' and \
-                            curr_note.pitch.ps == next_note.pitch.ps:
-                        notegram = list(notegram)
-                        notegram.append(
-                            (curr_offset + curr_note.quarterLength, next_note))
-                        notegram = tuple(notegram)
+                # if the notegram contain notes with tie, add more note at the end to make up for it
+                across_tie_count = 0
+                for _, curr_note in notegram:
+                    if has_across_tie_to_next_note(curr_note, curr_note.next(('Rest', 'Note'))):
+                        across_tie_count += 1
+
+                notegram = list(notegram)
+                curr_offset, curr_note = notegram[0]
+                last_offset, last_note = notegram[-1]
+                last_note = last_note.next(('Rest', 'Note'))
+                # add one more note for one tie added
+                while across_tie_count > 0:
+                    across_tie_count -= 1
+                    if isinstance(last_note, music21.note.Note):
+                        last_offset += last_note.quarterLength
+                        notegram.append((last_offset, last_note))
+                        if has_across_tie_to_next_note(last_note, last_note.next(('Rest', 'Note'))):
+                            across_tie_count += 1
+                        last_note = last_note.next(('Rest', 'Note'))
+                    else:
+                        break
+
+                notegram = tuple(notegram)
 
                 result.append(Notegram(
                     list(i[1] for i in notegram),
