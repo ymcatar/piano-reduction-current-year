@@ -73,9 +73,6 @@ class MotifAnalyzerAlgorithms(object):
         for curr_note in note_list:
             results.append('{0:.1f}'.format(
                 float(curr_note.duration.quarterLength)))
-        # last note rhythm might sustain => replace with 1
-        if len(results) > 0:
-            results[-1] = '1.0'
         return results
 
     @staticmethod
@@ -155,23 +152,8 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
-    def freq_score_func(notegram, sequence, freq):
-        return freq
-
-    @staticmethod
     def simple_note_score_func(notegram, sequence, freq):
-        score = len(sequence) * (freq ** 0.5)
-        return score
-
-    @staticmethod
-    def distance_entropy_score_func(notegram, sequence, freq):
-        score = 0
-        sequence = [int(i) for i in sequence]
-        distances = [(i - j) for i in sequence for j in sequence if i != j]
-        probabilities = {item: distances.count(
-            item) / len(distances) for item in distances}
-        probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
+        score = len(sequence) * freq
         return score
 
     @staticmethod
