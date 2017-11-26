@@ -3,6 +3,7 @@
 import music21
 import math
 import numpy as np
+
 from collections import defaultdict
 from sklearn.cluster import DBSCAN
 from intervaltree import Interval, IntervalTree
@@ -16,9 +17,9 @@ from .similarity import get_dissimilarity
 NGRAM_SIZE = 4
 
 DBSCAN_EPS = 0.5
-DBSCAN_MIN_SAMPLES = 1
+DBSCAN_MIN_SAMPLES = 20
 
-OVERLAP_THRESHOLD = 0.3
+OVERLAP_THRESHOLD = 0.5
 
 DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.note_sequence_func,
@@ -26,34 +27,44 @@ DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.rhythm_sequence_func,
      MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.note_contour_sequence_func,
-     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
+     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
 ]
 
 FILTER_PERCENT = 10
+
+
+def has_across_tie_to_next_note(curr_note, next_note):
+    if curr_note is None or next_note is None:
+        return False
+    if curr_note.tie is None or next_note.tie is None:
+        return False
+    if curr_note.tie.type in ('start', 'continue'):
+        if next_note.tie.type in ('continue', 'stop'):
+            if curr_note.pitch.ps == next_note.pitch.ps:
+                return True
+    return False
 
 
 def is_intervals_overlapping(first, second):
     first_intervals = [Interval(*i) for i in first]
     second_intervals = [Interval(*i) for i in second]
 
+    # to enfore stricter definiton of overlapping,
+    # we look for the fraction of overlapping motifs
+    # (from the smaller group) in the whole bigger group
+    if len(first_intervals) > len(second_intervals):
+        first_intervals, second_intervals = second_intervals, first_intervals
+
     count = 0
     tree = IntervalTree(first_intervals)
     for interval in second_intervals:
         if tree.search(*interval):
             count += 1
-    if count / len(second_intervals) > OVERLAP_THRESHOLD:
-        return True
-
-    count = 0
-    tree = IntervalTree(second_intervals)
-    for interval in first_intervals:
-        if tree.search(*interval):
-            count += 1
-    if count / len(first_intervals) > OVERLAP_THRESHOLD:
+    if count / len(second_intervals) >= OVERLAP_THRESHOLD:
         return True
 
     return False
@@ -66,7 +77,8 @@ class MotifAnalyzer(object):
         # preprocess the score
         self.score.toSoundingPitch(inPlace=True)
         for measure in self.score.recurse(skipSelf=True).getElementsByClass(music21.stream.Measure):
-            measure.removeByClass([music21.layout.PageLayout, music21.layout.SystemLayout])
+            measure.removeByClass(
+                [music21.layout.PageLayout, music21.layout.SystemLayout])
 
         self.notegram_groups = defaultdict(lambda: [])
         self.score_by_notegram_group = defaultdict(lambda: 0)
@@ -82,7 +94,6 @@ class MotifAnalyzer(object):
         vids.add('1')  # Default voice
 
         result = []
-
         for vid in sorted(vids):
             note_list = []
             vid_list = []
@@ -113,8 +124,12 @@ class MotifAnalyzer(object):
                 if vid not in vidgram:
                     continue
 
+                # reject notegram if starting with a tie
+                if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
+                    continue
+
                 # reject notegram starting/ending with a rest
-                if notegram[0][1].isRest or notegram[0][-1].isRest:
+                if notegram[0][1].isRest or notegram[-1][1].isRest:
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -126,18 +141,29 @@ class MotifAnalyzer(object):
                 if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
                     continue
 
-                # expand notegram ending with tie (at most by one note)
-                curr_offset, curr_note = notegram[-1]
-                if curr_note.tie is not None and curr_note.tie.type == 'start':
-                    next_note = curr_note.next('Note')
-                    if next_note is not None and \
-                            next_note.tie is not None and \
-                            next_note.tie.type == 'stop' and \
-                            curr_note.pitch.ps == next_note.pitch.ps:
-                        notegram = list(notegram)
-                        notegram.append(
-                            (curr_offset + curr_note.quarterLength, next_note))
-                        notegram = tuple(notegram)
+                # if the notegram contain notes with tie, add more note at the end to make up for it
+                across_tie_count = 0
+                for _, curr_note in notegram:
+                    if has_across_tie_to_next_note(curr_note, curr_note.next(('Rest', 'Note'))):
+                        across_tie_count += 1
+
+                notegram = list(notegram)
+                curr_offset, curr_note = notegram[0]
+                last_offset, last_note = notegram[-1]
+                last_note = last_note.next(('Rest', 'Note'))
+                # add one more note for one tie added
+                while across_tie_count > 0:
+                    across_tie_count -= 1
+                    if isinstance(last_note, music21.note.Note):
+                        last_offset += last_note.quarterLength
+                        notegram.append((last_offset, last_note))
+                        if has_across_tie_to_next_note(last_note, last_note.next(('Rest', 'Note'))):
+                            across_tie_count += 1
+                        last_note = last_note.next(('Rest', 'Note'))
+                    else:
+                        break
+
+                notegram = tuple(notegram)
 
                 result.append(Notegram(
                     list(i[1] for i in notegram),
@@ -165,7 +191,8 @@ class MotifAnalyzer(object):
                 sequence_func(
                     self.get_first_notegram_from_group(notegram_group)
                     .get_note_list()))
-            freq_by_sequence[sequence] += 1
+            freq_by_sequence[sequence] += len(
+                self.notegram_groups[notegram_group])
             sequence_by_notegram_group[notegram_group] = sequence
 
         for notegram_group, sequence in sequence_by_notegram_group.items():
@@ -176,17 +203,14 @@ class MotifAnalyzer(object):
             if score >= threshold:
                 score_to_add_by_notegram_group[notegram_group] = score
 
-        total_score_to_add = sum(score_to_add_by_notegram_group.values())
+        avg = np.mean([i for i in score_to_add_by_notegram_group.values()])
+        sd = np.std([i for i in score_to_add_by_notegram_group.values()])
 
-        if abs(total_score_to_add) > 1e-6:
-            for notegram_group, _ in sequence_by_notegram_group.items():
-                if notegram_group in score_to_add_by_notegram_group:
-                    self.score_by_notegram_group[notegram_group] = \
-                        self.score_by_notegram_group[notegram_group] + \
-                        score_to_add_by_notegram_group[notegram_group] / \
-                        total_score_to_add * \
-                        multiplier * \
-                        len(score_to_add_by_notegram_group)
+        for notegram_group, _ in sequence_by_notegram_group.items():
+            if notegram_group in score_to_add_by_notegram_group:
+                self.score_by_notegram_group[notegram_group] += \
+                    multiplier * \
+                    (score_to_add_by_notegram_group[notegram_group] - avg) / sd
 
     def run_all(self):
         self.score_by_notegram_group = defaultdict(lambda: 0)
@@ -200,9 +224,9 @@ class MotifAnalyzer(object):
 
         results = []
 
-        # retrieve the top 10% scoring notegram groups
+        # retrieve the top n% scoring notegram groups
         top_n_scoring_notegram_groups = []
-        for i in range(0, math.trunc(len(notegram_group_by_score) * FILTER_PERCENT / 100)):
+        for i in range(0, len(notegram_group_by_score) * FILTER_PERCENT // 100):
             max_score = max(k for k, v in notegram_group_by_score.items())
             top_n_scoring_notegram_groups += notegram_group_by_score.pop(
                 max_score)
@@ -232,7 +256,7 @@ class MotifAnalyzer(object):
             print(distance_matrix)
             print("-----------------------\n")
 
-        weights = [self.score_by_notegram_group[i]
+        weights = [len(self.notegram_groups[i])
                    for i in top_n_scoring_notegram_groups]
 
         model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS,
@@ -323,7 +347,7 @@ class MotifAnalyzer(object):
             print(colored('Longest motif length found:\t' +
                           str(NGRAM_SIZE + max_extension_count), 'yellow'))
             print(colored('\n' + '\n'.join(str(key + NGRAM_SIZE) + ': ' + str(value) for key,
-                                    value in extension_count_freq.items()), 'yellow'))
+                                           value in extension_count_freq.items()), 'yellow'))
 
         return list(set(largest_cluster).union(group_to_add))
 

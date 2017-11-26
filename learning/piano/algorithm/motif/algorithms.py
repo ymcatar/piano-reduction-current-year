@@ -9,11 +9,13 @@ import re
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
         return False
-    return curr_note.tie is not None and \
-        next_note.tie is not None and \
-        curr_note.tie.type == 'start' and \
-        next_note.tie.type == 'stop' and \
-        curr_note.pitch.ps == next_note.pitch.ps
+    if curr_note.tie is None or next_note.tie is None:
+        return False
+    if curr_note.tie.type in ('start', 'continue'):
+        if next_note.tie.type in ('continue', 'stop'):
+            if curr_note.pitch.ps == next_note.pitch.ps:
+                return True
+    return False
 
 
 def merge_nearby_rest(note_list):
@@ -155,23 +157,8 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
-    def freq_score_func(notegram, sequence, freq):
-        return freq
-
-    @staticmethod
     def simple_note_score_func(notegram, sequence, freq):
-        score = len(sequence) * (freq ** 0.5)
-        return score
-
-    @staticmethod
-    def distance_entropy_score_func(notegram, sequence, freq):
-        score = 0
-        sequence = [int(i) for i in sequence]
-        distances = [(i - j) for i in sequence for j in sequence if i != j]
-        probabilities = {item: distances.count(
-            item) / len(distances) for item in distances}
-        probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
+        score = len(sequence) * freq
         return score
 
     @staticmethod
