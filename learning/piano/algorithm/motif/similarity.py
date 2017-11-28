@@ -11,7 +11,7 @@ def align_sequences(first, second):
     first, second = normalize_sequences(first, second)
     # no gap penalty, if match add 1 else 0
     results = pairwise2.align.globalxx(first, second, one_alignment_only=True)[0]
-    return len(results[0]) - results[2]
+    return (len(results[0]) - results[2]) / len(results[0])
 
 def normalize_sequences(first, second):
     results = []
