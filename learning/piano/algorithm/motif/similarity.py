@@ -45,7 +45,6 @@ def get_dissimilarity(first, second):
         second_sequence = sequence_func(second_note_list)
         first_sequence, second_sequence = normalize_sequences(
             first_sequence, second_sequence)
-        print(first_sequence, second_sequence)
         score.append(align_sequences(first_sequence, second_sequence) * multplier)
 
     # return sum((i ** 2 for i in score), 0) # squared sum
