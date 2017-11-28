@@ -16,10 +16,10 @@ from .similarity import get_dissimilarity
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.5
-DBSCAN_MIN_SAMPLES = 20
+DBSCAN_EPS = 0.1
+DBSCAN_MIN_SAMPLES = 3
 
-OVERLAP_THRESHOLD = 0.5
+OVERLAP_THRESHOLD = 0.8
 
 DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.note_sequence_func,
@@ -27,11 +27,11 @@ DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.rhythm_sequence_func,
      MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.note_contour_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 1),
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 1),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 2),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func,
-     MotifAnalyzerAlgorithms.entropy_note_score_func, 0, 5),
+     MotifAnalyzerAlgorithms.simple_note_score_func, 0, 2),
 ]
 
 FILTER_PERCENT = 10
@@ -203,14 +203,14 @@ class MotifAnalyzer(object):
             if score >= threshold:
                 score_to_add_by_notegram_group[notegram_group] = score
 
-        avg = np.mean([i for i in score_to_add_by_notegram_group.values()])
-        sd = np.std([i for i in score_to_add_by_notegram_group.values()])
+        # avg = np.mean([i for i in score_to_add_by_notegram_group.values()])
+        # sd = np.std([i for i in score_to_add_by_notegram_group.values()])
 
         for notegram_group, _ in sequence_by_notegram_group.items():
             if notegram_group in score_to_add_by_notegram_group:
                 self.score_by_notegram_group[notegram_group] += \
                     multiplier * \
-                    (score_to_add_by_notegram_group[notegram_group] - avg) / sd
+                    score_to_add_by_notegram_group[notegram_group]
 
     def run_all(self):
         self.score_by_notegram_group = defaultdict(lambda: 0)

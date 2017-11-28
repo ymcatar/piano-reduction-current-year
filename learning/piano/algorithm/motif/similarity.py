@@ -10,8 +10,8 @@ from .algorithms import MotifAnalyzerAlgorithms
 def align_sequences(first, second):
     first, second = normalize_sequences(first, second)
     # no gap penalty, if match add 1 else 0
-    score = pairwise2.align.globalxx(first, second, score_only=True)
-    return score
+    results = pairwise2.align.globalxx(first, second, one_alignment_only=True)[0]
+    return (len(results[0]) - results[2]) / len(results[0])
 
 def normalize_sequences(first, second):
     results = []
@@ -34,8 +34,8 @@ def get_dissimilarity(first, second):
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
         (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 5),
-        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 5),
+        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 2),
     ]
 
     score = []
@@ -48,4 +48,4 @@ def get_dissimilarity(first, second):
         score.append(align_sequences(first_sequence, second_sequence) * multplier)
 
     # return sum((i ** 2 for i in score), 0) # squared sum
-    return 1.0 / sum((1.0 / (i + 1) for i in score), 0)
+    return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2
