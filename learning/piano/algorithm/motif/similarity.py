@@ -48,4 +48,4 @@ def get_dissimilarity(first, second):
         score.append(align_sequences(first_sequence, second_sequence) * multplier)
 
     # return sum((i ** 2 for i in score), 0) # squared sum
-    return 1.0 / sum((1.0 / (i + 1) for i in score), 0)
+    return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2

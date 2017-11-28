@@ -16,7 +16,7 @@ from .similarity import get_dissimilarity
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.5
+DBSCAN_EPS = 0.3
 DBSCAN_MIN_SAMPLES = 20
 
 OVERLAP_THRESHOLD = 0.5
