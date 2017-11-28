@@ -12,7 +12,6 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
-from sklearn import metrics
 from .piano.alignment import (
     align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
     LEFT_HAND, RIGHT_HAND)
@@ -23,6 +22,7 @@ from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
+from .metrics import ModelMetrics
 
 
 DEFAULT_SAMPLES = [
@@ -184,46 +184,9 @@ def command_reduce(args, **kwargs):
 
     y_proba = reducer.predict_from(model, target, X=X_test)
 
-    # We also calculate metrics for the binary keep/no keep prediction, so that
-    # binary vs. multi-class models can be somewhat compared.
-    y_test_bin = y_test != 0
-
-    if reducer.label_type == 'align':
-        y_pred_bin = y_pred = y_proba >= 0.5
-        y_proba_bin = y_proba
-    elif reducer.label_type == 'hand':
-        y_pred = np.argmax(y_proba, axis=1)
-        y_proba_bin = np.sum(y_proba[:, 1:], axis=1)
-        y_pred_bin = y_proba_bin >= 0.5
-    else:
-        raise NotImplementedError()
-
-    if out_path:
-        eval_title = 'Evaluation on {}'.format(in_path.rpartition('/')[2])
-        logging.info('')
-        logging.info(eval_title)
-        logging.info('=' * len(eval_title))
-
-        evals = [
-            ('Accuracy',  metrics.accuracy_score(y_test, y_pred)),
-            ('(0-1) Accuracy',  metrics.accuracy_score(y_test_bin, y_pred_bin)),
-            ('(0-1) Precision, TP/(TP+FP)', metrics.precision_score(y_test_bin, y_pred_bin)),
-            ('(0-1) Recall, TP/(TP+FN)', metrics.recall_score(y_test_bin, y_pred_bin)),
-            ('(0-1) ROC AUC', metrics.roc_auc_score(y_test_bin, y_proba_bin)),
-            ]
-        for name, value in evals:
-            logging.info('{:31} {:>13.4f}'.format(name, value))
-
-        confusion = metrics.confusion_matrix(y_test, y_pred)
-        logging.info('Confusion matrix\n{!r}'.format(confusion))
-
-        confusion = metrics.confusion_matrix(y_test_bin, y_pred_bin)
-        logging.info('{:31} TN{:>4} FP{:>4}'.format(
-            '(0-1) Confusion matrix', *confusion[0, :]))
-        logging.info('{:31} FN{:>4} TP{:>4}'.format('', *confusion[1, :]))
-
-        logging.info('Note: This does not account for fabricated notes!')
-        logging.info('')
+    if y_test is not None:
+        metrics = ModelMetrics(reducer, y_proba, y_test)
+        logging.info('\n' + metrics.format())
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(target, reduced=True,
@@ -396,7 +359,6 @@ def run_model_cli(module):
 
     train_parser.add_argument('--output', '-o', help='Output to file')
 
-    reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
     reduce_parser.add_argument(
         'file', help='Input file. Optionally specify an input-output pair '
                      'to evaluate test metrics.')
