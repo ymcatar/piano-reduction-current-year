@@ -16,10 +16,10 @@ from .similarity import get_dissimilarity
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.3
-DBSCAN_MIN_SAMPLES = 20
+DBSCAN_EPS = 0.5
+DBSCAN_MIN_SAMPLES = 3
 
-OVERLAP_THRESHOLD = 0.5
+OVERLAP_THRESHOLD = 0.3
 
 DEFAULT_ALGORITHMS = [
     (MotifAnalyzerAlgorithms.note_sequence_func,
