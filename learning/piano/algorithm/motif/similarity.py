@@ -34,8 +34,8 @@ def get_dissimilarity(first, second):
         (MotifAnalyzerAlgorithms.note_sequence_func, 1),
         (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
         (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
-        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 5),
-        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 5),
+        (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 2),
+        (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 2),
     ]
 
     score = []
