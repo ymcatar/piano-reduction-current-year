@@ -2,17 +2,37 @@ from .alignment import get_alignment_func
 from .algorithm.base import get_markings, iter_notes
 
 from collections.abc import Sequence
+import importlib
 import numpy as np
+
+
+def import_symbol(path):
+    module, symbol = path.rsplit('.', 1)
+    return getattr(importlib.import_module(module), symbol)
 
 
 class Reducer(object):
     def __init__(self, algorithms, alignment):
         '''
         Arguments:
-            algorithms: List of Algorithm objects.
+            algorithms: List of Algorithm objects or (class.path, args, kwargs)
+                tuple.
             alignment: Name of the alignment method.
         '''
-        self._algorithms = algorithms
+        if all(isinstance(a, tuple) for a in algorithms):
+            # Only create this if the args are indeed serializable
+            self.reducer_args = {
+                'algorithms': algorithms,
+                'alignment': alignment
+                }
+
+        self._algorithms = []
+        for algo in algorithms:
+            if isinstance(algo, tuple):
+                path, args, kwargs = algo
+                self._algorithms.append(import_symbol(path)(*args, **kwargs))
+            else:
+                self._algorithms.append(algo)
 
         # Set the key for each algorithm
         for i, algo in enumerate(self.algorithms):

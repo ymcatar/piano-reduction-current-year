@@ -16,25 +16,13 @@ from .piano.alignment import (
     align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
     LEFT_HAND, RIGHT_HAND)
 from .piano.algorithm.base import get_markings
-from .piano.dataset import load_pairs
+from .piano.dataset import Dataset
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
-from .metrics import ModelMetrics
-
-
-DEFAULT_SAMPLES = [
-    'sample/input/i_0000_Beethoven_op18_no1-4.xml:sample/output/o_0000_Beethoven_op18_no1-4.xml',
-    'sample/input/i_0001_Spring_sonata_I.xml:sample/output/o_0001_Spring_sonata_I.xml',
-    # 'sample/input/i_0002_Beethoven_Symphony_No5_Mov1.xml:sample/output/o_0002_Beethoven_Symphony_No5_Mov1.xml',
-    'sample/input/i_0003_Beethoven_Symphony_No7_Mov2.xml:sample/output/o_0003_Beethoven_Symphony_No7_Mov2.xml',
-    'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
-    'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml',
-    'sample/input/i_0006_Dvorak_New_World_Symphony_No9_Mov2.xml:sample/output/o_0006_Dvorak_New_World_Symphony_No9_Mov2.xml',
-    'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/o_0007_Tchaikovsky_nutcracker_march.xml'
-    ]
+from .metrics import ModelMetrics, ScoreMetrics
 
 
 def configure_logger():
@@ -76,11 +64,7 @@ def import_symbol(path):
 
 
 def create_reducer_and_model(module):
-    reducer_args = dict(module.reducer_args)
-    reducer_args['algorithms'] = [
-        import_symbol(path)(*args, **kwargs)
-        for path, args, kwargs in reducer_args['algorithms']]
-    reducer = Reducer(**reducer_args)
+    reducer = Reducer(**module.reducer_args)
 
     Model = module.Model
     if type(Model) == type and not issubclass(Model, BaseModel):
@@ -136,15 +120,12 @@ def train(args, module, save_model=False, **kwargs):
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    sample_paths = args.sample or DEFAULT_SAMPLES
-    in_paths, out_paths = [], []
-    for paths in sample_paths:
-        in_path, out_path = paths.split(':')
-        in_paths.append(in_path)
-        out_paths.append(out_path)
-
-    X, y = load_pairs(in_paths, out_paths, reducer, module.reducer_args,
+    dataset = Dataset(reducer, paths=args.sample,
                       use_cache=getattr(args, 'cache', False))
+    if getattr(args, 'validation', False):
+        X, y, _, _ = dataset.split_dataset(dataset.find_index(args.file))
+    else:
+        X, y = dataset.get_all()
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
@@ -167,9 +148,13 @@ def command_train(args, **kwargs):
 
 
 def command_reduce(args, **kwargs):
-    sample_paths = args.sample or DEFAULT_SAMPLES
-    model = args.model or get_default_save_file(kwargs['module'])
-    reducer, model = load(model)
+    if args.validation:
+        # Train model in place
+        reducer, model = train(args, **kwargs)
+        assert not args.model, 'Model file cannot be used in validation mode'
+    else:
+        model = args.model or get_default_save_file(kwargs['module'])
+        reducer, model = load(model)
 
     logging.info('Reading input score')
     in_path, _, out_path = args.file.partition(':')
@@ -184,13 +169,16 @@ def command_reduce(args, **kwargs):
 
     y_proba = reducer.predict_from(model, target, X=X_test)
 
-    if y_test is not None:
-        metrics = ModelMetrics(reducer, y_proba, y_test)
-        logging.info('\n' + metrics.format())
-
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(target, reduced=True,
                                                  playable=True)
+
+    if y_test is not None:
+        metrics = ModelMetrics(reducer, y_proba, y_test)
+        logging.info('Model metrics\n' + metrics.format())
+
+        metrics = ScoreMetrics(reducer, result, target_out.score)
+        logging.info('Score metrics\n' + metrics.format())
 
     if args.heat:
         logging.info('Displaying heat map')
@@ -247,9 +235,9 @@ def command_reduce(args, **kwargs):
         description = textwrap.dedent('''\
             Original score compared to reduced score.
             Blue notes indicate the notes that are kept.
-            Model: {} ({} samples)
+            Model: {}
             Generated at {}
-            '''.format(model.describe(), len(sample_paths),
+            '''.format(model.describe(),
                        datetime.datetime.now().isoformat()))
         add_description_to_score(target.score, description)
 
@@ -257,10 +245,9 @@ def command_reduce(args, **kwargs):
     else:
         description = textwrap.dedent('''\
             Reduced score.
-            Model: {} ({} samples)
+            Model: {}
             Generated at {}
-            '''.format(model.describe(), len(sample_paths),
-                       datetime.datetime.now().isoformat()))
+            '''.format(model.describe(), datetime.datetime.now().isoformat()))
         add_description_to_score(result, description)
 
     if args.no_output:
@@ -373,6 +360,10 @@ def run_model_cli(module):
     reduce_parser.add_argument('--model', '-m', help='Model file')
     reduce_parser.add_argument('--no-output', '-s', action='store_true',
                                help='Disable score output')
+    reduce_parser.add_argument(
+        '--validation', action='store_true',
+        help='Perform train-validate evaluation, i.e. train on all samples '
+             'except the target score and test on the target score.')
 
     inspect_parser = subparsers.add_parser('inspect',
                                            help='Inspect sample pair')
