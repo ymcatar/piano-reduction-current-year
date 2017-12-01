@@ -6,6 +6,7 @@ from .tf import TflearnModel
 class NNWeightedObjective(TflearnModel):
     def __init__(self, reducer):
         n_features = len(reducer.all_keys)
+        tf.reset_default_graph()
 
         net = tflearn.input_data(dtype=tf.float32, shape=[None, n_features])
         net = tflearn.fully_connected(net, 2 * n_features, activation='sigmoid')
