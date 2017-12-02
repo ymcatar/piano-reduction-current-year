@@ -23,6 +23,8 @@ from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
 from .metrics import ModelMetrics, ScoreMetrics
+from . import config
+from scoreboard.writer import LogWriter
 
 
 def configure_logger():
@@ -291,12 +293,8 @@ def command_inspect(args, **kwargs):
         result.show('musicxml')
 
 
-def command_show(args, **kwargs):
-    Algorithm = import_symbol(args.algorithm)
-    algorithm = Algorithm()
-    reducer = Reducer(
-        algorithms=[algorithm],
-        alignment='pitch_class_onset')
+def command_show(args, module, **kwargs):
+    reducer = Reducer(**module.reducer_args)
 
     logging.info('Reading file')
     sample_in = ScoreObject.from_file(args.file)
@@ -304,12 +302,14 @@ def command_show(args, **kwargs):
     logging.info('Creating markings')
     reducer.create_markings_on(sample_in)
 
-    for n in reducer.iter_notes(sample_in):
-        n.style.color = (
-            '#0000FF' if get_markings(n).get(algorithm.key, 0) else '#000000')
+    logging.info('Writing data')
+    writer = LogWriter(config.LOG_DIR)
+    logging.info('Log directory: {}'.format(writer.dir))
+    reducer.add_features_to_writer(writer)
+    writer.add_score('input', sample_in.score)
+    writer.finalize()
 
-    logging.info('Displaying output')
-    sample_in.score.show('musicxml')
+    logging.info('Done')
 
 
 def main(args, **kwargs):
@@ -376,7 +376,6 @@ def run_model_cli(module):
 
     show_parser = subparsers.add_parser('show', help='Show feature in input')
     show_parser.add_argument('file', help='Input file')
-    show_parser.add_argument('algorithm', help='Algorithm')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]

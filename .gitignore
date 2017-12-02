@@ -105,3 +105,4 @@ env
 
 /sample/cache
 trained/
+/log/
