@@ -1,5 +1,5 @@
 music21==4.1.0
-numpy==1.12.1
+numpy==1.13.3
 protobuf==3.3.0
 tensorflow==1.1.0
 scikit-learn==0.19.0
@@ -13,3 +13,4 @@ termcolor==1.1.0
 pyexcel==0.5.6
 pyexcel-xlsx==0.5.4
 aiohttp==2.3.5
+imageio==2.2.0

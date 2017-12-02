@@ -16,7 +16,7 @@
           <div class="page-slider">
             <span>Page</span>
             <input type="range" min="0" :max="pageCount" step="0.1" v-model.number="pageOffset">
-            <span> {{Math.round(pageOffset*10)/10}}</span>
+            <span class="page-disp">{{Math.round(pageOffset*10)/10}}</span>
           </div>
         </md-list-item>
 
@@ -96,7 +96,7 @@ export default {
 .horizontal-layout {
   flex: 1;
   display: flex;
-    .drawer { width: 340px; }
+    .drawer { width: 240px; }
     main { flex: 1; overflow-x: scroll; }
 }
 
@@ -110,5 +110,6 @@ export default {
   display: flex; align-items: center;
   width: 100%;
   input { flex: 1; margin-left: 8px; margin-right: 8px; }
+  .page-disp { width: 32px; }
 }
 </style>

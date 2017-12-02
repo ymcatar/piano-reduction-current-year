@@ -48,7 +48,7 @@ export default {
   },
 
   async mounted() {
-    const {runs} = await fetchJSON(apiRoot + 'log/');
+    const {runs} = await fetchJSON(apiRoot + 'log/index.json');
     this.runs = runs;
     if (!this.selectedRunName && this.runs.length)
       this.selectedRunName = this.runs[0].name;

@@ -3,8 +3,6 @@
 </template>
 
 <script>
-import { preprocessImage } from './imageProcessing';
-
 // Throttle with requestAnimationFrame
 function throttle(fn) {
   let running = false;
@@ -21,13 +19,13 @@ function throttle(fn) {
 
 export default {
   name: 'ScoreCanvas',
-  props: ['apiPrefix', 'pages', 'annotations', 'pageOffset'],
+  props: ['apiPrefix', 'pages', 'noteMaps', 'annotations', 'pageOffset'],
   data: () => ({
     canvas: null,
     ctx: null,
     bitmaps: [],
-    noteMaps: [],
     pageLoadings: [],
+    ratio: null,
     width: null,
     height: null,
     scale: 'fit',
@@ -39,7 +37,7 @@ export default {
       if (this.scale === 'fit') {
         if (!this.bitmaps[0]) return 1;
         const bitmap = this.bitmaps[0];
-        const effectiveHeight = this.height - this.pageMargin * window.devicePixelRatio * 2;
+        const effectiveHeight = this.height - this.pageMargin * this.ratio * 2;
         return Math.min(this.width / bitmap.width, effectiveHeight / bitmap.height);
       }
       return this.scale;
@@ -56,15 +54,6 @@ export default {
         const blob = await res.blob();
         const bitmap = await createImageBitmap(blob);
 
-        // A convoluted way to get an ImageData object
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
-        const image = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-
-        this.noteMaps[pageIndex] = await preprocessImage(image);
         this.bitmaps[pageIndex] = bitmap;
 
         this.draw();
@@ -88,12 +77,13 @@ export default {
         return;
       }
 
+      const scaledMargin = this.pageMargin * this.ratio;
       const pageWidth = this.bitmaps[0].width;
       let pageIndex, x;
       for (pageIndex = Math.floor(this.pageOffset),
-          x = -pageWidth * (this.pageOffset % 1);
+          x = -pageWidth * (this.pageOffset % 1) + scaledMargin;
           pageIndex < this.pages.length && x * this.realScale < this.canvas.width;
-          pageIndex++, x += pageWidth + this.pageMargin * window.devicePixelRatio) {
+          pageIndex++, x += pageWidth + scaledMargin) {
         if (!this.bitmaps[pageIndex]) {
           this.ensureLoaded(pageIndex);
           continue;
@@ -101,7 +91,7 @@ export default {
         const bitmap = this.bitmaps[pageIndex];
 
         // Draw page
-        this.ctx.setTransform(1, 0, 0, 1, x * this.realScale, this.pageMargin * window.devicePixelRatio);
+        this.ctx.setTransform(1, 0, 0, 1, x * this.realScale, scaledMargin);
         this.ctx.drawImage(
           bitmap, 0, 0, bitmap.width * this.realScale, bitmap.height * this.realScale);
 
@@ -113,8 +103,8 @@ export default {
           if (!annotation) continue;
           if (annotation.notehead1) {
             this.ctx.fillStyle = annotation.notehead1;
-            for (const pt of entry.points) {
-              this.ctx.fillRect(pt.x * this.realScale, pt.y * this.realScale, this.realScale, this.realScale);
+            for (const rect of entry.rects) {
+              this.ctx.fillRect(...rect.map(x => x * this.realScale));
             }
           }
         }
@@ -128,6 +118,7 @@ export default {
       let ratio = window.devicePixelRatio;
       // This avoids ugly aliasing
       if (ratio === 1) ratio = 2;
+      this.ratio = ratio;
       this.width = this.canvas.width = this.$refs.canvas.clientWidth * ratio;
       this.height = this.canvas.height = this.$refs.canvas.clientHeight * ratio;
       this.draw();
@@ -156,7 +147,6 @@ export default {
   watch: {
     pages() {
       this.bitmaps = this.pages.map(() => null);
-      this.noteMaps = this.pages.map(() => null);
       this.pageLoadings = this.pages.map(() => false);
       this.resize();
       this.fixPageOffset();
