@@ -7,6 +7,8 @@ class SustainedRhythm(ReductionAlgorithm):
     def __init__(self, division=1):
         super(SustainedRhythm, self).__init__()
 
+    dtype = 'bool'
+
     def create_markings_on(self, score_obj):
         '''
         In each bar, the non-empty part(s) with the least number of notes is

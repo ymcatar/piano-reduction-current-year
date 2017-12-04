@@ -6,6 +6,8 @@ class StrongBeats(ReductionAlgorithm):
         super(StrongBeats, self).__init__()
         self.division = division  # in terms of quarter length
 
+    dtype = 'bool'
+
     def create_markings_on(self, score_obj):
         '''
         Each note whose onset occurs at an integral multiple of the defined

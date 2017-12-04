@@ -8,6 +8,8 @@ from music21 import chord, stream
 flow_state = FlowState()
 
 class Harmony(ReductionAlgorithm):
+    dtype = 'bool'
+
     def create_markings_on(self, score_obj):
         '''
         Use the results of tonal analysis to mark dissonance.

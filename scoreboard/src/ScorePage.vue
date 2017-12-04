@@ -17,7 +17,7 @@ export default {
   props: {
     apiPrefix: String,
     score: {type: Object, required: true},
-    notehead1: Object,
+    noteheads: Array,
     pageOffset: Number,
   },
   data: () => ({
@@ -35,9 +35,22 @@ export default {
         if (!this.featureData.hasOwnProperty(key)) continue;
         const data = this.featureData[key];
         // TODO: Data type aware
-        result[key] = {
-          notehead1: this.notehead1 && data[this.notehead1.name] ? '#3333FF' : '#000000'
+        const props = {
+          noteheads: this.noteheads.map(() => '#000000'),
         };
+        for (let i = 0; i < this.noteheads.length; i++) {
+          const nh = this.noteheads[i];
+          if (nh) {
+            const value = data[nh.name];
+            if (nh.dtype === 'categorical') {
+              const labelEntry = nh.legend[value];
+              props.noteheads[i] = labelEntry ? labelEntry[0] : nh.default;
+            } else {
+              props.noteheads[i] = value ? nh.colour : '#000000';
+            }
+          }
+        }
+        result[key] = props;
       }
       return result;
     },

@@ -13,7 +13,8 @@ from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
 from .piano.alignment import (
-    align_and_annotate_scores, ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
+    align_and_annotate_scores, add_alignment_features_to_writer,
+    ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
     LEFT_HAND, RIGHT_HAND)
 from .piano.algorithm.base import get_markings
 from .piano.dataset import Dataset
@@ -252,6 +253,12 @@ def command_reduce(args, **kwargs):
             '''.format(model.describe(), datetime.datetime.now().isoformat()))
         add_description_to_score(result, description)
 
+    writer = LogWriter(config.LOG_DIR)
+    logging.info('Log directory: {}'.format(writer.dir))
+    reducer.add_features_to_writer(writer)
+    writer.add_score('combined', result)
+    writer.finalize()
+
     if args.no_output:
         pass
     elif args.output:
@@ -280,6 +287,12 @@ def command_inspect(args, **kwargs):
     result = sample_in.score
 
     merge_reduced_to_original(sample_in.score, sample_out.score)
+
+    writer = LogWriter(config.LOG_DIR)
+    logging.info('Log directory: {}'.format(writer.dir))
+    add_alignment_features_to_writer(writer, method=args.alignment)
+    writer.add_score('combined', result)
+    writer.finalize()
 
     add_description_to_score(sample_in.score, description)
 

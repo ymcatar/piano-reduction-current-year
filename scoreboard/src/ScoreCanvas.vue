@@ -36,9 +36,13 @@ export default {
     realScale() {
       if (this.scale === 'fit') {
         if (!this.bitmaps[0]) return 1;
+        let maxBitmapHeight = 0;
+        for (const bitmap of this.bitmaps) {
+          if (bitmap) maxBitmapHeight = Math.max(maxBitmapHeight, bitmap.height);
+        }
         const bitmap = this.bitmaps[0];
         const effectiveHeight = this.height - this.pageMargin * this.ratio * 2;
-        return Math.min(this.width / bitmap.width, effectiveHeight / bitmap.height);
+        return Math.min(this.width / bitmap.width, effectiveHeight / maxBitmapHeight);
       }
       return this.scale;
     },
@@ -55,6 +59,9 @@ export default {
         const bitmap = await createImageBitmap(blob);
 
         this.bitmaps[pageIndex] = bitmap;
+        // Vue.js sucks? Change detection issue
+        this.bitmaps = this.bitmaps.slice();
+
 
         this.draw();
       } catch (err) {
@@ -96,13 +103,19 @@ export default {
           bitmap, 0, 0, bitmap.width * this.realScale, bitmap.height * this.realScale);
 
         // Annotations
-        for (const colour in this.noteMaps[pageIndex]) {
-          if (!this.noteMaps[pageIndex].hasOwnProperty(colour)) continue;
-          const entry = this.noteMaps[pageIndex][colour];
-          const annotation = this.annotations[colour];
+        for (const key in this.noteMaps[pageIndex]) {
+          if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
+          const entry = this.noteMaps[pageIndex][key];
+          const annotation = this.annotations[key];
           if (!annotation) continue;
-          if (annotation.notehead1) {
-            this.ctx.fillStyle = annotation.notehead1;
+
+          let colour = '#000000';
+          for (let i = 0; i < annotation.noteheads.length; i++) {
+            if (annotation.noteheads[i] !== '#000000')
+              colour = annotation.noteheads[i];
+          }
+          if (colour) {
+            this.ctx.fillStyle = colour;
             for (const rect of entry.rects) {
               this.ctx.fillRect(...rect.map(x => x * this.realScale));
             }

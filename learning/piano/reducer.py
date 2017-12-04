@@ -117,8 +117,14 @@ class Reducer(object):
         for algo in self.algorithms:
             help = algo.__doc__ or algo.create_markings_on.__doc__
             help = help.strip()
-            writer.add_feature(writerlib.BoolFeature(
-                algo.key, help=help))
+            dtype = getattr(algo, 'dtype', 'bool')
+            if dtype == 'float':
+                writer.add_feature(writerlib.FloatFeature(
+                    algo.key, getattr(algo, dtype, getattr(algo, 'range')),
+                    help=help))
+            else:
+                writer.add_feature(writerlib.BoolFeature(
+                    algo.key, help=help))
 
         if self.label_type == 'align':
             writer.add_feature(writerlib.BoolFeature(

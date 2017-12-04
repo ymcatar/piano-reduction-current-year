@@ -6,6 +6,8 @@ from collections import Counter
 import textwrap
 from music21 import stream
 
+from scoreboard import writer
+
 
 RIGHT_HAND = 1
 LEFT_HAND = 2
@@ -33,6 +35,9 @@ def align_min_octave_hand(input_score, output_score):
         alignments.append(
             align_all_notes(input_score, part_score, ignore_parts=True,
                             key_func=pitch_class_onset_key_func))
+
+    for n in iter_notes(output_score, recurse=True):
+        n.editorial.misc['justified'] = False
 
     for measure in (input_score.recurse(skipSelf=True)
             .getElementsByClass(stream.Measure)):
@@ -118,3 +123,27 @@ def annotate_min_octave_hand(input_score, output_score):
         ''')
 
     return description
+
+
+align_min_octave_hand.features = [
+    writer.CategoricalFeature(
+        'hand',
+        {
+            0: ('#000000', 'Discarded'),
+            1: ('#3333FF', 'Upper staff'),
+            2: ('#33FF33', 'Lower staff'),
+            },
+        '#000000',
+        help='Which staff the note should be kept in, determined with '
+             'min_octave_hand.'
+        ),
+    writer.CategoricalFeature(
+        'justified',
+        {
+            'true': ('#000000', 'Justified'),
+            'false': ('#FF0000', 'Unjustified'),
+            },
+        '#000000',
+        help='Which the output note is justified by some input note label.'
+        ),
+    ]

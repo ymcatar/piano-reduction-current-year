@@ -7,6 +7,7 @@ import json
 import logging
 import music21
 import os
+import numpy as np
 
 
 class BaseFeature:
@@ -23,19 +24,19 @@ class BoolFeature(BaseFeature):
 
 
 class FloatFeature(BaseFeature):
-    def __init__(self, name, domain=None, default=0.0, help=''):
+    def __init__(self, name, range=None, default=0.0, help=''):
         '''
-        domain: A pair (low, high) representing the range of values it can take.
+        range: A pair (low, high) representing the range of values it can take.
             Set any of it to None to indicate unbounded.
         '''
         super().__init__(name, dtype='float', default=default, help=help)
-        self.domain = domain or (None, None)
+        self.range = range or (None, None)
 
 
 class CategoricalFeature(BaseFeature):
     def __init__(self, name, legend, default, help=''):
         '''
-        legend: A dict mapping colour code (#XXXXXX) to its label.
+        legend: A dict mapping label to tuple (#XXXXXX, label).
         '''
         super().__init__(name, dtype='categorical', default=default, help=help)
         self.legend = legend
@@ -63,6 +64,18 @@ def iter_notes(stream, recurse=False):
                 yield n2
         else:
             yield n
+
+
+class MyJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super().default(obj)
 
 
 class LogWriter:
@@ -98,13 +111,14 @@ class LogWriter:
         feature_data = defaultdict(list)
         for n in iter_notes(score, recurse=True):
             data = dict(n.editorial.misc)
-            data.update(data['markings'])
-            del data['markings']
+            if 'markings' in data:
+                data.update(data['markings'])
+                del data['markings']
             feature_data[n.style.color] = data
 
         score.write('musicxml', fp=os.path.join(self.dir, name + '.xml'))
         with open(os.path.join(self.dir, name + '.json'), 'w') as f:
-            json.dump(feature_data, f, indent=2)
+            json.dump(feature_data, f, indent=2, cls=MyJSONEncoder)
 
         self.scores.append({
             'name': name,

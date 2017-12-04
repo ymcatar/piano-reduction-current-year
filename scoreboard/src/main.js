@@ -11,6 +11,8 @@ import ScorePage from './ScorePage.vue';
 Vue.component('score-page', ScorePage);
 import ScoreCanvas from './ScoreCanvas.vue';
 Vue.component('score-canvas', ScoreCanvas);
+import FeatureLegend from './FeatureLegend.vue';
+Vue.component('feature-legend', FeatureLegend);
 
 import App from './App.vue';
 new Vue({

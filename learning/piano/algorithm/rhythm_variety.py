@@ -7,6 +7,8 @@ class RhythmVariety(ReductionAlgorithm):
     def __init__(self):
         super(RhythmVariety, self).__init__()
 
+    dtype = 'bool'
+
     def create_markings_on(self, score_obj):
         '''
         In each voice, each note that

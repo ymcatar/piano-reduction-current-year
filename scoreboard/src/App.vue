@@ -3,7 +3,7 @@
     <md-toolbar class="md-primary">
       <span class="md-title">Scoreboard</span>
       <md-menu class="run-select">
-        <md-button md-menu-trigger>
+        <md-button md-menu-trigger @click="onMenuActivate">
           <template v-if="selectedRun">
             {{formatTimestamp(selectedRun.timestamp)}} ({{selectedRun.name}})
           </template>
@@ -47,20 +47,29 @@ export default {
     },
   },
 
-  async mounted() {
-    const {runs} = await fetchJSON(apiRoot + 'log/index.json');
-    this.runs = runs;
-    if (!this.selectedRunName && this.runs.length)
-      this.selectedRunName = this.runs[0].name;
+  mounted() {
+    this.load();
   },
 
   methods: {
+    async load() {
+      console.log('Loading runs');
+      const {runs} = await fetchJSON(apiRoot + 'log/index.json');
+      this.runs = runs;
+      if (!this.selectedRunName && this.runs.length)
+        this.selectedRunName = this.runs[0].name;
+    },
+
     formatTimestamp(timestamp) {
-      return new Date(timestamp).toString().substr(4, 20);
+      return new Date(timestamp * 1000).toString().substr(4, 20);
     },
 
     onSelectRun(run) {
       this.selectedRunName = run.name;
+    },
+
+    onMenuActivate() {
+      this.load();
     },
   },
 };
