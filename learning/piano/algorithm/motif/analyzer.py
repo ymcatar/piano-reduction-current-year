@@ -12,7 +12,7 @@ from termcolor import colored
 
 from .algorithms import MotifAnalyzerAlgorithms
 from .notegram import Notegram
-from .similarity import get_dissimilarity
+from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
@@ -222,8 +222,6 @@ class MotifAnalyzer(object):
         for notegram_group, score in self.score_by_notegram_group.items():
             notegram_group_by_score[score].append(notegram_group)
 
-        results = []
-
         # retrieve the top n% scoring notegram groups
         top_n_scoring_notegram_groups = []
         for i in range(0, len(notegram_group_by_score) * FILTER_PERCENT // 100):
@@ -232,25 +230,11 @@ class MotifAnalyzer(object):
                 max_score)
 
         # create the distance matrix for top n notegram groups
-        actual_cluster_init_n = len(top_n_scoring_notegram_groups)
-
-        distance_matrix = np.zeros((actual_cluster_init_n,
-                                    actual_cluster_init_n))
-
         top_scoring_notegram_groups_list = [
             self.notegram_groups[i] for i in top_n_scoring_notegram_groups
         ]
 
-        for i, ni in enumerate(top_scoring_notegram_groups_list):
-            for j, nj in enumerate(top_scoring_notegram_groups_list):
-                if i == j:
-                    continue
-                if j > i:
-                    break
-                distance_matrix[i, j] = get_dissimilarity(ni, nj)
-
-        distance_matrix = distance_matrix + \
-            distance_matrix.T - np.diag(np.diag(distance_matrix))
+        distance_matrix = get_dissimilarity_matrix(top_scoring_notegram_groups_list)
 
         if verbose:
             print(distance_matrix)
