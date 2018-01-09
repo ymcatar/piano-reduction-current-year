@@ -5,6 +5,8 @@ from collections.abc import Sequence
 import importlib
 import numpy as np
 
+from scoreboard import writer as writerlib
+
 
 def import_symbol(path):
     module, symbol = path.rsplit('.', 1)
@@ -110,3 +112,29 @@ class Reducer(object):
             n.editorial.misc['align'] = y[i]
 
         return y_proba
+
+    def add_features_to_writer(self, writer):
+        for algo in self.algorithms:
+            help = algo.__doc__ or algo.create_markings_on.__doc__
+            help = help.strip()
+            dtype = getattr(algo, 'dtype', 'bool')
+            if dtype == 'float':
+                writer.add_feature(writerlib.FloatFeature(
+                    algo.key, getattr(algo, dtype, getattr(algo, 'range')),
+                    help=help))
+            else:
+                writer.add_feature(writerlib.BoolFeature(
+                    algo.key, help=help))
+
+        if self.label_type == 'align':
+            writer.add_feature(writerlib.BoolFeature(
+                'align', help='Whether the note should be kept.'))
+        elif self.label_type == 'hand':
+            legend = {
+                '#0000FF': 'Upper staff',
+                '#00FF00': 'Lower staff',
+                '#000000': 'Discarded',
+                }
+            writer.add_feature(writerlib.CategoricalFeature(
+                'align', legend, '#000000',
+                help='Which staff the note should be kept in.'))

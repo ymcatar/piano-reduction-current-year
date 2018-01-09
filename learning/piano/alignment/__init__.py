@@ -43,3 +43,10 @@ def align_and_annotate_scores(input_score, output_score,
         '''.format(method, datetime.datetime.now().isoformat()))
 
     return description
+
+
+def add_alignment_features_to_writer(writer,
+                                     method=DEFAULT_ALIGNMENT_METHOD):
+    features = getattr(globals().get('align_' + method), 'features', [])
+    for feature in features:
+        writer.add_feature(feature)

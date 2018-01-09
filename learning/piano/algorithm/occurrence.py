@@ -8,6 +8,8 @@ class Occurrence(ReductionAlgorithm):
     def __init__(self):
         super(Occurrence, self).__init__()
 
+    dtype = 'bool'
+
     def create_markings_on(self, score_obj):
         '''
         For each measure in each voice, the notes with the pitch class(es) that
