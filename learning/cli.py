@@ -1,4 +1,5 @@
 import argparse
+from collections import defaultdict
 import datetime
 import functools
 import importlib
@@ -17,7 +18,7 @@ from .piano.alignment import (
     ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
     LEFT_HAND, RIGHT_HAND)
 from .piano.algorithm.base import get_markings
-from .piano.dataset import Dataset
+from .piano.dataset import Dataset, CROSSVAL_SAMPLES
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -325,6 +326,57 @@ def command_show(args, module, **kwargs):
     logging.info('Done')
 
 
+def command_crossval(args, module, **kwargs):
+    logging.info('Initializing reducer')
+    reducer, model = create_reducer_and_model(module)
+
+    logging.info('Reading sample scores')
+    dataset = Dataset(reducer, use_cache=True, keep_scores=True, paths=CROSSVAL_SAMPLES)
+    dataset.get_all()
+
+    all_metrics = defaultdict(list)
+    metric_names = {}
+
+    logging.info('Starting cross-validation')
+    for i in range(len(dataset)):
+        logging.info('Fold {}: {!r}'.format(i, dataset.entries[i].path_pair))
+        logging.info('-' * 60)
+        X_train, y_train, X_valid, y_valid = dataset.split_dataset(i)
+
+        logging.info('Training')
+        model.fit(X_train, y_train)
+
+        target_in = dataset.entries[i].input_score_obj
+        target_out = dataset.entries[i].output_score_obj
+
+        logging.info('Predicting')
+        y_proba = reducer.predict_from(model, target_in, X=X_valid)
+
+        post_processor = PostProcessor()
+        result = post_processor.generate_piano_score(target_in, reduced=True,
+                                                     playable=True)
+
+        metrics = ModelMetrics(reducer, y_proba, y_valid)
+        for key in metrics.keys:
+            all_metrics[key].append(getattr(metrics, key))
+        metric_names.update(metrics.names)
+        logging.info('Model metrics\n' + metrics.format())
+
+        metrics = ScoreMetrics(reducer, result, target_out.score)
+        for key in metrics.keys:
+            all_metrics[key].append(getattr(metrics, key))
+        metric_names.update(metrics.names)
+        logging.info('Score metrics\n' + metrics.format())
+
+    logging.info('=' * 60)
+    out = []
+    for key, values in all_metrics.items():
+        name = metric_names[key]
+        avg = np.mean(values)
+        out.append('{:35} {:>13.4f}'.format(name, avg))
+    logging.info('Cross-validated metrics (by averaging)\n' + '\n'.join(out))
+
+
 def main(args, **kwargs):
     if args.command == 'train':
         command_train(args, **kwargs)
@@ -334,6 +386,8 @@ def main(args, **kwargs):
         command_inspect(args, **kwargs)
     elif args.command == 'show':
         command_show(args, **kwargs)
+    elif args.command == 'crossval':
+        command_crossval(args, **kwargs)
     else:
         raise NotImplementedError()
 
@@ -389,6 +443,8 @@ def run_model_cli(module):
 
     show_parser = subparsers.add_parser('show', help='Show feature in input')
     show_parser.add_argument('file', help='Input file')
+
+    subparsers.add_parser('crossval', help='Evaluate model using cross validation')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]
