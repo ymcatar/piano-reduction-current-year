@@ -1,30 +1,9 @@
 #!/usr/bin/env python3
 
-import music21
 import numpy as np
-import os
-import sys
-from Bio import pairwise2
 
 from .algorithms import MotifAnalyzerAlgorithms
-
-def align_sequences(first, second):
-    first, second = normalize_sequences(first, second)
-    # no gap penalty, if match add 1 else 0
-    results = pairwise2.align.globalxx(first, second, one_alignment_only=True)[0]
-    return (len(results[0]) - results[2]) / len(results[0])
-
-def normalize_sequences(first, second):
-    results = []
-    mapping = {}
-    curr_index = 0
-    for character in first + second:
-        if character not in mapping:
-            mapping[character] = chr(ord('a') + curr_index)
-            curr_index += 1
-        results.append(mapping[character])
-    return ''.join(results[:len(first)]), ''.join(results[len(first):])
-
+from .alignment import align_sequences, align_one_to_many
 
 sequence_func_list = [
     (MotifAnalyzerAlgorithms.note_sequence_func, 1),
@@ -51,25 +30,29 @@ def get_dissimilarity(first, second):
     return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2
 
 
-def get_dissimilarity_matrix(notegram_group_list):
-    sequences_list = []
-    for group in notegram_group_list:
-        note_list = group[0].get_note_list()
-        sequences_list.append([fn(note_list) for fn, _ in sequence_func_list])
-
-    multipliers = np.array([m for _, m in sequence_func_list])
-
+def get_dissimilarity_matrix(notegram_group_list, vectorize=True):
     n = len(notegram_group_list)
-    D = np.zeros((n, n))
 
-    for i, iseqs in enumerate(sequences_list):
-        for j, jseqs in enumerate(sequences_list):
-            if j > i:
-                break
-            scores = [align_sequences(iseq, jseq) for iseq, jseq in zip(iseqs, jseqs)]
-            # "Smoothed" harmonic mean
-            D[i, j] = 1.0 / np.sum(1.0 / (multipliers * scores + 1.0)) - 0.2
+    scores = np.zeros((len(sequence_func_list), n, n))
 
+    for k, (func, multiplier) in enumerate(sequence_func_list):
+        seqs = [func(group[0].get_note_list()) for group in notegram_group_list]
+
+        if vectorize:
+            jseqs = seqs[:]
+            while len(jseqs) > 1:
+                i = len(jseqs) - 1
+                iseq = jseqs.pop()
+                scores[k, i, 0:i] = align_one_to_many(iseq, jseqs) * multiplier
+        else:
+            for i, iseq in enumerate(seqs):
+                for j, jseq in enumerate(seqs):
+                    if j > i:
+                        break
+                    scores[k, i, j] = align_sequences(iseq, jseq) * multiplier
+
+    # Smoothed harmonic mean
+    D = 1.0 / np.sum(1.0 / (scores + 1.0), axis=0) - 0.2
     D = D + D.T - np.diag(np.diag(D))
 
     return D
