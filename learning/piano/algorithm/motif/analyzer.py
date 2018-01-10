@@ -15,8 +15,8 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.01
-DBSCAN_MIN_SAMPLES = 10
+DBSCAN_EPS = 0.05
+DBSCAN_MIN_SAMPLES = 20
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
