@@ -18,8 +18,7 @@ NGRAM_SIZE = 4
 DBSCAN_EPS = 0.001
 DBSCAN_MIN_SAMPLES = 10
 
-OVERLAP_NOTEGRAM_THRESHOLD = 0.95
-OVERLAP_GROUP_THRESHOLD = 0.95
+OVERLAP_THRESHOLD = 0.8
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -139,20 +138,9 @@ class MotifAnalyzer(object):
         if len(first) > len(second):
             first, second = second, first
 
-        count = 0
-        total = 0
+        first = sum((self.notegram_groups[i] for i in first), [])
+        second = sum((self.notegram_groups[i] for i in second), [])
 
-        # bad performance
-        for x in first:
-            total += len(self.notegram_groups[x])
-            for y in second:
-                if self.is_notegram_overlapping(self.notegram_groups[x], self.notegram_groups[y]):
-                    count += len(self.notegram_groups[x])
-                    break
-
-        return count / total >= OVERLAP_GROUP_THRESHOLD
-
-    def is_notegram_overlapping(self, first, second):
         first = [(notegram.get_note_offset_by_index(
             0), notegram.get_note_offset_by_index(-1))
             for notegram in first]
@@ -176,8 +164,7 @@ class MotifAnalyzer(object):
             if tree.search(*interval):
                 count += 1
 
-        return count / len(second_intervals) >= OVERLAP_NOTEGRAM_THRESHOLD
-
+        return count / len(second_intervals) >= OVERLAP_THRESHOLD
 
     def cluster(self, verbose=False):
         notegram_group_list = [i for _, i in self.notegram_groups.items()]
