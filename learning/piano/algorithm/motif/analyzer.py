@@ -15,7 +15,7 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.001
+DBSCAN_EPS = 0.01
 DBSCAN_MIN_SAMPLES = 10
 
 OVERLAP_THRESHOLD = 0.8
@@ -152,19 +152,16 @@ class MotifAnalyzer(object):
         first_intervals = [Interval(*i) for i in first]
         second_intervals = [Interval(*i) for i in second]
 
-        # to enfore stricter definiton of overlapping,
-        # we look for the fraction of overlapping motifs
-        # (from the smaller group) in the whole bigger group
         if len(first_intervals) > len(second_intervals):
             first_intervals, second_intervals = second_intervals, first_intervals
 
         count = 0
-        tree = IntervalTree(first_intervals)
-        for interval in second_intervals:
+        tree = IntervalTree(second_intervals)
+        for interval in first_intervals:
             if tree.search(*interval):
                 count += 1
 
-        return count / len(second_intervals) >= OVERLAP_THRESHOLD
+        return count / len(first_intervals) >= OVERLAP_THRESHOLD
 
     def cluster(self, verbose=False):
         notegram_group_list = [i for _, i in self.notegram_groups.items()]
