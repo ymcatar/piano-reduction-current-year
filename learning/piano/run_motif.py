@@ -9,7 +9,7 @@ import argparse
 from .algorithm.motif.analyzer import MotifAnalyzer
 from .algorithm.motif.algorithms import MotifAnalyzerAlgorithms
 
-from matplotlib import cm, colors
+# from matplotlib import cm, colors
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="path of the input MusicXML file")
@@ -30,19 +30,19 @@ print(filename + '\n\n')
 analyzer = MotifAnalyzer(music21.converter.parse(args.input))
 clusters = analyzer.cluster(verbose=True)
 
-m = cm.ScalarMappable(colors.Normalize(vmin=0, vmax=len(clusters)), 'hsv')
-rgba_list = m.to_rgba(range(len(clusters)))
-colors = []
+# m = cm.ScalarMappable(colors.Normalize(vmin=0, vmax=len(clusters)), 'hsv')
+# rgba_list = m.to_rgba(range(len(clusters)))
+# colors = []
 
-for rgba in rgba_list:
-    rgba = [math.ceil(val * 255.0) for val in rgba]
-    colors.append('#{0:02x}{1:02x}{2:02x}'.format(*rgba[:3]))
+# for rgba in rgba_list:
+#     rgba = [math.ceil(val * 255.0) for val in rgba]
+#     colors.append('#{0:02x}{1:02x}{2:02x}'.format(*rgba[:3]))
 
 # highlight in file
 i = 0
 for label, notegram_groups in clusters.items():
     for notegram_group in notegram_groups:
-        analyzer.highlight_notegram_group(notegram_group, colors[i], label)
+        analyzer.highlight_notegram_group(notegram_group, label)
     i += 1
 
 if not args.no_output:

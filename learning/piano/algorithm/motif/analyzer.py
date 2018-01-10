@@ -15,8 +15,11 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.05
-DBSCAN_MIN_SAMPLES = 20
+DBSCAN_EPS = 0.001
+DBSCAN_MIN_SAMPLES = 10
+
+OVERLAP_NOTEGRAM_THRESHOLD = 0.95
+OVERLAP_GROUP_THRESHOLD = 0.95
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -28,28 +31,6 @@ def has_across_tie_to_next_note(curr_note, next_note):
             if curr_note.pitch.ps == next_note.pitch.ps:
                 return True
     return False
-
-
-def is_intervals_overlapping(first, second):
-    first_intervals = [Interval(*i) for i in first]
-    second_intervals = [Interval(*i) for i in second]
-
-    # to enfore stricter definiton of overlapping,
-    # we look for the fraction of overlapping motifs
-    # (from the smaller group) in the whole bigger group
-    if len(first_intervals) > len(second_intervals):
-        first_intervals, second_intervals = second_intervals, first_intervals
-
-    count = 0
-    tree = IntervalTree(first_intervals)
-    for interval in second_intervals:
-        if tree.search(*interval):
-            count += 1
-    if count / len(second_intervals) >= OVERLAP_THRESHOLD:
-        return True
-
-    return False
-
 
 class MotifAnalyzer(object):
 
@@ -102,6 +83,7 @@ class MotifAnalyzer(object):
 
             notegram_it = zip(*[note_list[i:] for i in range(NGRAM_SIZE)])
             vid_it = zip(*[vid_list[i:] for i in range(NGRAM_SIZE)])
+
             for notegram, vidgram in zip(notegram_it, vid_it):
                 if vid not in vidgram:
                     continue
@@ -116,7 +98,7 @@ class MotifAnalyzer(object):
 
                 # reject notegram containing >= quarter rest
                 if any((note[1].isRest and note[1].duration.quarterLength -
-                        (1.0 - 1e-2) > 0.0) for note in notegram):
+                        (1.0 - 1e-2) >= 0.0) for note in notegram):
                     continue
 
                 # reject notegram with note of 0 length (it should have been a Rest)
@@ -153,6 +135,50 @@ class MotifAnalyzer(object):
 
         return result
 
+    def is_clusters_overlapping(self, first, second):
+        if len(first) > len(second):
+            first, second = second, first
+
+        count = 0
+        total = 0
+
+        # bad performance
+        for x in first:
+            total += len(self.notegram_groups[x])
+            for y in second:
+                if self.is_notegram_overlapping(self.notegram_groups[x], self.notegram_groups[y]):
+                    count += len(self.notegram_groups[x])
+                    break
+
+        return count / total >= OVERLAP_GROUP_THRESHOLD
+
+    def is_notegram_overlapping(self, first, second):
+        first = [(notegram.get_note_offset_by_index(
+            0), notegram.get_note_offset_by_index(-1))
+            for notegram in first]
+
+        second = [(notegram.get_note_offset_by_index(
+            0), notegram.get_note_offset_by_index(-1))
+            for notegram in second]
+
+        first_intervals = [Interval(*i) for i in first]
+        second_intervals = [Interval(*i) for i in second]
+
+        # to enfore stricter definiton of overlapping,
+        # we look for the fraction of overlapping motifs
+        # (from the smaller group) in the whole bigger group
+        if len(first_intervals) > len(second_intervals):
+            first_intervals, second_intervals = second_intervals, first_intervals
+
+        count = 0
+        tree = IntervalTree(first_intervals)
+        for interval in second_intervals:
+            if tree.search(*interval):
+                count += 1
+
+        return count / len(second_intervals) >= OVERLAP_NOTEGRAM_THRESHOLD
+
+
     def cluster(self, verbose=False):
         notegram_group_list = [i for _, i in self.notegram_groups.items()]
         distance_matrix = get_dissimilarity_matrix(notegram_group_list)
@@ -178,14 +204,41 @@ class MotifAnalyzer(object):
         for group in set(i for i in db.labels_) - {-1}:
             for label, notegram_group in zip(db.labels_, self.notegram_groups):
                 if label == group:
-                    if verbose:
-                        print(str(label) + '\t' + notegram_group)
                     clusters[str(label)].append(notegram_group)
 
-        return clusters
+        # merge overlapping clusters together
+        queue = list(str(i) for i in set(i for i in db.labels_) - {-1})
+        cluster_visited = defaultdict(lambda: False)
 
-    def highlight_notegram_group(self, notegram_group, color, label):
+        while len(queue) > 0:
+            first_label = queue.pop(0)
+            for second_label in queue:
+                if self.is_clusters_overlapping(clusters[first_label], clusters[second_label]):
+                    if verbose:
+                        print('Merging cluster', first_label, 'and', second_label)
+                    clusters[first_label] += clusters[second_label]
+                    del clusters[second_label]
+                    queue.remove(second_label)
+                    queue.append(first_label)
+                    break
+
+        new_clusters = {}
+        i = 0
+        for _, cluster in clusters.items():
+            new_clusters[str(i)] = cluster
+            i += 1
+
+        if verbose:
+            for label, cluster in new_clusters.items():
+                print('\n~ cluster [' + label + '] ~')
+                for notegram_group in cluster:
+                    print(notegram_group, len(self.notegram_groups[notegram_group]))
+
+        return new_clusters
+
+    def highlight_notegram_group(self, notegram_group, label):
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
             note_list[0].insertLyric('[' + label + ']', int(label))
-
+            for note in note_list:
+                note.style.color = 'red'

@@ -29,7 +29,7 @@ def normalize_sequences(first, second):
 sequence_func_list = [
     (MotifAnalyzerAlgorithms.note_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 4),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 1),
 ]
