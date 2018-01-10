@@ -29,9 +29,9 @@ def normalize_sequences(first, second):
 sequence_func_list = [
     (MotifAnalyzerAlgorithms.note_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
-    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 2),
-    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 2),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 4),
+    (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 1),
+    (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 1),
 ]
 
 
@@ -47,8 +47,8 @@ def get_dissimilarity(first, second):
         second_sequence = sequence_func(second_note_list)
         score.append(align_sequences(first_sequence, second_sequence) * multplier)
 
-    # return sum((i ** 2 for i in score), 0) # squared sum
-    return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2
+    return sum((i ** 2 for i in score), 0) # squared sum
+    # return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2
 
 
 def get_dissimilarity_matrix(notegram_group_list):
