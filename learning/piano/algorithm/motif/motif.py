@@ -17,11 +17,13 @@ class Motif(ReductionAlgorithm):
         '''
         analyzer = MotifAnalyzer(score_obj.score)
 
-        analyzer.run_all()
-        motifs = analyzer.get_top_motif_cluster()
+        clusters = analyzer.cluster()
 
-        for notegram_group in motifs:
-            for notegram in analyzer.notegram_groups[notegram_group]:
-                for note in notegram.get_note_list():
-                    get_markings(note)[self.key] = 1
+        for label, cluster in clusters.items():
+            count = sum((len(analyzer.notegram_groups[notegram_group]) for notegram_group in cluster), 0)
+            for notegram_group in cluster:
+                for notegram in analyzer.notegram_groups[notegram_group]:
+                    for note in notegram.get_note_list():
+                        get_markings(note)[self.key] = count
+
 
