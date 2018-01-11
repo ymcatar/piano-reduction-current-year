@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 from collections import defaultdict
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN, SpectralClustering, AgglomerativeClustering
 from intervaltree import Interval, IntervalTree
 
 from termcolor import colored
@@ -15,8 +15,8 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-DBSCAN_EPS = 0.01
-DBSCAN_MIN_SAMPLES = 10
+# DBSCAN_EPS = 0.01
+# DBSCAN_MIN_SAMPLES = 10
 
 OVERLAP_THRESHOLD = 0.8
 
@@ -173,9 +173,13 @@ class MotifAnalyzer(object):
 
         weights = [len(i) for _, i in self.notegram_groups.items()]
 
-        model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS,
-                       min_samples=DBSCAN_MIN_SAMPLES)
-        db = model.fit(distance_matrix, sample_weight=weights)
+        # model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS,
+        #                min_samples=DBSCAN_MIN_SAMPLES)
+        # db = model.fit(distance_matrix, sample_weight=weights)
+
+        # models = SpectralClustering(n_clusters=20, affinity='precomputed', n_jobs=-1)
+        models = AgglomerativeClustering(n_clusters=20, affinity='precomputed', linkage='average')
+        db = models.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
         for i, label in enumerate(db.labels_):
@@ -190,8 +194,20 @@ class MotifAnalyzer(object):
                 if label == group:
                     clusters[str(label)].append(notegram_group)
 
+        num_of_group_in_cluster = defaultdict(lambda: 0)
+        for label, cluster in clusters.items():
+            for notegram_group in cluster:
+                num_of_group_in_cluster[label] += len(self.notegram_groups[notegram_group])
+        
+        mean = sum((i for _, i in num_of_group_in_cluster.items()), 0) / len(num_of_group_in_cluster)
+
+        print(clusters)
+        print(mean)
+
+        clusters = { label: cluster for label, cluster in clusters.items() if num_of_group_in_cluster[label] >= mean }
+
         # merge overlapping clusters together
-        queue = list(str(i) for i in set(i for i in db.labels_) - {-1})
+        queue = list(clusters.keys())
         cluster_visited = defaultdict(lambda: False)
 
         while len(queue) > 0:
@@ -223,6 +239,5 @@ class MotifAnalyzer(object):
     def highlight_notegram_group(self, notegram_group, label):
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
-            note_list[0].insertLyric('[' + label + ']', int(label))
             for note in note_list:
-                note.style.color = 'red'
+                note.insertLyric('[' + label + ']', int(label))
