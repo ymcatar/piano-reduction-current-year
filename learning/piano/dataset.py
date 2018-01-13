@@ -13,16 +13,10 @@ import numpy as np
 import os
 import os.path
 from .score import ScoreObject
+from .alignment import get_alignment_func
 
 
 CACHE_DIR = 'sample/cache'
-
-def hash_file(path):
-    hasher = hashlib.sha256()
-    with open(path, 'rb') as f:
-        for block in iter(lambda: f.read(65536), b''):
-            hasher.update(block)
-    return hasher.hexdigest()
 
 
 DEFAULT_SAMPLES = [
@@ -47,6 +41,43 @@ CROSSVAL_SAMPLES = [
     ]
 
 
+def hash_file(path):
+    hasher = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(65536), b''):
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+def describe_algorithm(algo):
+    args = ['algorithm', type(algo).__module__ + '.' + type(algo).__qualname__, *algo.args]
+    return json.dumps(args, sort_keys=True)
+
+
+def describe_alignment(alignment):
+    return json.dumps(['alignment', alignment], sort_keys=True)
+
+
+def set_in_cache(cache, description, value):
+    if description in cache.attrs:
+        key = cache.attrs[description]
+    else:
+        serial = 0
+        while any(i == str(serial) for i in cache.attrs.values()):
+            serial += 1
+        key = str(serial)
+        cache.attrs[description] = key
+
+    if key in cache:
+        # This implements cache.__getitem__(key) = value; go figure!
+        mat = cache[key]
+        mat = value
+        assert mat is not None
+    else:
+        # This implements cache.__setitem__(key, value)
+        cache[key] = value
+
+
 class DatasetEntry:
     def __init__(self, path_pair):
         self.path_pair = path_pair
@@ -59,52 +90,85 @@ class DatasetEntry:
     def loaded(self):
         return self.X is not None
 
+    def _load_marking(self, reducer, algo, use_cache=True, cache=None):
+        description = describe_algorithm(algo)
+        if cache and use_cache and description in cache.attrs:
+            logging.info('Using cache for {}'.format(type(algo).__name__))
+            ds = cache[cache.attrs[description]]
+        else:
+            self.ensure_scores_loaded()
+            algo.create_markings_on(self.input_score_obj)
+            ds = np.hstack(
+                self.input_score_obj.extract('markings', key, dtype='float', default=0)
+                    [:, np.newaxis]
+                for key in algo.all_keys)
+            if cache:
+                set_in_cache(cache, description, ds)
+
+        for i, key in enumerate(algo.all_keys):
+            self.X[:, reducer.all_keys.index(key)] = ds[:, i]
+
+    def _load_alignment_marking(self, reducer, alignment, use_cache=True, cache=None):
+        description = describe_alignment(alignment)
+        if cache and use_cache and description in cache.attrs:
+            logging.info('Using cache for alignment')
+            ds = cache[cache.attrs[description]]
+        else:
+            self.ensure_scores_loaded()
+            fn = get_alignment_func(alignment)
+            fn(self.input_score_obj.score, self.output_score_obj.score)
+            ds = self.input_score_obj.extract(fn.label_type, dtype='uint8')
+            if cache:
+                set_in_cache(cache, description, ds)
+
+        self.y[:, 0] = ds
+
+    def ensure_scores_loaded(self):
+        if self.input_score_obj:
+            return
+        logging.info('Loading score')
+        self.input_score_obj = ScoreObject.from_file(self.path_pair[0])
+        self.output_score_obj = ScoreObject.from_file(self.path_pair[1])
+
     def load(self, reducer, use_cache=False, keep_scores=False):
-        loaded_from_cache = False
-        if use_cache:
-            cache_attrs = {
-                'input_sha256': hash_file(self.path_pair[0]),
-                'output_sha256': hash_file(self.path_pair[1]),
-                'reducer_args': json.dumps(reducer.reducer_args, sort_keys=True),
-                }
-            cache_path = (
-                CACHE_DIR + '/' + os.path.basename(self.path_pair[0]).rsplit('.', 1)[0] + '.hdf5')
+        logging.info('Loading {}'.format(os.path.basename(self.path_pair[0])))
 
-            try:
-                with h5py.File(cache_path, 'r') as f:
-                    if all(f.attrs[k] == v for k, v in cache_attrs.items()):
-                        logging.info('Using cache for {}'.format(
-                            os.path.basename(self.path_pair[0])))
-                        # Use cache
-                        self.X = np.array(f['X'])
-                        self.y = np.array(f['y'])
+        cache_attrs = {
+            'input_sha256': hash_file(self.path_pair[0]),
+            'output_sha256': hash_file(self.path_pair[1]),
+            }
+        cache_path = (
+            CACHE_DIR + '/' + os.path.basename(self.path_pair[0]).rsplit('.', 1)[0] + '.hdf5')
 
-                        loaded_from_cache = True
-            except OSError:
-                pass
+        if not os.path.exists(CACHE_DIR):
+            os.mkdir(CACHE_DIR)
 
-        if not loaded_from_cache or keep_scores:
-            logging.info('Loading {}'.format(os.path.basename(self.path_pair[0])))
-            sample_in = ScoreObject.from_file(self.path_pair[0])
-            sample_out = ScoreObject.from_file(self.path_pair[1])
+        with h5py.File(cache_path, 'a') as f:
+            if not all(f.attrs[k] == v for k, v in cache_attrs.items()) or 'len' not in f.attrs:
+                # Invalidate all cache
+                for key in f:
+                    del f[key]
+
+            if 'len' in f.attrs:
+                n = f.attrs['len']
+            else:
+                self.ensure_scores_loaded()
+                f.attrs['len'] = n = len(self.input_score_obj)
+
+            self.X = np.empty((n, len(reducer.all_keys)), dtype='float')
+            self.y = np.empty((n, 1), dtype='uint8')
+
+            for algo in reducer.algorithms:
+                self._load_marking(reducer, algo, use_cache=use_cache, cache=f)
+            self._load_alignment_marking(reducer, reducer.alignment, use_cache=use_cache, cache=f)
 
             if keep_scores:
-                self.input_score_obj = sample_in
-                self.output_score_obj = sample_out
+                self.ensure_scores_loaded()
 
-        if not loaded_from_cache:
-            self.X = reducer.create_markings_on(sample_in)
-            self.y = reducer.create_alignment_markings_on(sample_in, sample_out)
-            self.y = self.y[:, np.newaxis]
-
-        if use_cache and not loaded_from_cache:
-            if not os.path.exists(CACHE_DIR):
-                os.mkdir(CACHE_DIR)
-            with h5py.File(cache_path, 'w') as f:
-                f.attrs.update(cache_attrs)
-
-                f['X'] = self.X
-                f['y'] = self.y
+        if not keep_scores:
+            # Allow garbage collection
+            self.input_score_obj = None
+            self.output_score_obj = None
 
 
 class Dataset:

@@ -4,7 +4,7 @@ from music21 import stream
 
 
 class SustainedRhythm(ReductionAlgorithm):
-    def __init__(self, division=1):
+    def __init__(self):
         super(SustainedRhythm, self).__init__()
 
     dtype = 'bool'

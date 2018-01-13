@@ -187,7 +187,7 @@ def command_reduce(args, **kwargs):
     if args.heat:
         logging.info('Displaying heat map')
 
-        aligns = [n.editorial.misc['align'] for n in reducer.iter_notes(target)]
+        aligns = [n.editorial.misc['align'] for n in target]
         mappable = cm.ScalarMappable(colors.Normalize(0, 1), cm.GnBu)
         mappable.set_array(aligns)
         rgbas = mappable.to_rgba(aligns)
@@ -202,7 +202,7 @@ def command_reduce(args, **kwargs):
         plt.colorbar(mappable)
 
         # Annotate on the score
-        for n, rgba in zip(reducer.iter_notes(target), rgbas):
+        for n, rgba in zip(target, rgbas):
             n.style.color = '#{:02X}{:02X}{:02X}'.format(
                 *(int(i * 256) for i in rgba[:3]))
 
@@ -227,7 +227,7 @@ def command_reduce(args, **kwargs):
 
         # Combine scores
         if not args.heat:
-            for n in reducer.iter_notes(target):
+            for n in target:
                 if reducer.label_type == 'align':
                     n.style.color = ('#0000FF' if n.editorial.misc['align'] >= 0.5
                                      else '#000000')

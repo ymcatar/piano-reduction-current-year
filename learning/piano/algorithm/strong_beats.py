@@ -16,3 +16,7 @@ class StrongBeats(ReductionAlgorithm):
         for n, offset in iter_notes_with_offset(score_obj._score, recurse=True):
             # Note that here, % is a flcf), recurse=Trueoating point operation
             get_markings(n)[self.key] = offset % self.division < 1e-3
+
+    @property
+    def args(self):
+        return [], {'division': self.division}

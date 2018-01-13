@@ -1,7 +1,5 @@
 from .alignment import get_alignment_func
-from .algorithm.base import get_markings, iter_notes
 
-from collections.abc import Sequence
 import importlib
 import numpy as np
 
@@ -14,6 +12,9 @@ def import_symbol(path):
 
 
 class Reducer(object):
+    '''
+    Represents a particular configuration of the piano reduction system.
+    '''
     def __init__(self, algorithms, alignment):
         '''
         Arguments:
@@ -55,50 +56,21 @@ class Reducer(object):
     def all_keys(self):
         return self._all_keys
 
-    def iter_notes(self, input_score_objs):
-        if not isinstance(input_score_objs, Sequence):
-            input_score_objs = [input_score_objs]
+    def create_markings_on(self, score_obj):
+        for algo in self.algorithms:
+            algo.create_markings_on(score_obj)
+        return np.hstack(
+            score_obj.extract('markings', key, dtype='float', default=0)[:, np.newaxis]
+            for key in self.all_keys)
 
-        for score_obj in input_score_objs:
-            yield from iter_notes(score_obj.score, recurse=True)
+    def create_alignment_markings_on(self, input_score_obj, output_score_obj):
+        self.alignment_func(input_score_obj.score, output_score_obj.score)
+        return input_score_obj.extract(self.alignment_func.label_type, dtype='uint8') \
+            [:, np.newaxis]
 
-    def create_markings_on(self, input_score_objs):
-        if not isinstance(input_score_objs, Sequence):
-            input_score_objs = [input_score_objs]
-
-        for score_obj in input_score_objs:
-            for algo in self.algorithms:
-                algo.create_markings_on(score_obj)
-
-        note_count = sum(1 for _ in self.iter_notes(input_score_objs))
-        X = np.zeros((note_count, len(self.all_keys)), dtype='float')
-        for i, n in enumerate(self.iter_notes(input_score_objs)):
-            markings = get_markings(n)
-            X[i, :] = np.fromiter((markings.get(k, 0) for k in self.all_keys),
-                                  dtype='float', count=len(self.all_keys))
-        return X
-
-    def create_alignment_markings_on(self, input_score_objs, output_score_objs):
-        if not isinstance(input_score_objs, Sequence):
-            input_score_objs = [input_score_objs]
-        if not isinstance(output_score_objs, Sequence):
-            output_score_objs = [output_score_objs]
-
-        for input, output in zip(input_score_objs, output_score_objs):
-            self.alignment_func(input.score, output.score)
-
-        note_count = sum(1 for _ in self.iter_notes(input_score_objs))
-        y = np.fromiter((n.editorial.misc[self.label_type]
-                         for n in self.iter_notes(input_score_objs)),
-                        dtype='uint8', count=note_count)
-        return y
-
-    def predict_from(self, model, input_score_objs, X=None):
-        if not isinstance(input_score_objs, Sequence):
-            input_score_objs = [input_score_objs]
-
+    def predict_from(self, model, score_obj, X=None):
         if X is None:
-            X = self.create_markings_on(input_score_objs)
+            X = self.create_markings_on(score_obj)
 
         y_proba = model.predict(X)
         if self.label_type == 'align':
@@ -108,8 +80,7 @@ class Reducer(object):
         else:
             raise NotImplementedError()
 
-        for i, n in enumerate(self.iter_notes(input_score_objs)):
-            n.editorial.misc['align'] = y[i]
+        score_obj.annotate(y, 'align')
 
         return y_proba
 

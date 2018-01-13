@@ -2,6 +2,8 @@ from music21 import converter, layout, note, stream
 from collections import defaultdict
 from itertools import zip_longest
 import logging
+import numpy as np
+from .algorithm.base import iter_notes
 
 
 logger = logging.getLogger('learning.piano.score')
@@ -29,10 +31,11 @@ def _group_by_voices(part):
 
 
 class ScoreObject(object):
-    @property
-    def score(self):
-        return self._score
-
+    '''
+    Represents a preprocessed musical score that can be used for the piano
+    reduction system. This also defines a standardized way to convert the score
+    into matrix representations.
+    '''
     def __init__(self, score):
         '''
         Preprocess the score. The input hierarchy is:
@@ -125,7 +128,13 @@ class ScoreObject(object):
         for part in result.parts:
             self.voices_by_part.append(_group_by_voices(part))
 
+        self._len = sum(1 for _ in self)
+
         logger.info('Done')
+
+    @property
+    def score(self):
+        return self._score
 
     @classmethod
     def from_file(cls, fp, *args, **kwargs):
@@ -139,3 +148,49 @@ class ScoreObject(object):
         assert isinstance(score, stream.Score), 'File is not a single score!'
 
         return cls(score)
+
+    def __iter__(self):
+        '''
+        Return an iterator that yields the list of note objects in the order
+        used in the matrix representation.
+        '''
+        return iter_notes(self.score, recurse=True)
+
+    def __len__(self):
+        return self._len
+
+    def extract(self, *path, dtype, **kwargs):
+        '''
+        Extract the corresponding vector from an annotation in a score.
+
+        default: The default value to use if the key does not exist in a Note.
+        '''
+        # We use kwargs for default so that we can distinguish None and unspecified
+        out = np.empty(len(self), dtype=dtype)
+
+        for i, n in enumerate(self):
+            try:
+                obj = n.editorial.misc
+                for p in path:
+                    obj = obj[p]
+            except KeyError:
+                if 'default' in kwargs:
+                    out[i] = kwargs['default']
+                else:
+                    raise
+            else:
+                out[i] = obj
+
+        return out
+
+    def annotate(self, vector, *path):
+        '''
+        Annotate the given vector to the score.
+        '''
+        assert len(vector) == len(self)
+        prefix, suffix = path[:-1], path[-1]
+        for i, n in enumerate(self):
+            obj = n.editorial.misc
+            for p in prefix:
+                obj = obj[p]
+            obj[suffix] = vector[i]
