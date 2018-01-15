@@ -59,22 +59,17 @@ def describe_alignment(alignment):
 
 
 def set_in_cache(cache, description, value):
+    # Since dataset names have limited length, we use the attrs dict to index
+    # the dataset name for each description
     if description in cache.attrs:
         key = cache.attrs[description]
+        cache[key][:] = value
     else:
         serial = 0
-        while any(i == str(serial) for i in cache.attrs.values()):
+        while any(i == 'cache:{}'.format(serial) for i in cache.attrs.values()):
             serial += 1
-        key = str(serial)
+        key = 'cache:{}'.format(serial)
         cache.attrs[description] = key
-
-    if key in cache:
-        # This implements cache.__getitem__(key) = value; go figure!
-        mat = cache[key]
-        mat = value
-        assert mat is not None
-    else:
-        # This implements cache.__setitem__(key, value)
         cache[key] = value
 
 
@@ -144,10 +139,13 @@ class DatasetEntry:
             os.mkdir(CACHE_DIR)
 
         with h5py.File(cache_path, 'a') as f:
-            if not all(f.attrs[k] == v for k, v in cache_attrs.items()) or 'len' not in f.attrs:
+            if not all(f.attrs.get(k) == v for k, v in cache_attrs.items()) or 'len' not in f.attrs:
+                logging.info('Invalidating all cache')
                 # Invalidate all cache
-                for key in f:
-                    del f[key]
+                for k, v in f.attrs.items():
+                    if k.startswith('cache:'):
+                        del f.attrs[k]
+                        del f[v]
 
             if 'len' in f.attrs:
                 n = f.attrs['len']
