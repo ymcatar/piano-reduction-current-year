@@ -14,11 +14,10 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
+INIT_NUM_OF_CLUSTER = 50
 
-# DBSCAN_EPS = 0.01
-# DBSCAN_MIN_SAMPLES = 10
-
-OVERLAP_THRESHOLD = 0.8
+OVERLAP_THRESHOLD = 0.95
+MAX_OVERLAP_DIFFERENCE = 20
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -135,11 +134,15 @@ class MotifAnalyzer(object):
         return result
 
     def is_clusters_overlapping(self, first, second):
+        first = sum((self.notegram_groups[i] for i in first), [])
+        second = sum((self.notegram_groups[i] for i in second), [])
+
         if len(first) > len(second):
             first, second = second, first
 
-        first = sum((self.notegram_groups[i] for i in first), [])
-        second = sum((self.notegram_groups[i] for i in second), [])
+        # overlapping clusters needs to have similar size
+        if abs(len(first) - len(second)) >= MAX_OVERLAP_DIFFERENCE:
+            return False
 
         first = [(notegram.get_note_offset_by_index(
             0), notegram.get_note_offset_by_index(-1))
@@ -177,8 +180,9 @@ class MotifAnalyzer(object):
         #                min_samples=DBSCAN_MIN_SAMPLES)
         # db = model.fit(distance_matrix, sample_weight=weights)
 
-        # models = SpectralClustering(n_clusters=20, affinity='precomputed', n_jobs=-1)
-        models = AgglomerativeClustering(n_clusters=20, affinity='precomputed', linkage='average')
+        # models = SpectralClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', n_jobs=-1)
+
+        models = AgglomerativeClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', linkage='average')
         db = models.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -199,12 +203,14 @@ class MotifAnalyzer(object):
             for notegram_group in cluster:
                 num_of_group_in_cluster[label] += len(self.notegram_groups[notegram_group])
         
+        sd = np.std(np.array(list(i for _, i in num_of_group_in_cluster.items())))
         mean = sum((i for _, i in num_of_group_in_cluster.items()), 0) / len(num_of_group_in_cluster)
 
-        print(clusters)
-        print(mean)
+        if verbose:
+            for label, cluser in clusters.items():
+                print(label, ':', (num_of_group_in_cluster[label] - mean) / sd)
 
-        clusters = { label: cluster for label, cluster in clusters.items() if num_of_group_in_cluster[label] >= mean }
+        clusters = { label: cluster for label, cluster in clusters.items() if (num_of_group_in_cluster[label] - mean) / sd >= 2.0 }
 
         # merge overlapping clusters together
         queue = list(clusters.keys())
@@ -240,4 +246,5 @@ class MotifAnalyzer(object):
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
             for note in note_list:
-                note.insertLyric('[' + label + ']', int(label))
+                if note.lyric is None or note.lyric.find('[' + label + ']') is False:
+                    note.insertLyric('[' + label + ']', int(label))
