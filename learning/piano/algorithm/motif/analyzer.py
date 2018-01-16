@@ -14,9 +14,10 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
-INIT_NUM_OF_CLUSTER = 100
+INIT_NUM_OF_CLUSTER = 200
 
-OVERLAP_THRESHOLD = 0.8
+OVERLAP_THRESHOLD = 0.95
+Z_SCORE_THRESHOLD = 2 # ~ 2.28%
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -206,7 +207,7 @@ class MotifAnalyzer(object):
             for label, cluser in clusters.items():
                 print(label, ':', (num_of_group_in_cluster[label] - mean) / sd)
 
-        clusters = { label: cluster for label, cluster in clusters.items() if (num_of_group_in_cluster[label] - mean) / sd >= 2.0 }
+        clusters = { label: cluster for label, cluster in clusters.items() if (num_of_group_in_cluster[label] - mean) / sd >= Z_SCORE_THRESHOLD }
 
         # merge overlapping clusters together
         queue = list(clusters.keys())
