@@ -151,7 +151,7 @@ class MotifAnalyzerAlgorithms(object):
             prev_note, curr_note = note_list[i - 1:i + 1]
             curr_note_length = curr_note.duration.quarterLength
             if i == len(note_list) - 1:  # last note
-                curr_note_length = 1  # expand the last note to quarter note
+                curr_note_length = 1.0  # expand the last note to quarter note
             results.append('{0:.1f}'.format(
                 float(curr_note_length / prev_note.duration.quarterLength)))
         return results

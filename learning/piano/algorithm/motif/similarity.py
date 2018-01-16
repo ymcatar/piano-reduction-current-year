@@ -8,11 +8,12 @@ from .alignment import align_sequences, align_one_to_many
 sequence_func_list = [
     (MotifAnalyzerAlgorithms.note_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
-    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 2),
+    (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 1),
 ]
 
+NGRAM_SIZE = 4
 
 def get_dissimilarity(first, second):
     # get a single notegram to represent the whole group
@@ -29,7 +30,6 @@ def get_dissimilarity(first, second):
     # return sum((i ** 2 for i in score), 0) # squared sum
     return 1.0 / sum((1.0 / (i + 1) for i in score), 0) - 0.2
 
-
 def get_dissimilarity_matrix(notegram_group_list, vectorize=True):
     n = len(notegram_group_list)
 
@@ -43,6 +43,7 @@ def get_dissimilarity_matrix(notegram_group_list, vectorize=True):
             while len(jseqs) > 1:
                 i = len(jseqs) - 1
                 iseq = jseqs.pop()
+                iseq = iseq[:min(NGRAM_SIZE, len(iseq))]
                 scores[k, i, 0:i] = align_one_to_many(iseq, jseqs) * multiplier
         else:
             for i, iseq in enumerate(seqs):
@@ -53,6 +54,8 @@ def get_dissimilarity_matrix(notegram_group_list, vectorize=True):
 
     # Smoothed harmonic mean
     D = 1.0 / np.sum(1.0 / (scores + 1.0), axis=0) - 0.2
+
+    # D = np.sum(np.square(scores), axis=0)
     D = D + D.T - np.diag(np.diag(D))
 
     return D

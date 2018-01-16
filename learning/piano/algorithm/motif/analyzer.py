@@ -14,10 +14,9 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
-INIT_NUM_OF_CLUSTER = 50
+INIT_NUM_OF_CLUSTER = 100
 
-OVERLAP_THRESHOLD = 0.95
-MAX_OVERLAP_DIFFERENCE = 20
+OVERLAP_THRESHOLD = 0.8
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -83,6 +82,7 @@ class MotifAnalyzer(object):
             vid_it = zip(*[vid_list[i:] for i in range(NGRAM_SIZE)])
 
             for notegram, vidgram in zip(notegram_it, vid_it):
+
                 if vid not in vidgram:
                     continue
 
@@ -140,10 +140,6 @@ class MotifAnalyzer(object):
         if len(first) > len(second):
             first, second = second, first
 
-        # overlapping clusters needs to have similar size
-        if abs(len(first) - len(second)) >= MAX_OVERLAP_DIFFERENCE:
-            return False
-
         first = [(notegram.get_note_offset_by_index(
             0), notegram.get_note_offset_by_index(-1))
             for notegram in first]
@@ -182,7 +178,7 @@ class MotifAnalyzer(object):
 
         # models = SpectralClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', n_jobs=-1)
 
-        models = AgglomerativeClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', linkage='average')
+        models = AgglomerativeClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', linkage='complete')
         db = models.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
@@ -236,15 +232,17 @@ class MotifAnalyzer(object):
 
         if verbose:
             for label, cluster in new_clusters.items():
-                print('\n~ cluster [' + label + '] ~')
+                print('\n\n~ cluster [' + label + '] ~')
                 for notegram_group in cluster:
                     print(notegram_group, len(self.notegram_groups[notegram_group]))
 
         return new_clusters
 
     def highlight_notegram_group(self, notegram_group, label):
+        label_index = int(label)
+        label = '[' + label + ']'
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
             for note in note_list:
-                if note.lyric is None or note.lyric.find('[' + label + ']') is False:
-                    note.insertLyric('[' + label + ']', int(label))
+                if len(note.lyrics) == 0 or all(lyric.text != label for lyric in note.lyrics):
+                    note.insertLyric(label, label_index)
