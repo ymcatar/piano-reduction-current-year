@@ -1,6 +1,6 @@
-import textwrap
-from ..algorithm.base import iter_notes
 from .alignment import align_all_notes
+from .base import AlignmentMethod
+from scoreboard import writer
 
 
 def pitch_class_onset_key_func(n, offset, precision):
@@ -18,63 +18,64 @@ def same_pitch(n, m):
     return n.pitch == m.pitch
 
 
-def align_pitch_class_onset(input_score, output_score):
-    '''
-    Match notes using pitch class and onset values only, ignoring duration and
-    octave.
-    '''
-    alignment = align_all_notes(input_score, output_score, ignore_parts=True,
-                                key_func=pitch_class_onset_key_func)
+class AlignPitchClassOnset(AlignmentMethod):
+    all_keys = ['align_type', 'rev_align_type', 'align']
+    key = 'align'
 
-    for n in iter_notes(input_score, recurse=True):
-        if any(same_duration(i, n) and same_pitch(i, n)
-               for i in alignment[n]):
-            align_type = 'all'
-        elif any(same_pitch(i, n) for i in alignment[n]):
-            align_type = 'pitch space'
-        elif alignment[n]:
-            align_type = 'pitch class'
-        else:
-            align_type = None
-        n.editorial.misc['align_type'] = align_type
-        n.editorial.misc['align'] = bool(align_type)
-    return input_score
+    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
+        '''
+        Match notes using pitch class and onset values only, ignoring duration
+        and octave.
+        '''
 
-align_pitch_class_onset.label_type = 'align'
+        input_score = input_score_obj.score
+        output_score = output_score_obj.score
+        alignment = align_all_notes(input_score, output_score, ignore_parts=True,
+                                    key_func=pitch_class_onset_key_func)
 
+        for n in input_score_obj:
+            if any(same_duration(i, n) and same_pitch(i, n)
+                   for i in alignment[n]):
+                align_type = 'all'
+            elif any(same_pitch(i, n) for i in alignment[n]):
+                align_type = 'pitch class'
+            elif alignment[n]:
+                align_type = 'pitch space'
+            else:
+                align_type = None
+            n.editorial.misc['align_type'] = align_type
+            n.editorial.misc['align'] = bool(align_type)
 
-def annotate_pitch_class_onset(input_score, output_score):
-    align_pitch_class_onset(input_score, output_score)
-    align_pitch_class_onset(output_score, input_score)
+        if extra:
+            self.create_alignment_markings_on(output_score_obj, input_score_obj,
+                                              extra=False)
+            for n in output_score_obj:
+                n.editorial.misc['rev_align_type'] = \
+                    n.editorial.misc['align_type'] or 'fabricated'
+                del n.editorial.misc['align_type']
+                del n.editorial.misc['align']
 
-    FORWARD_COLORS = {
-        'all': '#0000FF',
-        'pitch space': '#0099FF',
-        'pitch class': '#00CCFF'
-    }
-    for n in iter_notes(input_score, recurse=True):
-        n.style.color = FORWARD_COLORS.get(n.editorial.misc['align_type'],
-                                           '#000000')
-    BACKWARD_COLORS = {
-        'all': '#000000',
-        'pitch space': '#FF9900',
-        'pitch class': '#EEEE00'
-    }
-    for n in iter_notes(output_score, recurse=True):
-        n.style.color = BACKWARD_COLORS.get(n.editorial.misc['align_type'],
-                                            '#FF0000')
-
-    description = textwrap.dedent('''\
-        [Original]
-        Blue = Used directly
-        Cyan = Used with octave transposition
-        Light blue  = Used with duration change
-
-        [Reduced]
-        Black = Kept directly
-        Yellow = Kept with octave transposition
-        Orange = Kept with duration change
-        Red = Fabricated by arranger
-        ''')
-
-    return description
+    features = [
+        writer.CategoricalFeature(
+            'align_type',
+            {
+                'all': ('#0000FF', 'Used directly'),
+                'pitch space': ('#0099FF', 'Used with octave transposition'),
+                'pitch class': ('#00CCFF', 'Used with duration change'),
+                'discarded': ('#000000', 'Discarded'),
+                },
+            '#000000',
+            help='How the note is kept'
+            ),
+        writer.CategoricalFeature(
+            'rev_align_type',
+            {
+                'all': ('#000000', 'Kept directly'),
+                'pitch space': ('#FF9900', 'Kept with octave transposition'),
+                'pitch class': ('#EEEE00', 'Kept with duration change'),
+                'fabricated': ('#FF0000', 'Fabricated by arranger'),
+                },
+            '#000000',
+            help='Where the note comes from'
+            ),
+        ]

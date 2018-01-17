@@ -26,7 +26,7 @@ reducer_args = {
         ('learning.piano.algorithm.Motif', [], {}),
         ('learning.piano.algorithm.Harmony', [], {}),
         ],
-    'alignment': 'min_octave_hand',
+    'alignment': ('learning.piano.min_octave_hand.AlignMinOctaveHand', [], {}),
     }
 
 

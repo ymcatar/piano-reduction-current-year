@@ -1,4 +1,4 @@
-from .alignment import get_alignment_func
+from .util import ensure_algorithm, dump_algorithm
 
 import importlib
 import numpy as np
@@ -22,20 +22,10 @@ class Reducer(object):
                 tuple.
             alignment: Name of the alignment method.
         '''
-        if all(isinstance(a, tuple) for a in algorithms):
-            # Only create this if the args are indeed serializable
-            self.reducer_args = {
-                'algorithms': algorithms,
-                'alignment': alignment
-                }
 
         self._algorithms = []
         for algo in algorithms:
-            if isinstance(algo, tuple):
-                path, args, kwargs = algo
-                self._algorithms.append(import_symbol(path)(*args, **kwargs))
-            else:
-                self._algorithms.append(algo)
+            self._algorithms.append(ensure_algorithm(algo))
 
         # Set the key for each algorithm
         for i, algo in enumerate(self.algorithms):
@@ -44,9 +34,14 @@ class Reducer(object):
         self._all_keys = sorted(
             key for algo in self.algorithms for key in algo.all_keys)
 
-        self.alignment = alignment
-        self.alignment_func = get_alignment_func(alignment)
-        self.label_type = self.alignment_func.label_type
+        self.alignment = ensure_algorithm(alignment)
+        self.label_type = self.alignment.key
+
+        self.args = (
+            [], {
+                'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
+                'alignment': dump_algorithm(self.alignment)
+            })
 
     @property
     def algorithms(self):
@@ -60,12 +55,13 @@ class Reducer(object):
         for algo in self.algorithms:
             algo.create_markings_on(score_obj)
         return np.hstack(
-            score_obj.extract('markings', key, dtype='float', default=0)[:, np.newaxis]
+            score_obj.extract(key, dtype='float', default=0)[:, np.newaxis]
             for key in self.all_keys)
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj):
-        self.alignment_func(input_score_obj.score, output_score_obj.score)
-        return input_score_obj.extract(self.alignment_func.label_type, dtype='uint8') \
+    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
+        self.alignment.create_alignment_markings_on(
+            input_score_obj, output_score_obj, extra=extra)
+        return input_score_obj.extract(self.label_type, dtype='uint8') \
             [:, np.newaxis]
 
     def predict_from(self, model, score_obj, X=None):
@@ -84,21 +80,24 @@ class Reducer(object):
 
         return y_proba
 
-    def add_features_to_writer(self, writer):
+    @property
+    def features(self):
+        features = []
+
         for algo in self.algorithms:
             help = algo.__doc__ or algo.create_markings_on.__doc__
             help = help.strip()
             dtype = getattr(algo, 'dtype', 'bool')
             if dtype == 'float':
-                writer.add_feature(writerlib.FloatFeature(
+                features.append(writerlib.FloatFeature(
                     algo.key, getattr(algo, dtype, getattr(algo, 'range')),
                     help=help))
             else:
-                writer.add_feature(writerlib.BoolFeature(
-                    algo.key, help=help))
+                features.append(writerlib.BoolFeature(algo.key, help=help))
 
+        # Note: These are predictions!
         if self.label_type == 'align':
-            writer.add_feature(writerlib.BoolFeature(
+            features.append(writerlib.BoolFeature(
                 'align', help='Whether the note should be kept.'))
         elif self.label_type == 'hand':
             legend = {
@@ -106,6 +105,8 @@ class Reducer(object):
                 '#00FF00': 'Lower staff',
                 '#000000': 'Discarded',
                 }
-            writer.add_feature(writerlib.CategoricalFeature(
+            features.append(writerlib.CategoricalFeature(
                 'align', legend, '#000000',
                 help='Which staff the note should be kept in.'))
+
+        return features

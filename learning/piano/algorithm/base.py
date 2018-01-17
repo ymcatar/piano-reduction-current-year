@@ -34,7 +34,7 @@ class ReductionAlgorithm(object):
 
 
 def get_markings(n):
-    return n.editorial.misc.setdefault('markings', {})
+    return n.editorial.misc
 
 
 def iter_notes(stream, recurse=False):

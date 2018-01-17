@@ -13,11 +13,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
-from .piano.alignment import (
-    align_and_annotate_scores, add_alignment_features_to_writer,
-    ALIGNMENT_METHODS, DEFAULT_ALIGNMENT_METHOD,
-    LEFT_HAND, RIGHT_HAND)
-from .piano.algorithm.base import get_markings
+from .piano.alignment import (LEFT_HAND, RIGHT_HAND)
 from .piano.dataset import Dataset, CROSSVAL_SAMPLES
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -60,11 +56,6 @@ def merge_reduced_to_original(original, reduced):
     group = layout.StaffGroup(list(reduced.parts), name='Reduced',
                               abbreviation='Red.', symbol='brace')
     original.insert(0, group)
-
-
-def import_symbol(path):
-    module, symbol = path.rsplit('.', 1)
-    return getattr(importlib.import_module(module), symbol)
 
 
 def create_reducer_and_model(module):
@@ -256,7 +247,7 @@ def command_reduce(args, **kwargs):
 
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
-    reducer.add_features_to_writer(writer)
+    writer.add_features(reducer.features)
     writer.add_score('combined', result)
     writer.finalize()
 
@@ -275,52 +266,30 @@ def command_reduce(args, **kwargs):
     logging.info('Done')
 
 
-def command_inspect(args, **kwargs):
-    logging.info('Reading files')
-    in_path, out_path = args.files.split(':')
-    sample_in = ScoreObject.from_file(in_path)
-    sample_out = ScoreObject.from_file(out_path)
-
-    logging.info('Aligning scores')
-
-    description = align_and_annotate_scores(sample_in.score, sample_out.score,
-                                            method=args.alignment)
-    result = sample_in.score
-
-    merge_reduced_to_original(sample_in.score, sample_out.score)
-
-    writer = LogWriter(config.LOG_DIR)
-    logging.info('Log directory: {}'.format(writer.dir))
-    add_alignment_features_to_writer(writer, method=args.alignment)
-    writer.add_score('combined', result)
-    writer.finalize()
-
-    add_description_to_score(sample_in.score, description)
-
-    logging.info(description)
-
-    if args.output:
-        logging.info('Writing output')
-        result.write(fp=args.output)
-    else:
-        logging.info('Displaying output')
-        result.show('musicxml')
-
-
 def command_show(args, module, **kwargs):
     reducer = Reducer(**module.reducer_args)
 
-    logging.info('Reading file')
-    sample_in = ScoreObject.from_file(args.file)
+    logging.info('Reading files')
+    in_path, _, out_path = args.file.partition(':')
+    sample_in = ScoreObject.from_file(in_path)
+    sample_out = ScoreObject.from_file(out_path) if out_path else None
 
     logging.info('Creating markings')
     reducer.create_markings_on(sample_in)
+    if out_path:
+        reducer.create_alignment_markings_on(sample_in, sample_out, extra=True)
 
     logging.info('Writing data')
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
-    reducer.add_features_to_writer(writer)
-    writer.add_score('input', sample_in.score)
+    writer.add_features(reducer.features)
+    if out_path:
+        writer.add_features(reducer.alignment.features)
+        sample_out.score.toWrittenPitch(inPlace=True)
+        merge_reduced_to_original(sample_in.score, sample_out.score)
+        writer.add_score('combined', sample_in.score)
+    else:
+        writer.add_score('input', sample_in.score)
     writer.finalize()
 
     logging.info('Done')
@@ -382,8 +351,6 @@ def main(args, **kwargs):
         command_train(args, **kwargs)
     elif args.command == 'reduce':
         command_reduce(args, **kwargs)
-    elif args.command == 'inspect':
-        command_inspect(args, **kwargs)
     elif args.command == 'show':
         command_show(args, **kwargs)
     elif args.command == 'crossval':
@@ -432,17 +399,10 @@ def run_model_cli(module):
         help='Perform train-validate evaluation, i.e. train on all samples '
              'except the target score and test on the target score.')
 
-    inspect_parser = subparsers.add_parser('inspect',
-                                           help='Inspect sample pair')
-    inspect_parser.add_argument(
-        '--alignment', '-a', help='Alignment method',
-        choices=ALIGNMENT_METHODS, default=DEFAULT_ALIGNMENT_METHOD)
-    inspect_parser.add_argument(
-        'files', help='Input file pair, separated by a colon (:).')
-    inspect_parser.add_argument('--output', '-o', help='Output to file')
-
-    show_parser = subparsers.add_parser('show', help='Show feature in input')
-    show_parser.add_argument('file', help='Input file')
+    show_parser = subparsers.add_parser('show', help='Show features in Scoreboard')
+    show_parser.add_argument(
+        'file', help='Input file. Optionally specify an input-output pair '
+                     'to show alignment features.')
 
     subparsers.add_parser('crossval', help='Evaluate model using cross validation')
 

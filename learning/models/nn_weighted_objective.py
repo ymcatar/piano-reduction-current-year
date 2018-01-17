@@ -38,7 +38,7 @@ reducer_args = {
         ('learning.piano.algorithm.Motif', [], {}),
         ('learning.piano.algorithm.Harmony', [], {})
         ],
-    'alignment': 'pitch_class_onset',
+    'alignment': ('learning.piano.alignment.pitch_class_onset.AlignPitchClassOnset', [], {}),
     }
 
 

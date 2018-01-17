@@ -13,7 +13,7 @@ import numpy as np
 import os
 import os.path
 from .score import ScoreObject
-from .alignment import get_alignment_func
+from .util import ensure_algorithm, dump_algorithm
 
 
 CACHE_DIR = 'sample/cache'
@@ -50,12 +50,12 @@ def hash_file(path):
 
 
 def describe_algorithm(algo):
-    args = ['algorithm', type(algo).__module__ + '.' + type(algo).__qualname__, *algo.args]
+    args = ['algorithm', *dump_algorithm(algo)]
     return json.dumps(args, sort_keys=True)
 
 
 def describe_alignment(alignment):
-    return json.dumps(['alignment', alignment], sort_keys=True)
+    return json.dumps(['alignment', *dump_algorithm(alignment)], sort_keys=True)
 
 
 def set_in_cache(cache, description, value):
@@ -94,8 +94,7 @@ class DatasetEntry:
             self.ensure_scores_loaded()
             algo.create_markings_on(self.input_score_obj)
             ds = np.hstack(
-                self.input_score_obj.extract('markings', key, dtype='float', default=0)
-                    [:, np.newaxis]
+                self.input_score_obj.extract(key, dtype='float', default=0)[:, np.newaxis]
                 for key in algo.all_keys)
             if cache:
                 set_in_cache(cache, description, ds)
@@ -110,9 +109,10 @@ class DatasetEntry:
             ds = cache[cache.attrs[description]]
         else:
             self.ensure_scores_loaded()
-            fn = get_alignment_func(alignment)
-            fn(self.input_score_obj.score, self.output_score_obj.score)
-            ds = self.input_score_obj.extract(fn.label_type, dtype='uint8')
+            algo = ensure_algorithm(alignment)
+            algo.create_alignment_markings_on(self.input_score_obj,
+                                              self.output_score_obj)
+            ds = self.input_score_obj.extract(algo.key, dtype='uint8')
             if cache:
                 set_in_cache(cache, description, ds)
 
