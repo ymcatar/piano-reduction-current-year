@@ -21,6 +21,14 @@ class ReductionAlgorithm(object):
         # Generate a default main key, for convenience
         return str(self.key_prefix) + '_' + str(self.__class__.__name__)
 
+    @property
+    def args(self):
+        '''
+        Returns the *args and **kwargs that can be used to reconstruct this
+        algorithm.
+        '''
+        return ([], {})
+
     def create_markings_on(self, score_obj):
         raise NotImplementedError()
 
