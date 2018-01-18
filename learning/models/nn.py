@@ -1,6 +1,8 @@
 import tensorflow as tf
 import tflearn
 from .tf import TflearnModel
+from ..piano import algorithm
+from ..piano.alignment.pitch_class_onset import AlignPitchClassOnset
 
 
 class NN(TflearnModel):
@@ -23,20 +25,20 @@ class NN(TflearnModel):
 
 reducer_args = {
     'algorithms': [
-        ('learning.piano.algorithm.ActiveRhythm', [], {}),
-        ('learning.piano.algorithm.BassLine', [], {}),
-        ('learning.piano.algorithm.EntranceEffect', [], {}),
-        ('learning.piano.algorithm.Occurrence', [], {}),
-        ('learning.piano.algorithm.OnsetAfterRest', [], {}),
-        ('learning.piano.algorithm.PitchClassStatistics', [], {}),
-        ('learning.piano.algorithm.RhythmVariety', [], {}),
-        ('learning.piano.algorithm.StrongBeats', [], {'division': 0.5}),
-        ('learning.piano.algorithm.SustainedRhythm', [], {}),
-        ('learning.piano.algorithm.VerticalDoubling', [], {}),
-        ('learning.piano.algorithm.Motif', [], {}),
-        ('learning.piano.algorithm.Harmony', [], {}),
+        algorithm.ActiveRhythm(),
+        algorithm.BassLine(),
+        algorithm.EntranceEffect(),
+        algorithm.Occurrence(),
+        algorithm.OnsetAfterRest(),
+        algorithm.PitchClassStatistics(),
+        algorithm.RhythmVariety(),
+        algorithm.StrongBeats(division=0.5),
+        algorithm.SustainedRhythm(),
+        algorithm.VerticalDoubling(),
+        algorithm.Motif(),
+        algorithm.Harmony(),
         ],
-    'alignment': ('learning.piano.alignment.pitch_class_onset.AlignPitchClassOnset', [], {}),
+    'alignment': AlignPitchClassOnset(),
     }
 
 
