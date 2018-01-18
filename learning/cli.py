@@ -308,7 +308,7 @@ def command_crossval(args, module, **kwargs):
 
     logging.info('Starting cross-validation')
     for i in range(len(dataset)):
-        logging.info('Fold {}: {!r}'.format(i, dataset.entries[i].path_pair))
+        logging.info('Fold {}: {!r}'.format(i, dataset.entries[i].in_path))
         logging.info('-' * 60)
         X_train, y_train, X_valid, y_valid = dataset.split_dataset(i)
 

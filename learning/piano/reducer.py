@@ -1,3 +1,4 @@
+from .dataset import DatasetEntry
 from .util import ensure_algorithm, dump_algorithm
 
 import importlib
@@ -51,18 +52,16 @@ class Reducer(object):
     def all_keys(self):
         return self._all_keys
 
-    def create_markings_on(self, score_obj):
-        for algo in self.algorithms:
-            algo.create_markings_on(score_obj)
-        return np.hstack(
-            score_obj.extract(key, dtype='float', default=0)[:, np.newaxis]
-            for key in self.all_keys)
+    def create_markings_on(self, score_obj, use_cache=False):
+        d = DatasetEntry(score_obj_pair=(score_obj, None))
+        d.load(self, use_cache=use_cache)
+        return d.X
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
-        self.alignment.create_alignment_markings_on(
-            input_score_obj, output_score_obj, extra=extra)
-        return input_score_obj.extract(self.label_type, dtype='uint8') \
-            [:, np.newaxis]
+    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False,
+                                     use_cache=False):
+        d = DatasetEntry(score_obj_pair=(input_score_obj, output_score_obj))
+        d.load(self, use_cache=use_cache, extra=extra)
+        return d.y
 
     def predict_from(self, model, score_obj, X=None):
         if X is None:
