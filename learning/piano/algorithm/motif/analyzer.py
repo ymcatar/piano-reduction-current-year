@@ -14,9 +14,8 @@ from .notegram import Notegram
 from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
-INIT_NUM_OF_CLUSTER = 200
 
-OVERLAP_THRESHOLD = 0.95
+OVERLAP_THRESHOLD = 0.8
 Z_SCORE_THRESHOLD = 2 # ~ 2.28%
 
 def has_across_tie_to_next_note(curr_note, next_note):
@@ -48,6 +47,8 @@ class MotifAnalyzer(object):
             for notegram in self.load_notegrams_by_part(part):
                 self.notegram_groups[str(notegram)].append(notegram)
 
+        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 10) # what should this be?
+
     def load_notegrams_by_part(self, part):
         measures = list(part.getElementsByClass('Measure'))
 
@@ -67,17 +68,16 @@ class MotifAnalyzer(object):
                     voice = measure
                     real_vid = '1'
 
+                # ignore all notegrams with chord
                 if voice is not None:
-                    for n in voice.notesAndRests:
-                        offset = measure.offset + n.offset
-                        if isinstance(n, music21.chord.Chord):
-                            # Use only the highest-pitched note
-                            note_list.append((offset,
-                                              max(n,
-                                                  key=lambda i: i.pitch.ps)))
-                        else:
+                    if any(isinstance(n, music21.chord.Chord) for n in voice.notesAndRests):
+                        continue
+                    else:
+                        for n in voice.notesAndRests:
+                            offset = measure.offset + n.offset
                             note_list.append((offset, n))
-                        vid_list.append(real_vid)
+                
+                vid_list.append(real_vid)
 
             notegram_it = zip(*[note_list[i:] for i in range(NGRAM_SIZE)])
             vid_it = zip(*[vid_list[i:] for i in range(NGRAM_SIZE)])
@@ -179,7 +179,7 @@ class MotifAnalyzer(object):
 
         # models = SpectralClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', n_jobs=-1)
 
-        models = AgglomerativeClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', linkage='complete')
+        models = AgglomerativeClustering(n_clusters=self.init_num_of_cluster, affinity='precomputed', linkage='complete')
         db = models.fit(distance_matrix)
 
         notegram_group_by_label = defaultdict(lambda: [])
