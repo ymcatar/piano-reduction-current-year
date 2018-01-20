@@ -60,7 +60,10 @@ class ScoreObject(object):
                         voice.insert(elem)
                     else:
                         # Things like TimeSignature, MetronomeMark, etc.
-                        result.insert(elem)
+                        if elem.offset == 0:
+                            result.insert(elem)
+                        else:
+                            voice.insert(elem)
                 result.insert(0, voice)
                 vids_in_measure.add('1')
             else:

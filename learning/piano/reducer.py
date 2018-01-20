@@ -75,7 +75,7 @@ class Reducer(object):
         else:
             raise NotImplementedError()
 
-        score_obj.annotate(y, 'align')
+        score_obj.annotate(y, self.label_type)
 
         return y_proba
 
