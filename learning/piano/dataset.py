@@ -7,6 +7,7 @@ The cache must be cleared manually when the algorithms themselves are changed.
 from collections.abc import Sequence
 import hashlib
 import h5py
+import itertools
 import json
 import logging
 import numpy as np
@@ -14,6 +15,7 @@ import os
 import os.path
 from .score import ScoreObject
 from .util import dump_algorithm
+from .contraction import contract_by, compute_contraction_mapping, flatten_contractions
 
 
 CACHE_DIR = 'sample/cache'
@@ -124,6 +126,19 @@ class DatasetEntry:
         for i, key in enumerate(algo.all_keys):
             self.X[:, reducer.all_keys.index(key)] = ds[:, i]
 
+    def _load_contraction(self, reducer, algo, use_cache=True, cache=None):
+        description = describe_algorithm(algo)
+        if cache and use_cache and description in cache.attrs:
+            logging.info('Using cache for contraction {}'.format(type(algo).__name__))
+            ds = cache[cache.attrs[description]]
+        else:
+            self.ensure_scores_loaded()
+            ds = list(algo.create_contractions(self.input_score_obj))
+            if cache:
+                set_in_cache(cache, description, ds)
+
+        return ds
+
     def _load_alignment_marking(self, reducer, algo, extra=False, use_cache=True, cache=None):
         description = describe_alignment(algo)
         if cache and use_cache and description in cache.attrs:
@@ -189,14 +204,24 @@ class DatasetEntry:
                 if cache:
                     cache.attrs['len'] = n
 
+            contraction_iter = itertools.chain(*[
+                self._load_contraction(reducer, algo, use_cache=use_cache, cache=cache)
+                for algo in reducer.contractions])
+            P = flatten_contractions(contraction_iter, n)
+            self.C, self.len = compute_contraction_mapping(P)
+            if self.len != n:
+                logging.info('Contractions: {} notes => {} notes'.format(n, self.len))
+
             self.X = np.empty((n, len(reducer.all_keys)), dtype='float')
             for algo in reducer.algorithms:
                 self._load_marking(reducer, algo, use_cache=use_cache, cache=cache)
+            self.X = contract_by(self.X, self.C, self.len)
 
             if self.has_output:
                 self.y = np.empty((n, 1), dtype='uint8')
                 self._load_alignment_marking(reducer, reducer.alignment, extra=extra,
                                              use_cache=use_cache, cache=cache)
+                self.y = contract_by(self.y, self.C, self.len)
 
             if keep_scores:
                 self.ensure_scores_loaded()

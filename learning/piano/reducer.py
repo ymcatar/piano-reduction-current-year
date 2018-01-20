@@ -16,7 +16,7 @@ class Reducer(object):
     '''
     Represents a particular configuration of the piano reduction system.
     '''
-    def __init__(self, algorithms, alignment):
+    def __init__(self, algorithms, alignment, contractions=[]):
         '''
         Arguments:
             algorithms: List of Algorithm objects or (class.path, args, kwargs)
@@ -38,10 +38,13 @@ class Reducer(object):
         self.alignment = ensure_algorithm(alignment)
         self.label_type = self.alignment.key
 
+        self.contractions = [ensure_algorithm(algo) for algo in contractions]
+
         self.args = (
             [], {
                 'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
-                'alignment': dump_algorithm(self.alignment)
+                'alignment': dump_algorithm(self.alignment),
+                'contractions': [dump_algorithm(algo) for algo in self.contractions],
             })
 
     @property
@@ -57,13 +60,16 @@ class Reducer(object):
         d.load(self, use_cache=use_cache)
         return d.X
 
+    def create_contractions(self, score_obj, use_cache=False):
+        raise NotImplementedError()  # TODO
+
     def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False,
                                      use_cache=False):
         d = DatasetEntry(score_obj_pair=(input_score_obj, output_score_obj))
         d.load(self, use_cache=use_cache, extra=extra)
         return d.y
 
-    def predict_from(self, model, score_obj, X=None):
+    def predict_from(self, model, score_obj, X=None, mapping=None):
         if X is None:
             X = self.create_markings_on(score_obj)
 
@@ -75,7 +81,7 @@ class Reducer(object):
         else:
             raise NotImplementedError()
 
-        score_obj.annotate(y, self.label_type)
+        score_obj.annotate(y, self.label_type, mapping=mapping)
 
         return y_proba
 

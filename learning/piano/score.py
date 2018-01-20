@@ -133,6 +133,10 @@ class ScoreObject(object):
 
         self._len = sum(1 for _ in self)
 
+        self._index = {}
+        for i, n in enumerate(self.notes):
+            self._index[id(n)] = i
+
         logger.info('Done')
 
     @property
@@ -153,6 +157,7 @@ class ScoreObject(object):
         return cls(score)
 
     def __iter__(self):
+        # deprecated
         return self.notes
 
     def __len__(self):
@@ -186,10 +191,18 @@ class ScoreObject(object):
 
         return out
 
-    def annotate(self, vector, key):
+    def annotate(self, vector, key, mapping=None):
         '''
         Annotate the given vector to the score.
         '''
-        assert len(vector) == len(self)
-        for i, n in enumerate(self):
+        if mapping is None:
+            assert len(vector) == len(self)
+            mapping = range(len(vector))
+        for i, n in zip(mapping, self):
             n.editorial.misc[key] = vector[i]
+
+    def index(self, n):
+        '''
+        Returns the index of a note.
+        '''
+        return self._index[id(n)]
