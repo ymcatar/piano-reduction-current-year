@@ -17,7 +17,6 @@ def has_across_tie_to_next_note(curr_note, next_note):
                 return True
     return False
 
-
 def merge_nearby_rest(note_list):
     results = []
     i = 0
@@ -33,6 +32,14 @@ def merge_nearby_rest(note_list):
         i += 1
     return results
 
+def convert_chord_to_highest_note(note_list):
+    results = []
+    for noteOrChord in note_list:
+        if isinstance(noteOrChord, music21.chord.Chord):
+            results.append(noteOrChord[-1])
+        else:
+            results.append(noteOrChord)
+    return results
 
 def merge_across_tie(note_list):
     results = []
@@ -47,14 +54,18 @@ def merge_across_tie(note_list):
         i += 1
     return results
 
+def preprocess_note_list(note_list):
+    note_list = convert_chord_to_highest_note(note_list)
+    note_list = merge_nearby_rest(note_list)
+    note_list = merge_across_tie(note_list)
+    return note_list
 
 class MotifAnalyzerAlgorithms(object):
 
     @staticmethod
     def note_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for curr_note in note_list:
             if curr_note.isRest:
                 results.append('R')
@@ -70,8 +81,7 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def rhythm_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for curr_note in note_list:
             results.append('{0:.1f}'.format(
                 float(curr_note.duration.quarterLength)))
@@ -81,20 +91,9 @@ class MotifAnalyzerAlgorithms(object):
         return results
 
     @staticmethod
-    def original_rhythm_sequence_func(note_list):
-        results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
-        for curr_note in note_list:
-            results.append('{0:.1f}'.format(
-                float(curr_note.duration.quarterLength)))
-        return results
-
-    @staticmethod
     def notename_transition_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
             if prev_note.isRest and not curr_note.isRest:
@@ -110,8 +109,7 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def note_contour_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
             if prev_note.isRest and not curr_note.isRest:
@@ -130,8 +128,7 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def note_transition_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
             if prev_note.isRest and not curr_note.isRest:
@@ -145,8 +142,7 @@ class MotifAnalyzerAlgorithms(object):
     @staticmethod
     def rhythm_transition_sequence_func(note_list):
         results = []
-        note_list = merge_nearby_rest(note_list)
-        note_list = merge_across_tie(note_list)
+        note_list = preprocess_note_list(note_list)
         for i in range(1, len(note_list)):
             prev_note, curr_note = note_list[i - 1:i + 1]
             curr_note_length = curr_note.duration.quarterLength
@@ -155,16 +151,3 @@ class MotifAnalyzerAlgorithms(object):
             results.append('{0:.1f}'.format(
                 float(curr_note_length / prev_note.duration.quarterLength)))
         return results
-
-    @staticmethod
-    def simple_note_score_func(notegram, sequence, freq):
-        score = len(sequence) * freq
-        return score
-
-    @staticmethod
-    def entropy_note_score_func(notegram, sequence, freq):
-        probabilities = {item: sequence.count(
-            item) / len(sequence) for item in list(sequence)}
-        probs = np.array(list(probabilities.values()))
-        score = - probs.dot(np.log2(probs)) * freq * len(sequence)
-        return score

@@ -47,7 +47,7 @@ class MotifAnalyzer(object):
             for notegram in self.load_notegrams_by_part(part):
                 self.notegram_groups[str(notegram)].append(notegram)
 
-        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 10) # what should this be?
+        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 20) # what should this be?
 
     def load_notegrams_by_part(self, part):
         measures = list(part.getElementsByClass('Measure'))
@@ -68,16 +68,11 @@ class MotifAnalyzer(object):
                     voice = measure
                     real_vid = '1'
 
-                # ignore all notegrams with chord
                 if voice is not None:
-                    if any(isinstance(n, music21.chord.Chord) for n in voice.notesAndRests):
-                        continue
-                    else:
-                        for n in voice.notesAndRests:
-                            offset = measure.offset + n.offset
-                            note_list.append((offset, n))
-                
-                vid_list.append(real_vid)
+                    for n in voice.notesAndRests:
+                        offset = measure.offset + n.offset
+                        note_list.append((offset, n))
+                        vid_list.append(real_vid)
 
             notegram_it = zip(*[note_list[i:] for i in range(NGRAM_SIZE)])
             vid_it = zip(*[vid_list[i:] for i in range(NGRAM_SIZE)])
@@ -91,8 +86,8 @@ class MotifAnalyzer(object):
                 if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
                     continue
 
-                # reject notegram starting/ending with a rest
-                if notegram[0][1].isRest or notegram[-1][1].isRest:
+                # reject notegram starting with a rest
+                if notegram[0][1].isRest:
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -173,12 +168,6 @@ class MotifAnalyzer(object):
 
         weights = [len(i) for _, i in self.notegram_groups.items()]
 
-        # model = DBSCAN(metric='precomputed', eps=DBSCAN_EPS,
-        #                min_samples=DBSCAN_MIN_SAMPLES)
-        # db = model.fit(distance_matrix, sample_weight=weights)
-
-        # models = SpectralClustering(n_clusters=INIT_NUM_OF_CLUSTER, affinity='precomputed', n_jobs=-1)
-
         models = AgglomerativeClustering(n_clusters=self.init_num_of_cluster, affinity='precomputed', linkage='complete')
         db = models.fit(distance_matrix)
 
@@ -211,7 +200,6 @@ class MotifAnalyzer(object):
 
         # merge overlapping clusters together
         queue = list(clusters.keys())
-        cluster_visited = defaultdict(lambda: False)
 
         while len(queue) > 0:
             first_label = queue.pop(0)
@@ -233,9 +221,9 @@ class MotifAnalyzer(object):
 
         if verbose:
             for label, cluster in new_clusters.items():
-                print('\n\n~ cluster [' + label + '] ~')
+                print('\n\n~~~ cluster [' + label + '] ~~~\n')
                 for notegram_group in cluster:
-                    print(notegram_group, len(self.notegram_groups[notegram_group]))
+                    print(str(len(self.notegram_groups[notegram_group])).ljust(4), self.notegram_groups[notegram_group][0].to_nice_string())
 
         return new_clusters
 
@@ -246,4 +234,5 @@ class MotifAnalyzer(object):
             note_list = value.get_note_list()
             for note in note_list:
                 if len(note.lyrics) == 0 or all(lyric.text != label for lyric in note.lyrics):
+                    note.style.color = 'red'
                     note.insertLyric(label, label_index)
