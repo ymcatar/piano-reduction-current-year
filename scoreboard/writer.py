@@ -114,8 +114,13 @@ class LogWriter:
 
         feature_data = defaultdict(list)
         for n in iter_notes(score, recurse=True):
-            data = dict(n.editorial.misc)
-            feature_data[n.style.color] = data
+            feature_data[n.style.color] = {
+                **n.editorial.misc,
+                '_pitch': n.pitch.nameWithOctave,
+                '_pitch_class': n.pitch.name,
+                '_ps': n.pitch.ps,
+                '_duration': n.duration.quarterLength,
+                }
 
         score.write('musicxml', fp=os.path.join(self.dir, name + '.xml'))
         with open(os.path.join(self.dir, name + '.json'), 'w') as f:

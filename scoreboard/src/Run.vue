@@ -124,6 +124,10 @@ export default {
 
       const noteheads = this.noteheads.map((key, i) => this.getFeature(key, 'notehead' + i));
 
+      const selectedData = this.featureData[this.selectedNotes[0]] || {};
+      const selectedPitch = selectedData._pitch;
+      const selectedPitchClass = selectedData._pitch_class;
+
       const result = {};
       for (const key in this.featureData) {
         if (!this.featureData.hasOwnProperty(key)) continue;
@@ -131,6 +135,7 @@ export default {
         // TODO: Data type aware
         const props = {
           noteheads: noteheads.map(() => '#000000'),
+          circle: null,
         };
         for (let i = 0; i < noteheads.length; i++) {
           const nh = noteheads[i];
@@ -143,6 +148,13 @@ export default {
               props.noteheads[i] = value ? nh.colour : '#000000';
             }
           }
+        }
+        if (this.selectedNotes.includes(key)) {
+          props.circle = '#FF0000';
+        } else if (data._pitch === selectedPitch) {
+          props.circle = '#FFBB66';
+        } else if (data._pitch_class === selectedPitchClass) {
+          props.circle = '#FFFF99';
         }
         result[key] = props;
       }

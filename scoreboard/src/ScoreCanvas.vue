@@ -157,6 +157,17 @@ export default {
             const path = new Path2D(entry.path);
             this.ctx.fill(path);
           }
+          if (annotation.circle) {
+            const OFFSET = 2;
+            this.ctx.strokeStyle = annotation.circle;
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.ellipse(
+              entry.bBox.x + 0.5 * entry.bBox.width, entry.bBox.y + 0.5 * entry.bBox.height,
+              entry.bBox.width / 2 + OFFSET, entry.bBox.height / 2 + OFFSET,
+              0, 0, 2*Math.PI);
+            this.ctx.stroke();
+          }
         }
       }
       if (pageIndex < this.pages.length)
