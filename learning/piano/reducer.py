@@ -100,12 +100,12 @@ class Reducer(object):
                 'align', help='Whether the note should be kept.'))
         elif self.label_type == 'hand':
             legend = {
-                '#0000FF': 'Upper staff',
-                '#00FF00': 'Lower staff',
-                '#000000': 'Discarded',
+                '#0000FF': ('Upper staff', 1),
+                '#00FF00': ('Lower staff', 2),
+                '#000000': ('Discarded', 0),
                 }
             features.append(writerlib.CategoricalFeature(
-                'align', legend, '#000000',
+                'hand', legend, '#000000',
                 help='Which staff the note should be kept in.'))
 
         return features
