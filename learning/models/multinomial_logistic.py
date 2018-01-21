@@ -9,7 +9,7 @@ class MultinomialLogistic(WrappedSklearnModel):
     def __init__(self, *args, **kwargs):
         Model = functools.partial(
             LogisticRegression, multi_class='multinomial', solver='sag',
-            max_iter=1000)
+            max_iter=5000)
         super().__init__(Model, *args, **kwargs)
 
 

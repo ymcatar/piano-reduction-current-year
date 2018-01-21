@@ -13,7 +13,7 @@ import numpy as np
 import os
 import os.path
 from .score import ScoreObject
-from .util import ensure_algorithm, dump_algorithm
+from .util import dump_algorithm
 
 
 CACHE_DIR = 'sample/cache'
@@ -22,12 +22,12 @@ CACHE_DIR = 'sample/cache'
 DEFAULT_SAMPLES = [
     'sample/input/i_0000_Beethoven_op18_no1-4.xml:sample/output/o_0000_Beethoven_op18_no1-4.xml',
     'sample/input/i_0001_Spring_sonata_I.xml:sample/output/o_0001_Spring_sonata_I.xml',
-    # 'sample/input/i_0002_Beethoven_Symphony_No5_Mov1.xml:sample/output/o_0002_Beethoven_Symphony_No5_Mov1.xml',
-    # 'sample/input/i_0003_Beethoven_Symphony_No7_Mov2.xml:sample/output/o_0003_Beethoven_Symphony_No7_Mov2.xml',
-    # 'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
-    # 'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml',
-    # 'sample/input/i_0006_Dvorak_New_World_Symphony_No9_Mov2.xml:sample/output/o_0006_Dvorak_New_World_Symphony_No9_Mov2.xml',
-    # 'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/o_0007_Tchaikovsky_nutcracker_march.xml'
+    'sample/input/i_0002_Beethoven_Symphony_No5_Mov1.xml:sample/output/o_0002_Beethoven_Symphony_No5_Mov1.xml',
+    'sample/input/i_0003_Beethoven_Symphony_No7_Mov2.xml:sample/output/o_0003_Beethoven_Symphony_No7_Mov2.xml',
+    'sample/input/i_0004_Mozart_Symphony_No25.xml:sample/output/o_0004_Mozart_Symphony_No25.xml',
+    'sample/input/i_0005_Mozart_Symphony_No40.xml:sample/output/o_0005_Mozart_Symphony_No40.xml',
+    'sample/input/i_0006_Dvorak_New_World_Symphony_No9_Mov2.xml:sample/output/o_0006_Dvorak_New_World_Symphony_No9_Mov2.xml',
+    'sample/input/i_0007_Tchaikovsky_nutcracker_march.xml:sample/output/o_0007_Tchaikovsky_nutcracker_march.xml'
     ]
 
 
@@ -124,14 +124,13 @@ class DatasetEntry:
         for i, key in enumerate(algo.all_keys):
             self.X[:, reducer.all_keys.index(key)] = ds[:, i]
 
-    def _load_alignment_marking(self, reducer, alignment, extra=False, use_cache=True, cache=None):
-        description = describe_alignment(alignment)
+    def _load_alignment_marking(self, reducer, algo, extra=False, use_cache=True, cache=None):
+        description = describe_alignment(algo)
         if cache and use_cache and description in cache.attrs:
             logging.info('Using cache for alignment')
             ds = cache[cache.attrs[description]]
         else:
             self.ensure_scores_loaded()
-            algo = ensure_algorithm(alignment)
             algo.create_alignment_markings_on(self.input_score_obj,
                                               self.output_score_obj, extra=extra)
             ds = self.input_score_obj.extract(algo.key, dtype='uint8')
@@ -271,6 +270,6 @@ class Dataset:
 
     def find_index(self, paths):
         for i, entry in enumerate(self.entries):
-            if '{}:{}'.format(i.in_path, i.out_path) == paths:
+            if '{}:{}'.format(entry.in_path, entry.out_path) == paths:
                 return i
         raise IndexError('Sample "{}" does not exist'.format(paths))

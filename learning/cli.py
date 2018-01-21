@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
 from .piano.alignment import (LEFT_HAND, RIGHT_HAND)
-from .piano.dataset import Dataset, CROSSVAL_SAMPLES
+from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -153,20 +153,20 @@ def command_reduce(args, **kwargs):
 
     logging.info('Reading input score')
     in_path, _, out_path = args.file.partition(':')
-    target = ScoreObject.from_file(in_path)
-    target_out = ScoreObject.from_file(out_path) if out_path else None
+    target_entry = DatasetEntry((in_path, out_path))
+    target_entry.load(reducer, keep_scores=True)
+    target = target_entry.input_score_obj
+    target_out = target_entry.output_score_obj
 
-    logging.info('Extracting features for input score')
-    X_test = reducer.create_markings_on(target)
-    y_test = (reducer.create_alignment_markings_on(target, target_out)
-              if out_path else None)
+    X_test = target_entry.X
+    y_test = target_entry.y
     logging.info('Predicting')
 
     y_proba = reducer.predict_from(model, target, X=X_test)
 
     post_processor = PostProcessor()
-    result = post_processor.generate_piano_score(target, reduced=True,
-                                                 playable=True)
+    result = post_processor.generate_piano_score(
+        target, reduced=True, playable=True, label_type=reducer.label_type)
 
     if y_test is not None:
         metrics = ModelMetrics(reducer, y_proba, y_test)
@@ -322,8 +322,8 @@ def command_crossval(args, module, **kwargs):
         y_proba = reducer.predict_from(model, target_in, X=X_valid)
 
         post_processor = PostProcessor()
-        result = post_processor.generate_piano_score(target_in, reduced=True,
-                                                     playable=True)
+        result = post_processor.generate_piano_score(
+            target_in, reduced=True, playable=True, label_type=reducer.label_type)
 
         metrics = ModelMetrics(reducer, y_proba, y_valid)
         for key in metrics.keys:
