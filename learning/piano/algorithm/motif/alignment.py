@@ -100,7 +100,7 @@ def align_sequences(first, second, LEN=LEN, global_alignment=global_alignment):
     '''
     assert len(first) <= LEN and len(second) <= LEN
     score, length = global_alignment(first, second)
-    return (length - score) / length
+    return length - score
 
 
 def align_one_to_many(first, seconds):
@@ -109,4 +109,4 @@ def align_one_to_many(first, seconds):
     '''
     assert len(first) <= LEN and all(len(s) <= LEN for s in seconds)
     scores, lengths = global_alignment_vec(first, seconds)
-    return (lengths - scores) / lengths
+    return lengths - scores
