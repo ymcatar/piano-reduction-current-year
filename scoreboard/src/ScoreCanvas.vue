@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvas" @mousewheel="onMouseWheel"></canvas>
+  <canvas ref="canvas" @wheel="onWheel" @click="onClick"></canvas>
 </template>
 
 <script>
@@ -19,17 +19,23 @@ function throttle(fn) {
 
 export default {
   name: 'ScoreCanvas',
-  props: ['apiPrefix', 'pages', 'noteMaps', 'annotations', 'pageOffset'],
+  props: ['apiPrefix', 'pages', 'annotations', 'pageOffset'],
   data: () => ({
     canvas: null,
     ctx: null,
     bitmaps: [],
+    noteMaps: [],
     pageLoadings: [],
     ratio: null,
     width: null,
     height: null,
     scale: 'fit',
     pageMargin: 32,
+
+    visiblePages: [],
+
+    drawTimeTotal: 0,
+    drawTimeCount: 0,
   }),
 
   computed: {
@@ -44,8 +50,12 @@ export default {
         const effectiveHeight = this.height - this.pageMargin * this.ratio * 2;
         return Math.min(this.width / bitmap.width, effectiveHeight / maxBitmapHeight);
       }
-      return this.scale;
+      return this.scale * this.ratio;
     },
+
+    drawTimeAverage() {
+      return this.drawTimeTotal / this.drawTimeCount;
+    }
   },
 
   methods: {
@@ -55,10 +65,33 @@ export default {
         this.pageLoadings[pageIndex] = true;
         const res = await fetch(this.apiPrefix + this.pages[pageIndex]);
         if (!res.ok) throw new Error('Response not ok');
-        const blob = await res.blob();
-        const bitmap = await createImageBitmap(blob);
+        const text = await res.text();
+        const div = document.createElement('div');
+        div.innerHTML = text;
 
-        this.bitmaps[pageIndex] = bitmap;
+        const noteMap = {};
+        const svg = div.querySelector('svg');
+        // Add to DOM so that we can get the bounding box
+        document.documentElement.appendChild(svg);
+        for (const elem of svg.children) {
+          if (!elem.classList.contains('Note')) continue;
+          noteMap[elem.getAttribute('fill').toUpperCase()] = {
+            path: elem.getAttribute('d'),
+            bBox: elem.getBBox(),
+          };
+        }
+        document.documentElement.removeChild(svg);
+        global.svg = svg;
+        global.noteMap = noteMap;
+
+        this.noteMaps[pageIndex] = noteMap;
+
+        this.bitmaps[pageIndex] = await new Promise((resolve, reject) => {
+          const img = document.createElement('img');
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = 'data:image/svg+xml;base64,' + btoa(text);
+        });
         // Vue.js sucks? Change detection issue
         this.bitmaps = this.bitmaps.slice();
 
@@ -68,6 +101,7 @@ export default {
         this.pageLoadings[pageIndex] = false;
         throw err;
       }
+      console.log('Loaded', this.pages[pageIndex]);
     },
 
     ensureLoaded(pageIndex) {
@@ -76,6 +110,7 @@ export default {
     },
 
     draw() {
+      const start = Date.now();
       this.ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       if (!this.pages) return;
@@ -86,6 +121,7 @@ export default {
 
       const scaledMargin = this.pageMargin * this.ratio;
       const pageWidth = this.bitmaps[0].width;
+      this.visiblePages = [];
       let pageIndex, x;
       for (pageIndex = Math.floor(this.pageOffset),
           x = -pageWidth * (this.pageOffset % 1) + scaledMargin;
@@ -97,10 +133,12 @@ export default {
         }
         const bitmap = this.bitmaps[pageIndex];
 
+        const pageX = x * this.realScale, pageY = scaledMargin;
+        this.visiblePages.unshift({pageX, pageY, pageIndex});
+
         // Draw page
-        this.ctx.setTransform(1, 0, 0, 1, x * this.realScale, scaledMargin);
-        this.ctx.drawImage(
-          bitmap, 0, 0, bitmap.width * this.realScale, bitmap.height * this.realScale);
+        this.ctx.setTransform(this.realScale, 0, 0, this.realScale, pageX, pageY);
+        this.ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
 
         // Annotations
         for (const key in this.noteMaps[pageIndex]) {
@@ -116,14 +154,16 @@ export default {
           }
           if (colour) {
             this.ctx.fillStyle = colour;
-            for (const rect of entry.rects) {
-              this.ctx.fillRect(...rect.map(x => x * this.realScale));
-            }
+            const path = new Path2D(entry.path);
+            this.ctx.fill(path);
           }
         }
       }
       if (pageIndex < this.pages.length)
         this.ensureLoaded(pageIndex);
+
+      this.drawTimeTotal += Date.now() - start;
+      this.drawTimeCount += 1;
     },
 
     resize() {
@@ -137,9 +177,13 @@ export default {
       this.draw();
     },
 
-    onMouseWheel(e) {
+    onWheel(e) {
+      if (!this.pages) return;
       e.preventDefault();
-      let pageOffset = this.pageOffset + (e.deltaX || e.deltaY) / 1000;
+      let delta = e.deltaX || e.deltaY;
+      if (e.deltaMode === WheelEvent.DOM_DELTA_LINE)
+        delta *= 40;
+      let pageOffset = this.pageOffset + delta / 1000;
       pageOffset = Math.min(pageOffset, this.pages.length - 0.5);
       pageOffset = Math.max(pageOffset, 0);
       this.$emit('update:page-offset', pageOffset);
@@ -155,11 +199,39 @@ export default {
         this.$emit('update:page-offset', pageOffset);
     },
 
+    onClick(e) {
+      if (!this.pages || !this.bitmaps[0]) return;
+      // Convert to canvas units
+      const canvasX = e.offsetX * this.ratio, canvasY = e.offsetY * this.ratio;
+
+      const match = this.visiblePages.find(p => p.pageX <= canvasX);
+      if (!match) return;
+
+      const pageIndex = match.pageIndex;
+
+      const x = (canvasX - match.pageX) / this.realScale, y = (canvasY - match.pageY) / this.realScale;
+
+      const noteMap = this.noteMaps[pageIndex];
+      if (!noteMap) return;
+      const matches = [];
+      for (const key in noteMap) {
+        if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
+        const bBox = this.noteMaps[pageIndex][key].bBox;
+        // console.log(bBox);
+        if (bBox.x <= x && x <= bBox.x + bBox.width && bBox.y <= y && y <= bBox.y + bBox.height)
+          matches.push(key);
+      }
+      if (matches.length) {
+        this.$emit('select', matches);
+      }
+    },
+
   },
 
   watch: {
     pages() {
       this.bitmaps = this.pages.map(() => null);
+      this.noteMaps = this.pages.map(() => null);
       this.pageLoadings = this.pages.map(() => false);
       this.resize();
       this.fixPageOffset();

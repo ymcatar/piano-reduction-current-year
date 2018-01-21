@@ -4,7 +4,7 @@
       <md-progress-spinner v-if="loading" md-mode="indeterminate" :md-diameter="20"
         :md-stroke="2" class="md-accent"></md-progress-spinner>
     </div>
-    <score-canvas :api-prefix="apiPrefix" :pages="pages" :note-maps="noteMaps"
+    <score-canvas :api-prefix="apiPrefix" :pages="pages"
       :annotations="annotations" :page-offset="pageOffset"
       @update:page-offset="x => $emit('update:page-offset', x)"></score-canvas>
   </div>
@@ -23,7 +23,6 @@ export default {
   data: () => ({
     loading: 0,
     pages: null,
-    noteMaps: null,
     featureData: null,
   }),
 
@@ -60,12 +59,11 @@ export default {
     async load() {
       try {
         this.loading += 1;
-        const [{pages, noteMaps}, featureData] = await Promise.all([
+        const [{pages}, featureData] = await Promise.all([
           fetchJSON(this.apiPrefix + this.score.xml.substr(0, this.score.xml.length - 4) + '-index.json'),
           fetchJSON(this.apiPrefix + this.score.featureData)
         ]);
         this.pages = pages;
-        this.noteMaps = noteMaps;
         this.$emit('update:page-count', this.pages.length);
         this.featureData = featureData;
       } finally {
