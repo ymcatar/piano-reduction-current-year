@@ -51,11 +51,11 @@ def hash_file(path):
 
 def describe_algorithm(algo):
     args = ['algorithm', *dump_algorithm(algo)]
-    return json.dumps(args, sort_keys=True)
+    return 'cache:' + json.dumps(args, sort_keys=True)
 
 
 def describe_alignment(alignment):
-    return json.dumps(['alignment', *dump_algorithm(alignment)], sort_keys=True)
+    return 'cache:' + json.dumps(['alignment', *dump_algorithm(alignment)], sort_keys=True)
 
 
 def set_in_cache(cache, description, value):
@@ -66,9 +66,9 @@ def set_in_cache(cache, description, value):
         cache[key][:] = value
     else:
         serial = 0
-        while any(i == 'cache:{}'.format(serial) for i in cache.attrs.values()):
+        while any(i == '{}'.format(serial) for i in cache.attrs.values()):
             serial += 1
-        key = 'cache:{}'.format(serial)
+        key = '{}'.format(serial)
         cache.attrs[description] = key
         cache[key] = value
 
@@ -273,3 +273,37 @@ class Dataset:
             if '{}:{}'.format(entry.in_path, entry.out_path) == paths:
                 return i
         raise IndexError('Sample "{}" does not exist'.format(paths))
+
+
+def clear_cache(substring=None):
+    '''
+    Clear all cache entries whose algorithm class matches the provided
+    substring. If a substring is not provided, all cache is purged.
+    '''
+    if substring is None:
+        logging.info('Purging all cache')
+        removed = 0
+        for f in os.listdir(CACHE_DIR):
+            if f.endswith('.hdf5'):
+                os.remove(os.path.join(CACHE_DIR, f))
+                removed += 1
+        logging.info('Removed {} cache files'.format(removed))
+    else:
+        logging.info('Purging cache matching "{}"'.format(substring))
+        touched_count = 0
+        removed = 0
+        for fname in os.listdir(CACHE_DIR):
+            if fname.endswith('.hdf5'):
+                with h5py.File(os.path.join(CACHE_DIR, fname), 'a') as f:
+                    touched = False
+                    for k in list(f.attrs):
+                        if k.startswith('cache:'):
+                            description = json.loads(k[len('cache:'):])
+                            if substring in description[1]:
+                                del f[f.attrs[k]]
+                                del f.attrs[k]
+                                removed += 1
+                                touched = True
+
+                    touched_count += touched
+        logging.info('Removed {} cache entries from {} files'.format(removed, touched_count))

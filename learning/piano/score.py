@@ -153,14 +153,18 @@ class ScoreObject(object):
         return cls(score)
 
     def __iter__(self):
+        return self.notes
+
+    def __len__(self):
+        return self._len
+
+    @property
+    def notes(self):
         '''
         Return an iterator that yields the list of note objects in the order
         used in the matrix representation.
         '''
         return iter_notes(self.score, recurse=True)
-
-    def __len__(self):
-        return self._len
 
     def extract(self, key, dtype, **kwargs):
         '''

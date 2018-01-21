@@ -8,13 +8,14 @@ import logging
 import os.path
 import sys
 import textwrap
+import time
 from music21 import chord, expressions, layout
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
 from .piano.alignment import (LEFT_HAND, RIGHT_HAND)
-from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES
+from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -296,6 +297,7 @@ def command_show(args, module, **kwargs):
 
 
 def command_crossval(args, module, **kwargs):
+    start = time.time()
     logging.info('Initializing reducer')
     reducer, model = create_reducer_and_model(module)
 
@@ -339,11 +341,16 @@ def command_crossval(args, module, **kwargs):
 
     logging.info('=' * 60)
     out = []
+    csv = [args.name]
     for key, values in all_metrics.items():
         name = metric_names[key]
         avg = np.mean(values)
         out.append('{:35} {:>13.4f}'.format(name, avg))
+        csv.append(str(avg))
     logging.info('Cross-validated metrics (by averaging)\n' + '\n'.join(out))
+    print(','.join('"{}"'.format(i) for i in csv))
+
+    logging.info('Time elapsed: {}s'.format(time.time() - start))
 
 
 def main(args, **kwargs):
@@ -355,6 +362,8 @@ def main(args, **kwargs):
         command_show(args, **kwargs)
     elif args.command == 'crossval':
         command_crossval(args, **kwargs)
+    elif args.command == 'clear-cache':
+        clear_cache(args.substring)
     else:
         raise NotImplementedError()
 
@@ -404,7 +413,14 @@ def run_model_cli(module):
         'file', help='Input file. Optionally specify an input-output pair '
                      'to show alignment features.')
 
-    subparsers.add_parser('crossval', help='Evaluate model using cross validation')
+    crossval_parser = subparsers.add_parser(
+        'crossval', help='Evaluate model using cross validation')
+    crossval_parser.add_argument('name', help='Description of this run',
+                                 nargs='?', default='Model')
+
+    clear_cache_parser = subparsers.add_parser(
+        'clear-cache', help='Clear feature cache')
+    clear_cache_parser.add_argument('substring', nargs='?')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]
