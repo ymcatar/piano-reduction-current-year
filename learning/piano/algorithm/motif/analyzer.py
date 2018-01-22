@@ -29,6 +29,23 @@ def has_across_tie_to_next_note(curr_note, next_note):
                 return True
     return False
 
+def is_likely_broken_chord(notegram):
+    notes = list(n[1] for n in notegram if n[1].isRest is False)
+    # check for equal rhythm
+    rhythms = [n.duration.quarterLength for n in notes]
+    if len(set(rhythms)) != 1:
+        return False
+    # check if they can form a common chord
+    notes = list(set(n.name for n in notes if isinstance(n, music21.note.Note)))
+    if len(notes) < 3: # too few unique notes
+        return False
+    # form the chord and see if they are major/minor triad
+    chord = music21.chord.Chord(notes)
+    chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
+    if chord.isMajorTriad() or chord.isMinorTriad():
+        return True
+    return False
+
 class MotifAnalyzer(object):
 
     def __init__(self, score):
@@ -97,6 +114,10 @@ class MotifAnalyzer(object):
 
                 # reject notegram with note of 0 length (it should have been a Rest)
                 if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
+                    continue
+
+                # reject notegram if it is likely just a broken chord:
+                if is_likely_broken_chord(notegram):
                     continue
 
                 # if the notegram contain notes with tie, add more note at the end to make up for it
