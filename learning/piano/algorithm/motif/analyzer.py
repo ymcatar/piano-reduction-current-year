@@ -23,6 +23,8 @@ MIN_CLUSTER_SIZE = 10
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
         return False
+    if not isinstance(curr_note, music21.note.Note) or not isinstance(next_note, music21.note.Note):
+        return False
     if curr_note.tie is None or next_note.tie is None:
         return False
     if curr_note.tie.type in ('start', 'continue'):
@@ -46,14 +48,29 @@ def is_notegram_unintersting(notegram):
         # see if both equal rhythm and equal pitch
         if len(set(rhythms)) == 1 and len(set(pitches)) == 1:
             is_interesting = False
-        # check if they can form a common chord
-        note_names = set(n.name for n in notes)
-        if len(set(rhythms)) == 1 and len(note_names) >= 3:
-            # form the chord and see if they are major/minor triad
-            chord = music21.chord.Chord(note_names)
-            chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
-            if chord.isMajorTriad() or chord.isMinorTriad():
-                is_interesting = False
+        else:
+            # check if they can form a common chord
+            note_names = set(n.name for n in notes)
+            if len(set(rhythms)) == 1 and len(note_names) >= 3:
+                # form the chord and see if they are major/minor triad
+                chord = music21.chord.Chord(note_names)
+                chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
+                if any([
+                    chord.isTriad(),
+                    chord.isAugmentedSixth(),
+                    chord.isAugmentedTriad(),
+                    chord.isDiminishedSeventh(),
+                    chord.isDiminishedTriad(),
+                    chord.isDominantSeventh(),
+                    chord.isFrenchAugmentedSixth(),
+                    chord.isGermanAugmentedSixth(),
+                    chord.isHalfDiminishedSeventh(),
+                    chord.isItalianAugmentedSixth(),
+                    chord.isSeventh(),
+                    chord.isSwissAugmentedSixth() 
+                ]):
+                    # print(chord.commonName) 
+                    is_interesting = False
     
     if is_interesting:
         return False
@@ -264,10 +281,14 @@ class MotifAnalyzer(object):
 
     def highlight_notegram_group(self, notegram_group, label):
         label_index = int(label)
+        first_label = '(' + label + ')'
         label = '[' + label + ']'
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
-            for note in note_list:
-                if len(note.lyrics) == 0 or all(lyric.text != label for lyric in note.lyrics):
-                    note.style.color = 'red'
-                    note.insertLyric(label, label_index)
+            for i, note in enumerate(note_list):
+                note.style.color = 'red'
+                item = [i for i, lyric in enumerate(note.lyrics) if lyric.text == label or lyric.text == first_label]
+                if len(note.lyrics) != 0 and len(item) != 0:
+                    note.lyrics.pop(item[0])
+                note.insertLyric(first_label if i == 0 else label, label_index)
+                    
