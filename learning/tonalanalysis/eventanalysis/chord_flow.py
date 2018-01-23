@@ -1,8 +1,7 @@
 import logging
 import os
 from itertools import permutations, combinations, groupby
-
-from pyexcel_xlsx import get_data
+import msgpack
 
 from ... import config
 from .lib import MusicManager
@@ -43,10 +42,13 @@ class FlowState:
     def sheet_minor(self):
         return self._minor
 
-
-
-
     def __init__(self):
+        cache_path = os.path.join(config.TEMP_DIR, 'chord_flow.msgpack')
+        if os.path.exists(cache_path):
+            print('Loading ChordFlow from cache')
+            with open(cache_path, 'rb') as f:
+                self.__dict__.update(msgpack.unpack(f, encoding='utf-8'))
+            return
 
         # Path
         major_path = os.path.join(data_path, "Chord Flow - Major keys.xlsx")
@@ -55,6 +57,8 @@ class FlowState:
         minor_weight_path = os.path.join(data_path, "minor_flow_weight.xlsx")
 
         # Get major data
+        from pyexcel_xlsx import get_data
+
         self._major = get_data(major_path, start_row=1)["Sheet1"]
         self._majweight = get_data(major_weight_path, start_row=1)["Sheet1"]
         # TODO: now just append a None to the last element to fix the list size. need better solution
@@ -78,6 +82,12 @@ class FlowState:
         chord_list = MusicManager.get_instance().make_table_full_extend()
         self.make_map(chord_list[0], "Major", self._major_index, self._majweight)
         self.make_map(chord_list[1], "Minor", self._minor_index, self._minweight)
+
+        if not os.path.exists(config.TEMP_DIR):
+            os.mkdir(config.TEMP_DIR)
+        print('Writing ChordFlow to cache')
+        with open(cache_path, 'wb') as f:
+            msgpack.pack(self.__dict__, f, use_bin_type=True)
 
                             # map data structure: dict(index)-> dict(target index)
                             # -> list(list(pitch, Maj/Min, index roman, target roman, weight))

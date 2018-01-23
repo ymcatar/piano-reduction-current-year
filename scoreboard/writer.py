@@ -101,6 +101,10 @@ class LogWriter:
     def add_feature(self, feature):
         self.features[feature.name] = feature
 
+    def add_features(self, features):
+        for feature in features:
+            self.add_feature(feature)
+
     def add_score(self, name, score):
         score = copy.deepcopy(score)
         self.score_instances[name] = score
@@ -111,9 +115,6 @@ class LogWriter:
         feature_data = defaultdict(list)
         for n in iter_notes(score, recurse=True):
             data = dict(n.editorial.misc)
-            if 'markings' in data:
-                data.update(data['markings'])
-                del data['markings']
             feature_data[n.style.color] = data
 
         score.write('musicxml', fp=os.path.join(self.dir, name + '.xml'))

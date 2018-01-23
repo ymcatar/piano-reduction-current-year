@@ -60,7 +60,10 @@ class ScoreObject(object):
                         voice.insert(elem)
                     else:
                         # Things like TimeSignature, MetronomeMark, etc.
-                        result.insert(elem)
+                        if elem.offset == 0:
+                            result.insert(elem)
+                        else:
+                            voice.insert(elem)
                 result.insert(0, voice)
                 vids_in_measure.add('1')
             else:
@@ -159,7 +162,7 @@ class ScoreObject(object):
     def __len__(self):
         return self._len
 
-    def extract(self, *path, dtype, **kwargs):
+    def extract(self, key, dtype, **kwargs):
         '''
         Extract the corresponding vector from an annotation in a score.
 
@@ -170,27 +173,19 @@ class ScoreObject(object):
 
         for i, n in enumerate(self):
             try:
-                obj = n.editorial.misc
-                for p in path:
-                    obj = obj[p]
+                out[i] = n.editorial.misc[key]
             except KeyError:
                 if 'default' in kwargs:
                     out[i] = kwargs['default']
                 else:
                     raise
-            else:
-                out[i] = obj
 
         return out
 
-    def annotate(self, vector, *path):
+    def annotate(self, vector, key):
         '''
         Annotate the given vector to the score.
         '''
         assert len(vector) == len(self)
-        prefix, suffix = path[:-1], path[-1]
         for i, n in enumerate(self):
-            obj = n.editorial.misc
-            for p in prefix:
-                obj = obj[p]
-            obj[suffix] = vector[i]
+            n.editorial.misc[key] = vector[i]

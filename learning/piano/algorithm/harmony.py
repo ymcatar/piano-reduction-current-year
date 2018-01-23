@@ -5,7 +5,14 @@ from ...tonalanalysis.eventanalysis.event_analyzer import EventAnalyzer
 from music21 import chord, stream
 
 
-flow_state = FlowState()
+_flow_state = None
+
+def get_flow_state():
+    global _flow_state
+    if not _flow_state:
+        _flow_state = FlowState()
+    return _flow_state
+    ...
 
 class Harmony(ReductionAlgorithm):
     dtype = 'bool'
@@ -18,7 +25,7 @@ class Harmony(ReductionAlgorithm):
         harmonic analysis.
         '''
         score = score_obj.score
-        event = EventAnalyzer(score, flow_state)
+        event = EventAnalyzer(score, get_flow_state())
 
         # Prepare Measure Data for EventAnalyzer
         event.set_measure_by_score(score_obj)
