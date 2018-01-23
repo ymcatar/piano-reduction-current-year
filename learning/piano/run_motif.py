@@ -45,7 +45,7 @@ for label, cluster in clusters.items():
         analyzer.highlight_notegram_group(notegram_group, label)
     i += 1
 
-print('--- cluster size ---')
+print('\n--- cluster size ---')
 for label, cluster in clusters.items():
     count = sum((len(analyzer.notegram_groups[notegram_group]) for notegram_group in cluster), 0)
     print('cluster', label + ':', count)

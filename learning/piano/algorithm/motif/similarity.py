@@ -9,6 +9,10 @@ sequence_func_list = [
     (MotifAnalyzerAlgorithms.note_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_sequence_func, 1),
     (MotifAnalyzerAlgorithms.note_contour_sequence_func, 1),
+    (MotifAnalyzerAlgorithms.note_vector_sequence_func(0), 0.25),
+    (MotifAnalyzerAlgorithms.note_vector_sequence_func(-1), 0.25),
+    (MotifAnalyzerAlgorithms.rhythm_vector_sequence_func(0), 0.25),
+    (MotifAnalyzerAlgorithms.rhythm_vector_sequence_func(-1), 0.25),
     (MotifAnalyzerAlgorithms.notename_transition_sequence_func, 1),
     (MotifAnalyzerAlgorithms.rhythm_transition_sequence_func, 1),
 ]

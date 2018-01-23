@@ -16,7 +16,9 @@ from .similarity import get_dissimilarity_matrix
 NGRAM_SIZE = 4
 
 OVERLAP_THRESHOLD = 0.8
-Z_SCORE_THRESHOLD = 2 # ~ 2.28%
+Z_SCORE_THRESHOLD = 2
+
+MIN_CLUSTER_SIZE = 10
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
@@ -29,22 +31,36 @@ def has_across_tie_to_next_note(curr_note, next_note):
                 return True
     return False
 
-def is_likely_broken_chord(notegram):
-    notes = list(n[1] for n in notegram if n[1].isRest is False)
-    # check for equal rhythm
-    rhythms = [n.duration.quarterLength for n in notes]
-    if len(set(rhythms)) != 1:
+uninteresting_notes = set()
+
+def is_notegram_unintersting(notegram):
+    is_interesting = True
+    notesAndRests = list(n[1] for n in notegram)
+    # check if any note is marked as uninteresting previously
+    if any(id(n) in uninteresting_notes for n in notesAndRests):
+        is_interesting = False
+    else:
+        notes = list(n for n in notesAndRests if isinstance(n, music21.note.Note))
+        rhythms = [n.duration.quarterLength for n in notesAndRests]
+        pitches = [n.pitch.ps for n in notes if n.isRest is True]
+        # see if both equal rhythm and equal pitch
+        if len(set(rhythms)) == 1 and len(set(pitches)) == 1:
+            is_interesting = False
+        # check if they can form a common chord
+        note_names = set(n.name for n in notes)
+        if len(set(rhythms)) == 1 and len(note_names) >= 3:
+            # form the chord and see if they are major/minor triad
+            chord = music21.chord.Chord(note_names)
+            chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
+            if chord.isMajorTriad() or chord.isMinorTriad():
+                is_interesting = False
+    
+    if is_interesting:
         return False
-    # check if they can form a common chord
-    notes = list(set(n.name for n in notes if isinstance(n, music21.note.Note)))
-    if len(notes) < 3: # too few unique notes
-        return False
-    # form the chord and see if they are major/minor triad
-    chord = music21.chord.Chord(notes)
-    chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
-    if chord.isMajorTriad() or chord.isMinorTriad():
+    else:
+        for note in notesAndRests:
+            uninteresting_notes.add(id(note))
         return True
-    return False
 
 class MotifAnalyzer(object):
 
@@ -64,9 +80,10 @@ class MotifAnalyzer(object):
             for notegram in self.load_notegrams_by_part(part):
                 self.notegram_groups[str(notegram)].append(notegram)
 
-        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 20) # what should this be?
+        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 10) # what should this be?
 
     def load_notegrams_by_part(self, part):
+
         measures = list(part.getElementsByClass('Measure'))
 
         vids = set(str(v.id) for measure in measures for v in measure.voices)
@@ -103,8 +120,8 @@ class MotifAnalyzer(object):
                 if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
                     continue
 
-                # reject notegram starting with a rest
-                if notegram[0][1].isRest:
+                # reject notegram starting / ending with a rest
+                if notegram[0][1].isRest or notegram[-1][1].isRest:
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -116,8 +133,7 @@ class MotifAnalyzer(object):
                 if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
                     continue
 
-                # reject notegram if it is likely just a broken chord:
-                if is_likely_broken_chord(notegram):
+                if is_notegram_unintersting(notegram):
                     continue
 
                 # if the notegram contain notes with tie, add more note at the end to make up for it
@@ -187,8 +203,6 @@ class MotifAnalyzer(object):
             print(distance_matrix)
             print("-----------------------\n")
 
-        weights = [len(i) for _, i in self.notegram_groups.items()]
-
         models = AgglomerativeClustering(n_clusters=self.init_num_of_cluster, affinity='precomputed', linkage='complete')
         db = models.fit(distance_matrix)
 
@@ -217,7 +231,7 @@ class MotifAnalyzer(object):
             for label, cluser in clusters.items():
                 print(label, ':', (num_of_group_in_cluster[label] - mean) / sd)
 
-        clusters = { label: cluster for label, cluster in clusters.items() if (num_of_group_in_cluster[label] - mean) / sd >= Z_SCORE_THRESHOLD }
+        clusters = { label: cluster for label, cluster in clusters.items() if num_of_group_in_cluster[label] >= MIN_CLUSTER_SIZE and (num_of_group_in_cluster[label] - mean) / sd >= Z_SCORE_THRESHOLD }
 
         # merge overlapping clusters together
         queue = list(clusters.keys())
