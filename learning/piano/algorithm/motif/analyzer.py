@@ -15,7 +15,7 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-OVERLAP_THRESHOLD = 0.8
+OVERLAP_THRESHOLD = 0.5
 Z_SCORE_THRESHOLD = 2
 
 MIN_CLUSTER_SIZE = 10
@@ -120,8 +120,8 @@ class MotifAnalyzer(object):
                 if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
                     continue
 
-                # reject notegram starting / ending with a rest
-                if notegram[0][1].isRest or notegram[-1][1].isRest:
+                # reject notegram containing a rest
+                if any(n[1].isRest for n in notegram):
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -130,7 +130,7 @@ class MotifAnalyzer(object):
                     continue
 
                 # reject notegram with note of 0 length (it should have been a Rest)
-                if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
+                if any((note[1].duration.quarterLength < 1e-2) for note in notegram):
                     continue
 
                 if is_notegram_unintersting(notegram):
