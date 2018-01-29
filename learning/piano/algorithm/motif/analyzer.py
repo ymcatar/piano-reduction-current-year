@@ -15,11 +15,15 @@ from .similarity import get_dissimilarity_matrix
 
 NGRAM_SIZE = 4
 
-OVERLAP_THRESHOLD = 0.8
-Z_SCORE_THRESHOLD = 2 # ~ 2.28%
+OVERLAP_THRESHOLD = 0.5
+Z_SCORE_THRESHOLD = 2
+
+MIN_CLUSTER_SIZE = 10
 
 def has_across_tie_to_next_note(curr_note, next_note):
     if curr_note is None or next_note is None:
+        return False
+    if not isinstance(curr_note, music21.note.Note) or not isinstance(next_note, music21.note.Note):
         return False
     if curr_note.tie is None or next_note.tie is None:
         return False
@@ -28,6 +32,52 @@ def has_across_tie_to_next_note(curr_note, next_note):
             if curr_note.pitch.ps == next_note.pitch.ps:
                 return True
     return False
+
+uninteresting_notes = set()
+
+def is_notegram_unintersting(notegram):
+    is_interesting = True
+    notesAndRests = list(n[1] for n in notegram)
+    # check if any note is marked as uninteresting previously
+    if any(id(n) in uninteresting_notes for n in notesAndRests):
+        is_interesting = False
+    else:
+        notes = list(n for n in notesAndRests if isinstance(n, music21.note.Note))
+        rhythms = [n.duration.quarterLength for n in notesAndRests]
+        pitches = [n.pitch.ps for n in notes if n.isRest is True]
+        # see if both equal rhythm and equal pitch
+        if len(set(rhythms)) == 1 and len(set(pitches)) == 1:
+            is_interesting = False
+        else:
+            # check if they can form a common chord
+            note_names = set(n.name for n in notes)
+            if len(set(rhythms)) == 1 and len(note_names) >= 3:
+                # form the chord and see if they are major/minor triad
+                chord = music21.chord.Chord(note_names)
+                chord = music21.chord.Chord.sortAscending(chord, inPlace=False)
+                if any([
+                    chord.isTriad(),
+                    chord.isAugmentedSixth(),
+                    chord.isAugmentedTriad(),
+                    chord.isDiminishedSeventh(),
+                    chord.isDiminishedTriad(),
+                    chord.isDominantSeventh(),
+                    chord.isFrenchAugmentedSixth(),
+                    chord.isGermanAugmentedSixth(),
+                    chord.isHalfDiminishedSeventh(),
+                    chord.isItalianAugmentedSixth(),
+                    chord.isSeventh(),
+                    chord.isSwissAugmentedSixth() 
+                ]):
+                    # print(chord.commonName) 
+                    is_interesting = False
+    
+    if is_interesting:
+        return False
+    else:
+        for note in notesAndRests:
+            uninteresting_notes.add(id(note))
+        return True
 
 class MotifAnalyzer(object):
 
@@ -47,9 +97,10 @@ class MotifAnalyzer(object):
             for notegram in self.load_notegrams_by_part(part):
                 self.notegram_groups[str(notegram)].append(notegram)
 
-        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 20) # what should this be?
+        self.init_num_of_cluster = math.ceil(len(self.notegram_groups) / 10) # what should this be?
 
     def load_notegrams_by_part(self, part):
+
         measures = list(part.getElementsByClass('Measure'))
 
         vids = set(str(v.id) for measure in measures for v in measure.voices)
@@ -86,8 +137,8 @@ class MotifAnalyzer(object):
                 if notegram[0][1].tie is not None and notegram[0][1].tie.type in ('continue', 'stop'):
                     continue
 
-                # reject notegram starting with a rest
-                if notegram[0][1].isRest:
+                # reject notegram containing a rest
+                if any(n[1].isRest for n in notegram):
                     continue
 
                 # reject notegram containing >= quarter rest
@@ -96,7 +147,10 @@ class MotifAnalyzer(object):
                     continue
 
                 # reject notegram with note of 0 length (it should have been a Rest)
-                if any((note[1].duration.quarterLength - 0.0 < 1e-2) for note in notegram):
+                if any((note[1].duration.quarterLength < 1e-2) for note in notegram):
+                    continue
+
+                if is_notegram_unintersting(notegram):
                     continue
 
                 # if the notegram contain notes with tie, add more note at the end to make up for it
@@ -166,8 +220,6 @@ class MotifAnalyzer(object):
             print(distance_matrix)
             print("-----------------------\n")
 
-        weights = [len(i) for _, i in self.notegram_groups.items()]
-
         models = AgglomerativeClustering(n_clusters=self.init_num_of_cluster, affinity='precomputed', linkage='complete')
         db = models.fit(distance_matrix)
 
@@ -196,7 +248,7 @@ class MotifAnalyzer(object):
             for label, cluser in clusters.items():
                 print(label, ':', (num_of_group_in_cluster[label] - mean) / sd)
 
-        clusters = { label: cluster for label, cluster in clusters.items() if (num_of_group_in_cluster[label] - mean) / sd >= Z_SCORE_THRESHOLD }
+        clusters = { label: cluster for label, cluster in clusters.items() if num_of_group_in_cluster[label] >= MIN_CLUSTER_SIZE and (num_of_group_in_cluster[label] - mean) / sd >= Z_SCORE_THRESHOLD }
 
         # merge overlapping clusters together
         queue = list(clusters.keys())
@@ -229,10 +281,14 @@ class MotifAnalyzer(object):
 
     def highlight_notegram_group(self, notegram_group, label):
         label_index = int(label)
+        first_label = '(' + label + ')'
         label = '[' + label + ']'
         for value in self.notegram_groups[notegram_group]:
             note_list = value.get_note_list()
-            for note in note_list:
-                if len(note.lyrics) == 0 or all(lyric.text != label for lyric in note.lyrics):
-                    note.style.color = 'red'
-                    note.insertLyric(label, label_index)
+            for i, note in enumerate(note_list):
+                note.style.color = 'red'
+                item = [i for i, lyric in enumerate(note.lyrics) if lyric.text == label or lyric.text == first_label]
+                if len(note.lyrics) != 0 and len(item) != 0:
+                    note.lyrics.pop(item[0])
+                note.insertLyric(first_label if i == 0 else label, label_index)
+                    
