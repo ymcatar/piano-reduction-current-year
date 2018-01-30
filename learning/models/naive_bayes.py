@@ -1,6 +1,6 @@
 import functools
 from .sk import WrappedSklearnModel
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import GaussianNB
 
 from ..piano import algorithm
 from ..piano.alignment.min_octave_hand import AlignMinOctaveHand
@@ -8,7 +8,7 @@ from ..piano.alignment.min_octave_hand import AlignMinOctaveHand
 
 class NaiveBayes(WrappedSklearnModel):
     def __init__(self, *args, **kwargs):
-        Model = functools.partial(MultinomialNB)
+        Model = functools.partial(GaussianNB)
         super().__init__(Model, *args, **kwargs)
 
 
