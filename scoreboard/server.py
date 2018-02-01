@@ -4,15 +4,17 @@ import glob
 import logging
 import json
 import os
+import subprocess
 
 from aiohttp import web
 from music21.converter.subConverters import ConverterMusicXML, SubConverterException
-
-from .image_processing import index_image
+from music21 import environment
 
 
 LOG_DIR = os.path.abspath('log')
 PUBLIC_DIR = os.path.abspath('scoreboard/public')
+
+environ_local = environment.Environment('scoreboard/server.py')
 
 
 def configure_logger():
@@ -46,8 +48,11 @@ async def update_run_map():
     for run in os.listdir(LOG_DIR):
         if run in run_map:
             continue
+        index_path = os.path.join(LOG_DIR, run, 'index.json')
+        if not os.path.exists(index_path):
+            continue
         try:
-            with open(os.path.join(LOG_DIR, run, 'index.json')) as f:
+            with open(index_path) as f:
                 run_data = json.load(f)
             assert type(run_data) == dict
             run_data.update({
@@ -55,8 +60,8 @@ async def update_run_map():
                 'path': '{}'.format(run),
                 })
             run_map[run] = run_data
-        except (OSError, json.JSONDecodeError) as e:
-            logging.info('Error loading run {}'.format(run), e)
+        except (OSError, json.JSONDecodeError):
+            logging.info('Error loading run {}'.format(run), excinfo=True)
     global runs
     runs = sorted(run_map.values(), key=lambda d: -d['timestamp'])
 
@@ -75,16 +80,16 @@ async def ensure_xml_render(path):
     if not os.path.exists(out_path):
         try:
             logging.info('Rendering XML: {}'.format(path))
-            converter = ConverterMusicXML()
-            converter.runThroughMusescore(path, dpi=144)
-            full_image_paths = sorted(glob.glob('{}-*.png'.format(basepath)))
+            mscore = environ_local['musescoreDirectPNGPath']
+            if not mscore or not os.path.exists(mscore):
+                raise web.HTTPInternalServerError('MuseScore not installed')
+            subprocess.run([mscore, '-o', path[:-3] + 'svg', '-T', '0', path], check=True)
+            full_image_paths = sorted(glob.glob('{}-*.svg'.format(basepath)))
             image_paths = [i.rsplit('/', 1)[1] for i in full_image_paths]
-            note_maps = [index_image(i) for i in full_image_paths]
 
             with open(out_path, 'w') as f:
                 data = {
                     'pages': image_paths,
-                    'noteMaps': note_maps,
                     }
                 try:
                     json.dump(data, f)

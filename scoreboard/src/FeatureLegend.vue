@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-if="feature">
     <p>{{feature.help}}</p>
     <p>Type: {{feature.dtype}}</p>
     <template v-if="feature.dtype === 'categorical'">

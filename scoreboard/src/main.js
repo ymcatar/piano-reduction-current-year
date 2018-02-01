@@ -7,8 +7,6 @@ Vue.use(VueMaterial);
 
 import Run from './Run.vue';
 Vue.component('run', Run);
-import ScorePage from './ScorePage.vue';
-Vue.component('score-page', ScorePage);
 import ScoreCanvas from './ScoreCanvas.vue';
 Vue.component('score-canvas', ScoreCanvas);
 import FeatureLegend from './FeatureLegend.vue';
