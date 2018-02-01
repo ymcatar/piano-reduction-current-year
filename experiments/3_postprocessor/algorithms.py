@@ -1,6 +1,6 @@
 import music21
 from collections import defaultdict
-from util import isNote, isChord, highlight
+from util import isNote, isChord
 
 # Constants
 MAX_CONCURRENT_NOTE = 4
@@ -21,9 +21,9 @@ class PostProcessorAlgorithms(object):
                 num_of_notes += noteOrChord.chordTablesAddress.cardinality
 
         # highlight all time instance with note playing >= MAX_CONCURRENT_NOTE
-        if num_of_notes >= MAX_CONCURRENT_NOTE:
-            for noteOrChord in group:
-                highlight(noteOrChord, 'red')
+        # if num_of_notes >= MAX_CONCURRENT_NOTE:
+            # for noteOrChord in group:
+                # highlight(noteOrChord, 'red')
 
         return group
 
@@ -80,8 +80,8 @@ class PostProcessorAlgorithms(object):
 
         for pair in sites:
             first, last = pair
-            highlight(first, '#00ff00')
-            highlight(last, '#00ff00')
+            # highlight(first, '#00ff00')
+            # highlight(last, '#00ff00')
 
         return sites
 

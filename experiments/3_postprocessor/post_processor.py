@@ -2,10 +2,13 @@
 
 import music21
 from collections import defaultdict
+from copy import deepcopy
+from operator import itemgetter
 
 # relative import
 from util import isNote, isChord
 from algorithms import PostProcessorAlgorithms
+from note_wrapper import NoteWrapper
 
 # algorithm set
 
@@ -13,11 +16,11 @@ ALGORITHMS_BY_MEASURE_GROUP = [
 ]
 
 ALGORITHMS_BY_MEASURE = [
-    (PostProcessorAlgorithms.large_hand_movement, PostProcessorAlgorithms.fix_large_hand_movement)
+    # (PostProcessorAlgorithms.large_hand_movement, PostProcessorAlgorithms.fix_large_hand_movement)
 ]
 
 ALGORITHMS_BY_OFFSET_GROUPED_NOTES = [
-    (PostProcessorAlgorithms.concurrent_notes, PostProcessorAlgorithms.fix_concurrent_notes)
+    # (PostProcessorAlgorithms.concurrent_notes, PostProcessorAlgorithms.fix_concurrent_notes)
 ]
 
 class PostProcessor(object):
@@ -29,9 +32,10 @@ class PostProcessor(object):
         # get all measures from the score
         self.measures = list(self.score.recurse(skipSelf=True).getElementsByClass('Measure'))
         for measure in self.measures:
-            measure.removeByClass(
-                [music21.layout.PageLayout, music21.layout.SystemLayout]
-            )
+            measure.removeByClass([
+                music21.layout.PageLayout,
+                music21.layout.SystemLayout,
+                music21.layout.StaffLayout])
 
         # group measures with the same offset together
         self.grouped_measures = defaultdict(lambda: [])
@@ -44,17 +48,36 @@ class PostProcessor(object):
             for measure in group:
                 offset_map = measure.offsetMap()
                 for item in offset_map:
-                    self.offset_grouped_notes[measure.offset + item.offset].append(item.element)
+                    offset = measure.offset + item.offset
+                    if isChord(item.element):
+                        for note in item.element._notes:
+                            note = NoteWrapper(note, offset, self.score, item.element)
+                            self.offset_grouped_notes[offset].append(note)
+                    else: # note or rest
+                        note = NoteWrapper(item.element, offset, self.score)
+                        self.offset_grouped_notes[offset].append(note)
+
+        # perform finger assignment
+        self.perform_finger_assignment()
 
         # dictionary to store all the problematic sites
         self.sites = defaultdict(lambda: [])
 
-    def apply(self):
-        self.applyEach(ALGORITHMS_BY_MEASURE, self.measures)
-        self.applyEach(ALGORITHMS_BY_MEASURE_GROUP, self.grouped_measures)
-        self.applyEach(ALGORITHMS_BY_OFFSET_GROUPED_NOTES, self.offset_grouped_notes)
+    def perform_finger_assignment(self):
 
-    def applyEach(self, algorithms, source):
+        assert self.offset_grouped_notes is not None
+        for offset, group in self.offset_grouped_notes.items():
+            notes = [i for i in group if isNote(i.note)]
+            notes = sorted(notes, key=lambda i: i.note.pitch.ps)
+            print(offset, list(n.note.pitch.ps for n in notes))
+
+    def apply(self):
+        pass
+        # self.apply_each(ALGORITHMS_BY_MEASURE, self.measures)
+        # self.apply_each(ALGORITHMS_BY_MEASURE_GROUP, self.grouped_measures)
+        # self.apply_each(ALGORITHMS_BY_OFFSET_GROUPED_NOTES, self.offset_grouped_notes)
+
+    def apply_each(self, algorithms, source):
         source = source.items() if isinstance(source, dict) else source
         for item in source:
             for algorithm in algorithms:
