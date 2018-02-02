@@ -58,18 +58,38 @@ class PostProcessor(object):
                         self.offset_grouped_notes[offset].append(note)
 
         # perform finger assignment
-        self.perform_finger_assignment()
+        assert self.offset_grouped_notes is not None
+        prev_assignment = None
+        for offset, group in self.offset_grouped_notes.items():
+            # get and sort all the notes in the current time instance by pitch step
+            notes = [i for i in group if isNote(i.note)]
+            notes = sorted(notes, key=lambda i: i.note.pitch.ps)
+            curr_assignment = self.perform_finger_assignment(offset, notes, prev=prev_assignment)
+            # print(offset, curr_assignment)
+            prev_assignment = curr_assignment
 
         # dictionary to store all the problematic sites
         self.sites = defaultdict(lambda: [])
 
-    def perform_finger_assignment(self):
+    def perform_finger_assignment(self, offset, notes, prev=None):
 
-        assert self.offset_grouped_notes is not None
-        for offset, group in self.offset_grouped_notes.items():
-            notes = [i for i in group if isNote(i.note)]
-            notes = sorted(notes, key=lambda i: i.note.pitch.ps)
-            print(offset, list(n.note.pitch.ps for n in notes))
+        octaves = list(set(n.note.octave for n in notes))
+
+        if not prev: # is the first time instance, apply Cherry's staff assignment
+            if len(octaves) == 1: # only one octave => assign to either one
+                if octaves[0] >= 4: # >= middle C octave
+                    # assign to right hand
+                    print('right:', notes)
+                else:
+                    print('left:', notes)
+            elif len(octaves) == 2: # two octaves => assign lower one to left, assign higher one to right
+                lower_octave, higher_octave = min(octaves), max(octaves)
+                print('left:', list(n for n in notes if n.note.octave == lower_octave))
+                print('right:', list(n for n in notes if n.note.octave == higher_octave))
+            else: # maybe it is impossible
+                pass
+
+        print(offset, list(n.note.pitch.ps for n in notes))
 
     def apply(self):
         pass
