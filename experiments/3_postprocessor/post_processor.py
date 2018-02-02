@@ -1,6 +1,8 @@
 #!/usr/vin/env python3
 
+import math
 import music21
+import numpy as np
 from collections import defaultdict
 from copy import deepcopy
 from operator import itemgetter
@@ -76,6 +78,8 @@ class PostProcessor(object):
         octaves = list(set(n.note.octave for n in notes))
 
         if not prev: # is the first time instance, apply Cherry's staff assignment
+            if len(octaves) == 0: # no notes => do nothing
+                return None
             if len(octaves) == 1: # only one octave => assign to either one
                 if octaves[0] >= 4: # >= middle C octave
                     # assign to right hand
@@ -86,10 +90,20 @@ class PostProcessor(object):
                 lower_octave, higher_octave = min(octaves), max(octaves)
                 print('left:', list(n for n in notes if n.note.octave == lower_octave))
                 print('right:', list(n for n in notes if n.note.octave == higher_octave))
-            else: # maybe it is impossible
-                pass
+            else:
+                median = np.median(octaves)
+                left_octaves = [o for o in octaves if o < median]
+                right_octaves = [o for o in octaves if o > median]
+                # if len(octaves) is odd, manually assign the median to the hand with smallest linkage
+                if len(octaves) % 2 == 1:
+                    if median - max(i for i in left_octaves) < min(i for i in right_octaves) - median:
+                        left_octaves.append(math.trunc(median))
+                    else:
+                        right_octaves.append(math.trunc(median))
 
-        print(offset, list(n.note.pitch.ps for n in notes))
+                print(left_octaves, right_octaves)
+
+        # print(offset, list(n.note.pitch.ps for n in notes))
 
     def apply(self):
         pass
