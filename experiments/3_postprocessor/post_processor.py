@@ -77,31 +77,55 @@ class PostProcessor(object):
 
         octaves = list(set(n.note.octave for n in notes))
 
-        if not prev: # is the first time instance, apply Cherry's staff assignment
+        if not prev: # is the first time instance, apply staff assignment
+
+            left_notes, right_notes = [], []
+
             if len(octaves) == 0: # no notes => do nothing
                 return None
-            if len(octaves) == 1: # only one octave => assign to either one
+
+            elif len(octaves) == 1: # only one octave => assign to either one
                 if octaves[0] >= 4: # >= middle C octave
                     # assign to right hand
-                    print('right:', notes)
+                    right_notes = list(n for n in notes)
                 else:
-                    print('left:', notes)
+                    # assign to left hand
+                    left_notes = list(n for n in notes)
+
             elif len(octaves) == 2: # two octaves => assign lower one to left, assign higher one to right
                 lower_octave, higher_octave = min(octaves), max(octaves)
-                print('left:', list(n for n in notes if n.note.octave == lower_octave))
-                print('right:', list(n for n in notes if n.note.octave == higher_octave))
+                # if only a small number of notes and they are close together, assign to same hand
+                if len(notes) <= 3 and higher_octave - lower_octave == 1:
+                    if (higher_octave + lower_octave) // 2 >= 4:
+                        # assign to right hand
+                        right_notes = list(n for n in notes)
+                    else:
+                        # assign to left hand
+                        left_notes = list(n for n in notes)
+                else:
+                    left_notes = list(n for n in notes if n.note.octave == lower_octave)
+                    right_notes = list(n for n in notes if n.note.octave == higher_octave)
+
             else:
                 median = np.median(octaves)
-                left_octaves = [o for o in octaves if o < median]
-                right_octaves = [o for o in octaves if o > median]
+                left_octaves = set(o for o in octaves if o < median)
+                right_octaves = set(o for o in octaves if o > median)
                 # if len(octaves) is odd, manually assign the median to the hand with smallest linkage
                 if len(octaves) % 2 == 1:
                     if median - max(i for i in left_octaves) < min(i for i in right_octaves) - median:
-                        left_octaves.append(math.trunc(median))
+                        left_octaves.add(math.trunc(median))
                     else:
-                        right_octaves.append(math.trunc(median))
+                        right_octaves.add(math.trunc(median))
+                # collect all the notes from the octave lists
+                left_notes = list(n for n in notes if n.note.octave in left_octaves)
+                right_notes = list(n for n in notes if n.note.octave in right_octaves)
 
-                print(left_octaves, right_octaves)
+            # sanity check
+            # for note in left_notes:
+                # note.highlight('#00ff00')
+
+            # for note in right_notes:
+                # note.highlight('red')
 
         # print(offset, list(n.note.pitch.ps for n in notes))
 
