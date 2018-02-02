@@ -25,6 +25,38 @@ ALGORITHMS_BY_OFFSET_GROUPED_NOTES = [
     # (PostProcessorAlgorithms.concurrent_notes, PostProcessorAlgorithms.fix_concurrent_notes)
 ]
 
+# https://assets.key-notes.com/natural_hand_position.png
+FINGER_DEFAULT_POSITION = {
+    'L': {          # 5, 4, 3, 2, 1
+        'C#': 2,
+        'D': 1,
+        'D#': 2,
+        'E': 5,     # natural
+        'F': 5,
+        'F#': 4,    # natural
+        'G': 5,
+        'G#': 3,    # natural
+        'A': 1,
+        'A#': 2,    # natural
+        'B': 1,
+        'C': 1      # natural
+    },
+    'R': {          # 1, 2, 3, 4, 5
+        'C#': 4,
+        'D': 5,
+        'D#': 4,
+        'E': 1,     # natural
+        'F': 1,
+        'F#': 3,    # natural
+        'G': 1,
+        'G#': 4,    # natural
+        'A': 5,
+        'A#': 4,    # natural
+        'B': 5,
+        'C': 5      # natural
+    }
+}
+
 class PostProcessor(object):
 
     def __init__(self, score):
@@ -59,75 +91,57 @@ class PostProcessor(object):
                         note = NoteWrapper(item.element, offset, self.score)
                         self.offset_grouped_notes[offset].append(note)
 
-        # perform finger assignment
-        assert self.offset_grouped_notes is not None
-        prev_assignment = None
-        for offset, group in self.offset_grouped_notes.items():
-            # get and sort all the notes in the current time instance by pitch step
-            notes = [i for i in group if isNote(i.note)]
-            notes = sorted(notes, key=lambda i: i.note.pitch.ps)
-            curr_assignment = self.perform_finger_assignment(offset, notes, prev=prev_assignment)
-            # print(offset, curr_assignment)
-            prev_assignment = curr_assignment
-
         # dictionary to store all the problematic sites
         self.sites = defaultdict(lambda: [])
 
-    def perform_finger_assignment(self, offset, notes, prev=None):
+    # def perform_staff_assignment(self, offset, notes, prev=None):
 
-        octaves = list(set(n.note.octave for n in notes))
+    #     octaves = list(set(n.note.octave for n in notes))
 
-        if not prev: # is the first time instance, apply staff assignment
+    #     if not prev: # is the first time instance, apply staff assignment
 
-            left_notes, right_notes = [], []
+    #         left_notes, right_notes = [], []
 
-            if len(octaves) == 0: # no notes => do nothing
-                return None
+    #         if len(octaves) == 0: # no notes => do nothing
+    #             return None
 
-            elif len(octaves) == 1: # only one octave => assign to either one
-                if octaves[0] >= 4: # >= middle C octave
-                    # assign to right hand
-                    right_notes = list(n for n in notes)
-                else:
-                    # assign to left hand
-                    left_notes = list(n for n in notes)
+    #         elif len(octaves) == 1: # only one octave => assign to either one
+    #             if octaves[0] >= 4: # >= middle C octave
+    #                 # assign to right hand
+    #                 right_notes = list(n for n in notes)
+    #             else:
+    #                 # assign to left hand
+    #                 left_notes = list(n for n in notes)
+    #         elif len(octaves) == 2: # two octaves => assign lower one to left, assign higher one to right
+    #             lower_octave, higher_octave = min(octaves), max(octaves)
+    #             # if only a small number of notes and they are close together, assign to same hand
+    #             if len(notes) <= 3 and higher_octave - lower_octave == 1:
+    #                 if (higher_octave + lower_octave) // 2 >= 4:
+    #                     # assign to right hand
+    #                     right_notes = list(n for n in notes)
+    #                 else:
+    #                     # assign to left hand
+    #                     left_notes = list(n for n in notes)
+    #             else:
+    #                 left_notes = list(n for n in notes if n.note.octave == lower_octave)
+    #                 right_notes = list(n for n in notes if n.note.octave == higher_octave)
 
-            elif len(octaves) == 2: # two octaves => assign lower one to left, assign higher one to right
-                lower_octave, higher_octave = min(octaves), max(octaves)
-                # if only a small number of notes and they are close together, assign to same hand
-                if len(notes) <= 3 and higher_octave - lower_octave == 1:
-                    if (higher_octave + lower_octave) // 2 >= 4:
-                        # assign to right hand
-                        right_notes = list(n for n in notes)
-                    else:
-                        # assign to left hand
-                        left_notes = list(n for n in notes)
-                else:
-                    left_notes = list(n for n in notes if n.note.octave == lower_octave)
-                    right_notes = list(n for n in notes if n.note.octave == higher_octave)
+    #         else:
+    #             median = np.median(list(n.note.pitch.ps for n in notes))
+    #             left_notes = list(n for n in notes if n.note.pitch.ps < median)
+    #             remaining_notes = list(n for n in notes if n.note.pitch.ps == median)
+    #             right_notes = list(n for n in notes if n.note.pitch.ps > median)
 
-            else:
-                median = np.median(octaves)
-                left_octaves = set(o for o in octaves if o < median)
-                right_octaves = set(o for o in octaves if o > median)
-                # if len(octaves) is odd, manually assign the median to the hand with smallest linkage
-                if len(octaves) % 2 == 1:
-                    if median - max(i for i in left_octaves) < min(i for i in right_octaves) - median:
-                        left_octaves.add(math.trunc(median))
-                    else:
-                        right_octaves.add(math.trunc(median))
-                # collect all the notes from the octave lists
-                left_notes = list(n for n in notes if n.note.octave in left_octaves)
-                right_notes = list(n for n in notes if n.note.octave in right_octaves)
+    #             max_left_note = max(n.note.pitch.ps for n in left_notes)
+    #             min_right_note = min(n.note.pitch.ps for n in right_notes)
 
-            # sanity check
-            # for note in left_notes:
-                # note.highlight('#00ff00')
+    #             if median - max_left_note < min_right_note - median:
+    #                 left_notes += remaining_notes
+    #             else:
+    #                 right_notes += remaining_notes
 
-            # for note in right_notes:
-                # note.highlight('red')
-
-        # print(offset, list(n.note.pitch.ps for n in notes))
+    #         left_notes = sorted(left_notes, key=lambda n:n.note.pitch.ps)
+    #         right_notes = sorted(right_notes, key=lambda n: n.note.pitch.ps)
 
     def apply(self):
         pass
