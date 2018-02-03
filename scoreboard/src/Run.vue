@@ -22,11 +22,11 @@
         </md-list-item>
 
         <md-subheader>Features</md-subheader>
-        <template v-for="i of [0, 1]">
-          <md-list-item :key="i">
+        <template v-for="key of annotationKeys">
+          <md-list-item :key="key">
             <md-field>
-              <label :for="'notehead' + i">Notehead {{i}}</label>
-              <md-select v-model="noteheads[i]" :id="'notehead' + i">
+              <label :for="key">{{key}}</label>
+              <md-select v-model="annotationMap[key]" :id="key">
                 <md-option key="null" value="none"></md-option>
                 <md-option v-for="feature of run.features" :key="feature.name"
                     :value="feature.name">
@@ -38,8 +38,9 @@
 
           <md-list-item>
             <div class="help">
-              <feature-legend v-if="noteheads[i]"
-                :feature="getFeature(noteheads[i], 'notehead' + i)"></feature-legend>
+              <feature-legend v-if="annotationMap[key]"
+                :type="annotationTypes[key]" :feature="getFeature(key)">
+              </feature-legend>
             </div>
           </md-list-item>
         </template>
@@ -98,7 +99,13 @@ export default {
     pages: null,
     featureData: null,
 
-    noteheads: [null, null],
+    annotationKeys: ['notehead0', 'notehead1', 'leftText'],
+    annotationTypes: {
+      notehead0: 'colour',
+      notehead1: 'colour',
+      leftText: 'text',
+    },
+    annotationMap: {},
 
     pageOffset: 0.0,
     pageCount: 100,
@@ -122,7 +129,10 @@ export default {
     annotations() {
       if (!this.featureData) return null;
 
-      const noteheads = this.noteheads.map((key, i) => this.getFeature(key, 'notehead' + i));
+      const noteheads = [];
+      for (let i = 0; this.annotationKeys.includes('notehead' + i); i++) {
+        noteheads.push(this.getFeature('notehead' + i));
+      }
 
       const selectedData = this.featureData[this.selectedNotes[0]] || {};
       const selectedPitch = selectedData._pitch;
@@ -149,6 +159,16 @@ export default {
             }
           }
         }
+        const leftText = this.getFeature('leftText');
+        if (leftText) {
+          const value = data[this.annotationMap['leftText']];
+          if (typeof value === 'boolean') {
+            props.leftText = value ? '+' : '';
+          } else if (typeof value !== 'undefined' && value !== null) {
+            props.leftText = String(value);
+          }
+        }
+
         if (this.selectedNotes.includes(key)) {
           props.circle = '#FF0000';
         } else if (data._pitch === selectedPitch) {
@@ -163,11 +183,12 @@ export default {
   },
 
   methods: {
-    getFeature(name, target) {
+    getFeature(annotation) {
+      const name = this.annotationMap[annotation];
       let feature = this.run.features.find(f => f.name === name);
-      if (feature && target) {
+      if (feature && annotation) {
         feature = Object.assign({}, feature);
-        feature.colour = this.defaultColours[target];
+        feature.colour = this.defaultColours[annotation];
       }
       return feature;
     },

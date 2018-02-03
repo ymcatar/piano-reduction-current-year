@@ -157,6 +157,17 @@ export default {
             const path = new Path2D(entry.path);
             this.ctx.fill(path);
           }
+          if (annotation.leftText) {
+            const OFFSET = 1;
+            this.ctx.fillStyle = '#FF0000';
+            this.ctx.font = 'bold 10px Roboto, Noto Sans, sans-serif';
+            this.ctx.textAlign = 'right';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(
+              annotation.leftText,
+              entry.bBox.x - OFFSET,
+              entry.bBox.y + 0.5 * entry.bBox.height);
+          }
           if (annotation.circle) {
             const OFFSET = 2;
             this.ctx.strokeStyle = annotation.circle;
