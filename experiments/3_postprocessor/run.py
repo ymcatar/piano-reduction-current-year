@@ -17,4 +17,4 @@ post_processor = PostProcessor(score)
 post_processor.apply()
 
 if not args.no_output:
-    score.show()
+    post_processor.show()
