@@ -4,13 +4,15 @@
     <p>Type: {{feature.dtype}}</p>
     <template v-if="feature.dtype === 'categorical'">
       <div v-for="(stuff, value) in feature.legend" class="label">
-        <div class="label-box" :style="{backgroundColor: stuff[0]}"></div>
+        <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: stuff[0]}"></div>
+        <div v-else class="text-box">{{value}}</div>
         <div>{{stuff[1]}}</div>
       </div>
     </template>
     <template v-else>
       <div class="label">
-        <div class="label-box" :style="{backgroundColor: feature.colour}"></div>
+        <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>
+        <div v-else class="text-box">+</div>
         <div>True label</div>
       </div>
     </template>
@@ -20,7 +22,7 @@
 <script>
 export default {
   name: 'FeatureLegend',
-  props: ['feature'],
+  props: ['feature', 'type'],
   data: () => ({
   }),
 };
@@ -31,12 +33,19 @@ export default {
     display: flex;
     align-items: center;
   }
-  .label-box {
+  .colour-box {
     width: 15px;
     height: 10px;
     border: 1px solid black;
     margin-top: 4px; margin-bottom: 4px;
     margin-right: 4px;
     flex-shrink: 0;
+  }
+  .text-box {
+    margin-right: 4px;
+    min-width: 60px;
+
+    font-size: 0.8em;
+    color: #ff0000;
   }
 </style>

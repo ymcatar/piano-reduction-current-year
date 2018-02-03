@@ -1,18 +1,21 @@
+import argparse
 import asyncio
+import contextlib
 import functools
 import glob
 import logging
 import json
 import os
 import subprocess
+import sys
+import webbrowser
 
 from aiohttp import web
-from music21.converter.subConverters import ConverterMusicXML, SubConverterException
 from music21 import environment
 
 
 LOG_DIR = os.path.abspath('log')
-PUBLIC_DIR = os.path.abspath('scoreboard/public')
+PUBLIC_DIR = os.path.abspath('scoreboard')
 
 environ_local = environment.Environment('scoreboard/server.py')
 
@@ -96,7 +99,7 @@ async def ensure_xml_render(path):
                 except:
                     os.remove(out_path)
                     raise
-        except SubConverterException:
+        except subprocess.SubprocessError:
             raise web.HTTPInternalServerError('Error rendering XML')
 
     return out_path
@@ -117,16 +120,46 @@ async def index_xml(request):
     return web.FileResponse(out_path)
 
 
-def main():
+def main(dev=False):
+    if not dev:
+        if not os.path.exists('scoreboard/dist/build.js'):
+            print(
+                'Scoreboard bundle not available!\n'
+                'Please run: (cd scoreboard && yarn && yarn run build)\n'
+                'or if you don\'t have yarn: (cd scoreboard && npm install && npm run build)',
+                file=sys.stderr)
+            sys.exit(1)
+
     app = web.Application(middlewares=[cors_middleware])
     app.router.add_get('/log/index.json', list_runs)
     app.router.add_get(r'/log/{basepath:.*}-index.json', index_xml)
     app.router.add_static('/log/', path=LOG_DIR, name='static')
-    # app.router.add_static('/', path=PUBLIC_DIR, name='public')
 
-    web.run_app(app, port=8081)
+    with contextlib.ExitStack() as stack:
+        if dev:
+            logging.info('Running webpack on 8080...')
+            cwd = os.path.join(os.getcwd(), 'scoreboard')
+            stack.enter_context(subprocess.Popen(['yarn', 'run', 'dev'], cwd=cwd))
+            PORT = 8081
+        else:
+            app.router.add_get(
+                '/', lambda _: web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html')))
+            app.router.add_static('/', path=PUBLIC_DIR, name='public')
+            PORT = 8080
+
+
+        print('## Visit {} on your browser. ##'.format('http://localhost:8080/'))
+
+        logging.info('Running server on {}...'.format(PORT))
+        web.run_app(app, port=PORT)
 
 
 if __name__ == '__main__':
     configure_logger()
-    main()
+
+    parser = argparse.ArgumentParser(description='Scoreboard Server')
+    parser.add_argument('--dev', action='store_true', help='Run webpack dev server')
+
+    args = parser.parse_args()
+
+    main(**args.__dict__)
