@@ -20,7 +20,7 @@ class PostProcessorAlgorithms(object):
 
         if len(pitches) == 3:  # a possible triad
             if chord.isTriad():
-                print('triad: ', chord)
+                print(chord)
                 for n in group:
                     n.highlight('#0000ff')
                 return [notes]
@@ -29,8 +29,7 @@ class PostProcessorAlgorithms(object):
 
     @ staticmethod
     def fix_triad(notes):
-        pass
-        # print(notes)
+        print('triad:', notes)
 
     @staticmethod
     def detect_too_many_concurrent_notes(group_tuple):
@@ -54,6 +53,6 @@ class PostProcessorAlgorithms(object):
         for name, note_list in pitches.items():
             note_list = sorted(note_list, key=lambda n: n.note.pitch.ps, reverse=True)
             if len(note_list) >= 2:
+                # only keep the lowest and the highest
                 for note in note_list[1:-1]:
-                    # note.highlight('red')
                     note.remove()
