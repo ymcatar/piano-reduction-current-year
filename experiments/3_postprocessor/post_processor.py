@@ -21,8 +21,12 @@ ALGORITHMS_BY_MEASURE = [
 ]
 
 ALGORITHMS_BY_OFFSET_GROUPED_NOTES = [
-    (PostProcessorAlgorithms.concurrent_notes, PostProcessorAlgorithms.fix_concurrent_notes)
+    (PostProcessorAlgorithms.detect_triad,
+     PostProcessorAlgorithms.fix_triad),
+    (PostProcessorAlgorithms.detect_too_many_concurrent_notes,
+     PostProcessorAlgorithms.fix_too_many_concurrent_notes)
 ]
+
 
 class PostProcessor(object):
 
@@ -33,17 +37,20 @@ class PostProcessor(object):
         self.score = self.score.voicesToParts()
 
         # get all measures from the score
-        self.measures = list(self.score.recurse(skipSelf=True).getElementsByClass('Measure'))
+        self.measures = list(self.score.recurse(
+            skipSelf=True).getElementsByClass('Measure'))
+
         for measure in self.measures:
-            measure.removeByClass([
-                music21.layout.PageLayout,
-                music21.layout.SystemLayout,
-                music21.layout.StaffLayout])
+            measure.removeByNotOfClass([
+                music21.note.Note,
+                music21.note.Rest,
+                music21.chord.Chord
+            ])
 
         # group measures with the same offset together
         self.grouped_measures = defaultdict(lambda: [])
         for measure in self.measures:
-           self.grouped_measures[str(measure.offset)].append(measure)
+            self.grouped_measures[str(measure.offset)].append(measure)
 
         # group notes starting at the same time instance together
         self.offset_grouped_notes = defaultdict(lambda: [])
@@ -54,9 +61,11 @@ class PostProcessor(object):
                     offset = measure.offset + item.offset
                     if isChord(item.element):
                         for note in item.element._notes:
-                            wappedNote = NoteWrapper(note, offset, self.score, item.element)
-                            self.offset_grouped_notes[offset].append(wappedNote)
-                    else: # note or rest
+                            wappedNote = NoteWrapper(
+                                note, offset, self.score, item.element)
+                            self.offset_grouped_notes[offset].append(
+                                wappedNote)
+                    else:  # note or rest
                         note = NoteWrapper(item.element, offset, self.score)
                         self.offset_grouped_notes[offset].append(note)
 
@@ -66,7 +75,8 @@ class PostProcessor(object):
     def apply(self):
         self.apply_each(ALGORITHMS_BY_MEASURE, self.measures)
         self.apply_each(ALGORITHMS_BY_MEASURE_GROUP, self.grouped_measures)
-        self.apply_each(ALGORITHMS_BY_OFFSET_GROUPED_NOTES, self.offset_grouped_notes)
+        self.apply_each(ALGORITHMS_BY_OFFSET_GROUPED_NOTES,
+                        self.offset_grouped_notes)
 
     def apply_each(self, algorithms, source):
         source = source.items() if isinstance(source, dict) else source

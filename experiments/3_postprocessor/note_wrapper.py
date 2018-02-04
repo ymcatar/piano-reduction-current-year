@@ -20,10 +20,11 @@ class NoteWrapper(object):
         self.note.style.color = color
 
     def remove(self):
-        # self.highlight('red')
-        # self.note.volume = 0
         if not self.deleted:
-            self.score.remove(self.note, recurse=True)
+            if self.is_from_chord:
+                self.src_chord.remove(self.note)
+            else:
+                self.score.remove(self.note, recurse=True)
         self.deleted = True
 
     def __repr__(self):
