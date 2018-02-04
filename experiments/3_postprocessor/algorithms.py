@@ -54,6 +54,6 @@ class PostProcessorAlgorithms(object):
         for name, note_list in pitches.items():
             note_list = sorted(note_list, key=lambda n: n.note.pitch.ps, reverse=True)
             if len(note_list) >= 2:
-                for note in note_list[1:]:
+                for note in note_list[1:-1]:
                     # note.highlight('red')
                     note.remove()

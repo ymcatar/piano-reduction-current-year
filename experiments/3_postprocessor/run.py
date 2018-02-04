@@ -14,7 +14,8 @@ args = parser.parse_args()
 score = music21.converter.parse(args.input)
 
 post_processor = PostProcessor(score)
-post_processor.apply()
+# post_processor.apply()
 
 if not args.no_output:
-    post_processor.show()
+    results = post_processor.retribute_to_two_staffs()
+    results.show()

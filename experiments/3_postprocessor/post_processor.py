@@ -32,7 +32,7 @@ class PostProcessor(object):
 
     def __init__(self, score):
 
-        self.score = score
+        self.score = deepcopy(score)
         self.score = score.toSoundingPitch()
         self.score = self.score.voicesToParts()
 
@@ -86,6 +86,39 @@ class PostProcessor(object):
                 self.sites[detect_func.__name__] += detect_func(item)
                 for site in self.sites[detect_func.__name__]:
                     fix_func(site)
+
+    def retribute_to_two_staffs(self):
+        left_hand = music21.stream.Part()
+        right_hand = music21.stream.Part()
+
+        left_hand.insert(0, music21.instrument.fromString('Piano'))
+        right_hand.insert(0, music21.instrument.fromString('Piano'))
+
+        left_hand.insert(0, music21.clef.BassClef())
+        right_hand.insert(0, music21.clef.TrebleClef())
+
+        # naively assigning everything to right hand
+        inserted_offset = defaultdict(lambda: False)
+        for offset, group in self.offset_grouped_notes.items():
+            for noteWrapper in group:
+                if not noteWrapper.deleted and isNote(noteWrapper.note):
+                    right_hand.insertIntoNoteOrChord(offset, noteWrapper.note)
+                    inserted_offset[offset] = True
+                elif noteWrapper.note.isRest and not inserted_offset[offset]:
+                    right_hand.insertIntoNoteOrChord(offset, noteWrapper.note)
+
+        result = music21.stream.Score()
+        result.insert(0, right_hand)
+        result.insert(0, left_hand)
+
+        staff_group = music21.layout.StaffGroup(
+            [right_hand, left_hand], name='Piano', abbreviation='Pno.',
+            symbol='brace')
+        staff_group.barTogether = 'yes'
+
+        result.insert(0, staff_group)
+
+        return result
 
     def show(self):
         self.score.show()
