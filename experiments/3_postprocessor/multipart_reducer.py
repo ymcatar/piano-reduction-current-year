@@ -9,6 +9,7 @@ from itertools import count
 RIGHT_HAND = 1
 LEFT_HAND = 2
 
+
 class MultipartReducer(object):
 
     def __init__(self, score):
@@ -23,7 +24,8 @@ class MultipartReducer(object):
         for i in count(0):
 
             bar = self.score.measure(i, collect=(), gatherSpanners=False)
-            measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
+            measures = bar.recurse(
+                skipSelf=False).getElementsByClass('Measure')
             if not measures:
                 # Measures is the pickup (partial) measure and may not exist
                 if i == 0:
@@ -106,8 +108,7 @@ class MultipartReducer(object):
 
         return result
 
-    def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(),
-                       measure_length=0, playable=True):
+    def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(), measure_length=0):
         # list of [offset, quarter length, list of (ps, tie)]
         out_notes = []
 
@@ -179,22 +180,11 @@ class MultipartReducer(object):
             note_to_insert = None
 
             if len(pss) > 1:
-                if playable:
-                    # Transform chords to playable ones
-                    max_ps, min_ps = max(pss), min(pss)
-                    while max(pss) - min(pss) > 12:
-                        if median > 60:
-                            pss.add(min_ps + 12)
-                            pss.remove(min_ps)
-                        else:
-                            pss.add(max_ps - 12)
-                            pss.remove(max_ps)
-                        max_ps, min_ps = max(pss), min(pss)
 
                 chord_notes = []
                 for ps in pss:
                     n = music21.note.Note(find_enharmonic(ps),
-                                  duration=music21.duration.Duration(length))
+                                          duration=music21.duration.Duration(length))
                     chord_notes.append(n)
 
                 note_to_insert = music21.chord.Chord(
@@ -206,7 +196,8 @@ class MultipartReducer(object):
                     duration=music21.duration.Duration(length))
 
             else:
-                note_to_insert = music21.note.Rest(duration=music21.duration.Duration(length))
+                note_to_insert = music21.note.Rest(
+                    duration=music21.duration.Duration(length))
 
             if length > 1e-2:
                 result.insert(offset, note_to_insert)
