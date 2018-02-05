@@ -1,4 +1,4 @@
-#!/usr/vin/env python3
+#!/usr/bin/env python3
 
 import music21
 import numpy as np
