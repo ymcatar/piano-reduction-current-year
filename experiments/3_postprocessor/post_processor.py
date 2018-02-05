@@ -11,6 +11,7 @@ from operator import itemgetter
 from util import isNote, isChord
 from algorithms import PostProcessorAlgorithms
 from note_wrapper import NoteWrapper
+from multipart_reducer import MultipartReducer
 
 # algorithm set
 
@@ -27,6 +28,8 @@ ALGORITHMS_BY_OFFSET_GROUPED_NOTES = [
      PostProcessorAlgorithms.fix_too_many_concurrent_notes)
 ]
 
+RIGHT_HAND = 1
+LEFT_HAND = 2
 
 class PostProcessor(object):
 
@@ -39,22 +42,6 @@ class PostProcessor(object):
         # get all measures from the score
         self.measures = list(self.score.recurse(
             skipSelf=True).getElementsByClass('Measure'))
-
-        # don't use music21 stream.getTimeSignatures() which is broken
-        self.timeSignatures = {}
-        self.keySignature = {}
-        for measure in self.measures:
-            for item in measure.recurse().getElementsByClass('TimeSignature'):
-                self.timeSignatures[measure.offset + item.offset] = item
-            for item in measure.recurse().getElementsByClass('KeySignature'):
-                self.keySignature[measure.offset + item.offset] = item
-
-        for i, measure in enumerate(self.measures):
-            measure.removeByNotOfClass([
-                music21.note.Note,
-                music21.note.Rest,
-                music21.chord.Chord
-            ])
 
         # group measures with the same offset together
         self.grouped_measures = defaultdict(lambda: [])
@@ -97,52 +84,14 @@ class PostProcessor(object):
                 for site in self.sites[detect_func.__name__]:
                     fix_func(site)
 
-    def retribute_to_two_staffs(self):
-        # left_hand = music21.stream.Part()
-        # right_hand = music21.stream.Part()
+    def assign_hands(self):
+        for offset, group in self.offset_grouped_notes.items():
+            for note in group:
+                note.note.editorial.misc['hand'] = LEFT_HAND
 
-        # left_hand.insert(0, music21.instrument.fromString('Piano'))
-        # right_hand.insert(0, music21.instrument.fromString('Piano'))
-
-        # left_hand.insert(0, music21.clef.BassClef())
-        # right_hand.insert(0, music21.clef.TrebleClef())
-
-        # # insert metadata
-        # for offset, item in self.timeSignatures.items():
-        #     left_hand.insert(offset, item)
-        #     right_hand.insert(offset, item)
-
-        # for offset, item in self.keySignature.items():
-        #     left_hand.insert(offset, item)
-        #     right_hand.insert(offset, item)
-
-        # # naively assigning everything to right hand
-        # for offset, measures in self.grouped_measures.items():
-        #     right_hand.append(measures[0])
-        #     if len(measures) > 1:
-        #         for measure in measures[1:]:
-        #             for item in measure:
-        #                 if isNote(item) or isChord(item):
-        #                     offset = measure.offset + item.offset
-        #                     right_hand.insertIntoNoteOrChord(offset, item)
-
-
-        # result = music21.stream.Score()
-
-        # result.insert(0, right_hand)
-        # result.insert(0, left_hand)
-
-        # staff_group = music21.layout.StaffGroup(
-        #     [right_hand, left_hand], name='Piano', abbreviation='Pno.',
-        #     symbol='brace')
-        # staff_group.barTogether = 'yes'
-
-        # result.insert(0, staff_group)
-
-        # return result
-
-        # FIXME
-        return self.score
+    def generate_piano_score(self):
+        reducer = MultipartReducer(self.score)
+        return reducer.reduce()
 
     def show(self):
         self.score.show()
