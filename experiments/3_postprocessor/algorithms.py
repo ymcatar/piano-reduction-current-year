@@ -20,7 +20,6 @@ class PostProcessorAlgorithms(object):
 
         if len(pitches) == 3:  # a possible triad
             if chord.isTriad():
-                print(chord)
                 for n in group:
                     n.highlight('#0000ff')
                 return [notes]
@@ -29,7 +28,8 @@ class PostProcessorAlgorithms(object):
 
     @ staticmethod
     def fix_triad(notes):
-        print('triad:', notes)
+        # print('triad:', notes)
+        pass
 
     @staticmethod
     def detect_too_many_concurrent_notes(group_tuple):

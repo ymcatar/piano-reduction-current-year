@@ -37,12 +37,21 @@ class MultipartReducer(object):
             for hand, part in zip(HANDS, parts):
 
                 key_signature, time_signature = None, None
-                notes, rest_sets = [], []
+                notes, rest_sets, tie_sets = [], [], []
 
                 for p in bar.parts:
                     rests = []
 
                     for elem in p.recurse(skipSelf=False):
+
+                        # record tie among notes
+                        if isinstance(elem, music21.note.Note) or \
+                                isinstance(elem, music21.chord.Chord):
+                            if elem.tie is not None:
+                                tie_sets.append((
+                                    elem.offset,
+                                    elem,
+                                    elem.tie))
 
                         if isinstance(elem, music21.key.KeySignature):
                             key_signature = elem
@@ -77,10 +86,14 @@ class MultipartReducer(object):
                     rest_sets.append(rests)
 
                 out_measure = self._create_measure(
-                    notes=notes, rest_sets=rest_sets, measure_length=bar_length)
+                    notes=notes,
+                    rest_sets=rest_sets,
+                    tie_sets=tie_sets,
+                    measure_length=bar_length)
 
                 if key_signature:
                     out_measure.insert(key_signature)
+
                 if time_signature:
                     out_measure.insert(time_signature)
 
@@ -108,7 +121,7 @@ class MultipartReducer(object):
 
         return result
 
-    def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(), measure_length=0):
+    def _create_measure(self, notes=[], rest_sets=[], tie_sets=[], measure_length=0):
         # list of [offset, quarter length, list of (ps, tie)]
         out_notes = []
 
