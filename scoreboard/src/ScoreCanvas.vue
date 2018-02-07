@@ -75,9 +75,17 @@ export default {
         document.documentElement.appendChild(svg);
         for (const elem of svg.children) {
           if (!elem.classList.contains('Note')) continue;
+
+          const ctm = elem.getCTM();
+          const bBox = elem.getBBox();
+          let s = svg.createSVGPoint(); s.x = bBox.x; s.y = bBox.y;
+          s = s.matrixTransform(ctm);
+
           noteMap[elem.getAttribute('fill').toUpperCase()] = {
+            ctm: elem.getCTM(),
             path: elem.getAttribute('d'),
-            bBox: elem.getBBox(),
+            // Hopefully there are no rotations
+            bBox: {x: s.x, y: s.y, width: bBox.width, height: bBox.height},
           };
         }
         document.documentElement.removeChild(svg);
@@ -155,7 +163,11 @@ export default {
           if (colour) {
             this.ctx.fillStyle = colour;
             const path = new Path2D(entry.path);
+            let ctm = entry.ctm;
+            this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
             this.ctx.fill(path);
+            ctm = ctm.inverse();
+            this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
           }
           if (annotation.leftText) {
             const OFFSET = 1;
