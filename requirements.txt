@@ -16,3 +16,6 @@ aiohttp==2.3.5
 imageio==2.2.0
 expiringdict==1.1.4
 msgpack==0.5.1
+ad3==2.1
+cvxopt==1.1.9
+https://github.com/pystruct/pystruct/archive/23c6d8f6ab34a88b63386a595debbfdfa13345fe.zip
