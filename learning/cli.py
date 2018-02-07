@@ -249,8 +249,10 @@ def command_reduce(args, **kwargs):
 
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
-    writer.add_features(reducer.features)
-    writer.add_score('combined', result)
+    writer.add_features(reducer.input_features)
+    writer.add_features(reducer.output_features)
+    writer.add_score('combined', result, title='Orig. + Gen. Reduction',
+                     help=description)
     writer.finalize()
 
     if args.no_output:
@@ -284,14 +286,14 @@ def command_show(args, module, **kwargs):
     logging.info('Writing data')
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
-    writer.add_features(reducer.features)
+    writer.add_features(reducer.input_features)
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
         merge_reduced_to_original(sample_in.score, sample_out.score)
-        writer.add_score('combined', sample_in.score)
+        writer.add_score('combined', sample_in.score, title='Orig. + Ex. Reduction')
     else:
-        writer.add_score('input', sample_in.score)
+        writer.add_score('input', sample_in.score, title='Orig.')
     writer.finalize()
 
     logging.info('Done')

@@ -39,10 +39,13 @@
               <label :for="key">{{key}}</label>
               <md-select v-model="annotationMap[key]" :id="key" md-dense>
                 <md-option key="null" value="none"></md-option>
-                <md-option v-for="feature of run.features" :key="feature.name"
-                    :value="feature.name">
-                  {{feature.name}}
-                </md-option>
+                <md-optgroup v-for="(features, group) in featureGroups"
+                  :key="group" :label="group || '(No group)'">
+                  <md-option v-for="feature of features" :key="feature.name"
+                      :value="feature.name">
+                    {{feature.name}}
+                  </md-option>
+                </md-optgroup>
               </md-select>
             </md-field>
           </md-list-item>
@@ -211,6 +214,17 @@ export default {
         result[key] = props;
       }
       return result;
+    },
+
+    featureGroups() {
+      if (!this.run) return {};
+      const ret = {};
+      for (const feature of this.run.features) {
+        const group = feature.group || '';
+        ret[group] = ret[group] || [];
+        ret[group].push(feature);
+      }
+      return ret;
     },
   },
 

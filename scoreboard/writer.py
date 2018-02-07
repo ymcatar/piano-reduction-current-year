@@ -12,34 +12,38 @@ import numpy as np
 
 
 class BaseFeature:
-    def __init__(self, name, dtype, default=None, help=''):
+    def __init__(self, name, dtype, default=None, help='', group=None):
         self.name = name
         self.dtype = dtype
         self.default = default
         self.help = help
+        self.group = group
 
 
 class BoolFeature(BaseFeature):
-    def __init__(self, name, default=False, help=''):
-        super().__init__(name, dtype='bool', default=default, help=help)
+    def __init__(self, name, default=False, help='', group=None):
+        super().__init__(name, dtype='bool', default=default, help=help,
+                         group=group)
 
 
 class FloatFeature(BaseFeature):
-    def __init__(self, name, range=None, default=0.0, help=''):
+    def __init__(self, name, range=None, default=0.0, help='', group=None):
         '''
         range: A pair (low, high) representing the range of values it can take.
             Set any of it to None to indicate unbounded.
         '''
-        super().__init__(name, dtype='float', default=default, help=help)
+        super().__init__(name, dtype='float', default=default, help=help,
+                         group=group)
         self.range = range or (None, None)
 
 
 class CategoricalFeature(BaseFeature):
-    def __init__(self, name, legend, default, help=''):
+    def __init__(self, name, legend, default, help='', group=None):
         '''
         legend: A dict mapping label to tuple (#XXXXXX, label).
         '''
-        super().__init__(name, dtype='categorical', default=default, help=help)
+        super().__init__(name, dtype='categorical', default=default, help=help,
+                         group=group)
         self.legend = legend
     ...
 

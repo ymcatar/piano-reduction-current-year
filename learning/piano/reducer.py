@@ -92,7 +92,7 @@ class Reducer(object):
         return y_proba
 
     @property
-    def features(self):
+    def input_features(self):
         features = []
 
         for algo in self.algorithms:
@@ -107,22 +107,28 @@ class Reducer(object):
             elif dtype == 'float':
                 features.append(writerlib.FloatFeature(
                     algo.key, getattr(algo, dtype, getattr(algo, 'range')),
-                    help=help))
+                    help=help, group='input'))
             else:
-                features.append(writerlib.BoolFeature(algo.key, help=help))
+                features.append(writerlib.BoolFeature(algo.key, help=help, group='input'))
 
-        # Note: These are predictions!
+        return features
+
+    @property
+    def output_features(self):
+        features = []
+
         if self.label_type == 'align':
-            features.append(writerlib.BoolFeature(
-                'align', help='Whether the note should be kept.'))
+            features.append(writerlib.FloatFeature(
+                'align', range=[0.0, 1.0],
+                help='How likely the note should be kept.', group='output'))
         elif self.label_type == 'hand':
             legend = {
-                1: ('Upper staff', '#0000FF'),
-                2: ('Lower staff', '#00FF00'),
-                0: ('Discarded', '#000000'),
+                0: ('#000000', 'Discarded'),
+                1: ('#3333FF', 'Upper staff'),
+                2: ('#33FF33', 'Lower staff'),
                 }
             features.append(writerlib.CategoricalFeature(
                 'hand', legend, '#000000',
-                help='Which staff the note should be kept in.'))
+                help='Which staff the note should be kept in.', group='output'))
 
         return features
