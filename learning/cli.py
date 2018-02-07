@@ -119,16 +119,17 @@ def train(args, module, save_model=False, **kwargs):
     dataset = Dataset(reducer, paths=args.sample,
                       use_cache=getattr(args, 'cache', False))
     if getattr(args, 'validation', False):
-        X, y, _, _ = dataset.split_dataset(dataset.find_index(args.file))
+        train_dataset, _ = dataset.split_dataset(dataset.find_index(args.file))
+        X, y = train_dataset.get_matrices(structured=True)
     else:
-        X, y = dataset.get_all()
+        X, y = dataset.get_matrices(structured=True)
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
     logging.info('Training ML model')
 
-    model.fit(X, y)
-    logging.info('Training metric = {}'.format(model.evaluate(X, y)))
+    model.fit_structured(X, y)
+    logging.info('Training metric = {}'.format(model.evaluate_structured(X, y)))
 
     if save_model:
         output = args.output or get_default_save_file(module)
@@ -159,11 +160,11 @@ def command_reduce(args, **kwargs):
     target = target_entry.input_score_obj
     target_out = target_entry.output_score_obj
 
-    X_test = target_entry.X
+    X_test = (target_entry.X, target_entry.E, target_entry.F)
     y_test = target_entry.y
     logging.info('Predicting')
 
-    y_proba = reducer.predict_from(model, target, X=X_test, mapping=target_entry.C)
+    y_proba = reducer.predict_from(model, target, X=X_test, mapping=target_entry.C, structured=True)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -303,7 +304,7 @@ def command_crossval(args, module, **kwargs):
 
     logging.info('Reading sample scores')
     dataset = Dataset(reducer, use_cache=True, keep_scores=True, paths=CROSSVAL_SAMPLES)
-    dataset.get_all()
+    dataset.get_matrices()
 
     all_metrics = defaultdict(list)
     metric_names = {}
@@ -312,7 +313,9 @@ def command_crossval(args, module, **kwargs):
     for i in range(len(dataset)):
         logging.info('Fold {}: {!r}'.format(i, dataset.entries[i].in_path))
         logging.info('-' * 60)
-        X_train, y_train, X_valid, y_valid = dataset.split_dataset(i)
+        train_dataset, valid_dataset = dataset.split_dataset(i)
+        X_train, y_train = train_dataset.get_matrices()
+        X_valid, y_valid = valid_dataset.get_matrices()
 
         logging.info('Training')
         model.fit(X_train, y_train)

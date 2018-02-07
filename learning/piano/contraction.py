@@ -109,3 +109,14 @@ def contract_by(matrix, C):
         result[g, ...] = np.max(entries, axis=0)
 
     return result
+
+
+def contract_structure_by(structure, C):
+    groups = defaultdict(list)
+    for edge, feature in structure.items():
+        new_edge = tuple(sorted([C[edge[0]], C[edge[1]]]))
+        if new_edge[0] == new_edge[1]:  # Prohibit self-loops
+            continue
+        groups[new_edge].append(feature)
+
+    return {k: np.max(v, axis=0) for k, v in groups.items()}

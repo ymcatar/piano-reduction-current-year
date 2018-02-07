@@ -16,7 +16,7 @@ class Reducer(object):
     '''
     Represents a particular configuration of the piano reduction system.
     '''
-    def __init__(self, algorithms, alignment, contractions=[]):
+    def __init__(self, algorithms, alignment, contractions=[], structures=[]):
         '''
         Arguments:
             algorithms: List of Algorithm objects or (class.path, args, kwargs)
@@ -39,12 +39,14 @@ class Reducer(object):
         self.label_type = self.alignment.key
 
         self.contractions = [ensure_algorithm(algo) for algo in contractions]
+        self.structures = [ensure_algorithm(algo) for algo in structures]
 
         self.args = (
             [], {
                 'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
                 'alignment': dump_algorithm(self.alignment),
                 'contractions': [dump_algorithm(algo) for algo in self.contractions],
+                'structures': [dump_algorithm(algo) for algo in self.structures],
             })
 
     @property
@@ -69,11 +71,14 @@ class Reducer(object):
         d.load(self, use_cache=use_cache, extra=extra)
         return d.y
 
-    def predict_from(self, model, score_obj, X=None, mapping=None):
+    def predict_from(self, model, score_obj, X=None, mapping=None, structured=False):
         if X is None:
             X = self.create_markings_on(score_obj)
 
-        y_proba = model.predict(X)
+        if structured:
+            y_proba = model.predict_structured(X)
+        else:
+            y_proba = model.predict(X)
         if self.label_type == 'align':
             y = np.squeeze(y_proba, axis=1)
         elif self.label_type == 'hand':
