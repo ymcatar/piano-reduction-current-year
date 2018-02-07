@@ -85,6 +85,7 @@
 </template>
 
 <script>
+import { interpolateRgbBasis } from 'd3-interpolate';
 import { apiRoot } from './config';
 import { fetchJSON } from './common';
 export default {
@@ -111,10 +112,21 @@ export default {
     pageCount: 100,
     selectedNotes: [],
 
-    defaultColours: {
-      notehead0: '#FF0000',
-      notehead1: '#33FF33',
-    },
+    defaults: (o => {
+      for (const k in o)
+        if (o.hasOwnProperty(k))
+          o[k].colourSpace = interpolateRgbBasis(o[k].colourBasis);
+      return o;
+    })({
+      notehead0: {
+        colour: '#FF0000',
+        colourBasis: ['#000000', '#FF0000', '#FF9900', '#FFFF00'],
+      },
+      notehead1: {
+        colour: '#33FF33',
+        colourBasis: ['#000000', '#00FF00', '#00FFFF', '#0000FF'],
+      },
+    }),
   }),
 
   computed: {
@@ -154,6 +166,10 @@ export default {
             if (nh.dtype === 'categorical') {
               const labelEntry = nh.legend[value];
               props.noteheads[i] = labelEntry ? labelEntry[0] : nh.default;
+            } else if (nh.dtype === 'float') {
+              // Interpolation
+              const t = (value - nh.range[0]) / (nh.range[1] - nh.range[0]);
+              props.noteheads[i] = nh.colourSpace(t).toString();
             } else {
               props.noteheads[i] = value ? nh.colour : '#000000';
             }
@@ -187,8 +203,7 @@ export default {
       const name = this.annotationMap[annotation];
       let feature = this.run.features.find(f => f.name === name);
       if (feature && annotation) {
-        feature = Object.assign({}, feature);
-        feature.colour = this.defaultColours[annotation];
+        feature = Object.assign({}, this.defaults[annotation], feature);
       }
       return feature;
     },

@@ -172,7 +172,7 @@ export default {
           if (annotation.leftText) {
             const OFFSET = 1;
             this.ctx.fillStyle = '#FF0000';
-            this.ctx.font = 'bold 10px Roboto, Noto Sans, sans-serif';
+            this.ctx.font = 'bold 9px Roboto, Noto Sans, sans-serif';
             this.ctx.textAlign = 'right';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillText(

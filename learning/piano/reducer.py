@@ -95,10 +95,15 @@ class Reducer(object):
         features = []
 
         for algo in self.algorithms:
+            if list(algo.all_keys) != [algo.key]:
+                # Multi-key features not supported yet
+                continue
             help = algo.__doc__ or algo.create_markings_on.__doc__
             help = help.strip()
             dtype = getattr(algo, 'dtype', 'bool')
-            if dtype == 'float':
+            if getattr(algo, 'feature', None):
+                features.append(algo.feature)
+            elif dtype == 'float':
                 features.append(writerlib.FloatFeature(
                     algo.key, getattr(algo, dtype, getattr(algo, 'range')),
                     help=help))
@@ -111,9 +116,9 @@ class Reducer(object):
                 'align', help='Whether the note should be kept.'))
         elif self.label_type == 'hand':
             legend = {
-                '#0000FF': ('Upper staff', 1),
-                '#00FF00': ('Lower staff', 2),
-                '#000000': ('Discarded', 0),
+                1: ('Upper staff', '#0000FF'),
+                2: ('Lower staff', '#00FF00'),
+                0: ('Discarded', '#000000'),
                 }
             features.append(writerlib.CategoricalFeature(
                 'hand', legend, '#000000',

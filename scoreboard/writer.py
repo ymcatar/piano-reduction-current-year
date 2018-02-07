@@ -143,6 +143,22 @@ class LogWriter:
             }
 
     def finalize(self):
+        # Determine bounds for float features
+        for feature in self.features.values():
+            if isinstance(feature, FloatFeature):
+                low, high = feature.range
+                def values():
+                    yield feature.default
+                    yield from (
+                        n.editorial.misc.get(feature.name, feature.default)
+                        for score in self.score_instances.values()
+                        for n in iter_notes(score, recurse=True))
+                if low is None:
+                    low = min(values())
+                if high is None:
+                    high = max(values())
+                feature.range = low, high
+
         metadata = self.get_metadata()
         with open(os.path.join(self.dir, 'index.json'), 'w') as f:
             json.dump(metadata, f, indent=2)

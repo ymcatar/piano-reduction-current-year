@@ -9,6 +9,14 @@
         <div>{{stuff[1]}}</div>
       </div>
     </template>
+    <template v-else-if="feature.dtype === 'float'">
+      <div class="label">
+        <div v-if="type === 'colour'" class="colour-bar"
+            :style="{background: `linear-gradient(to right, ${feature.colourBasis.join(', ')})`}"></div>
+        <div v-else class="text-box">+</div>
+        <div>Value [{{feature.range[0]}}, {{feature.range[1]}}]</div>
+      </div>
+    </template>
     <template v-else>
       <div class="label">
         <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>
@@ -33,13 +41,15 @@ export default {
     display: flex;
     align-items: center;
   }
-  .colour-box {
-    width: 15px;
-    height: 10px;
+  .colour-box, .colour-bar {
+    width: 15px; height: 10px;
     border: 1px solid black;
     margin-top: 4px; margin-bottom: 4px;
     margin-right: 4px;
     flex-shrink: 0;
+  }
+  .colour-bar {
+    width: 60px;
   }
   .text-box {
     margin-right: 4px;
