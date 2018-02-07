@@ -7,8 +7,19 @@
           <md-radio v-model="selectedScoreName" :value="score.name"
             class="md-primary "/>
           <span class="md-list-item-text">
-            {{score.name}}
+            {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
+        </md-list-item>
+
+        <md-subheader>
+          <span>Information</span>
+          <span style="flex: 1"></span>
+          <md-button class="md-icon-button" @click="showInfo = !showInfo">
+            <md-icon>arrow_drop_{{showInfo ? 'up' : 'down'}}</md-icon>
+          </md-button>
+        </md-subheader>
+        <md-list-item v-if="showInfo && selectedScore && selectedScore.help">
+          <div class="info-help">{{selectedScore.help}}</div>
         </md-list-item>
 
         <md-subheader>Controls</md-subheader>
@@ -26,7 +37,7 @@
           <md-list-item :key="key">
             <md-field>
               <label :for="key">{{key}}</label>
-              <md-select v-model="annotationMap[key]" :id="key">
+              <md-select v-model="annotationMap[key]" :id="key" md-dense>
                 <md-option key="null" value="none"></md-option>
                 <md-option v-for="feature of run.features" :key="feature.name"
                     :value="feature.name">
@@ -111,6 +122,8 @@ export default {
     pageOffset: 0.0,
     pageCount: 100,
     selectedNotes: [],
+
+    showInfo: false,
 
     defaults: (o => {
       for (const k in o)
@@ -252,9 +265,14 @@ export default {
   main { flex: 1; }
 }
 
+.info-help {
+  overflow-y: auto;
+  white-space: pre-line;
+}
+
 .help {
   overflow-y: auto;
-  height: 160px;
+  height: 110px;
   white-space: normal;
 }
 

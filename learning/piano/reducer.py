@@ -3,6 +3,7 @@ from .util import ensure_algorithm, dump_algorithm
 
 import importlib
 import numpy as np
+import textwrap
 
 from scoreboard import writer as writerlib
 
@@ -99,7 +100,7 @@ class Reducer(object):
                 # Multi-key features not supported yet
                 continue
             help = algo.__doc__ or algo.create_markings_on.__doc__
-            help = help.strip()
+            help = textwrap.dedent(help).strip()
             dtype = getattr(algo, 'dtype', 'bool')
             if getattr(algo, 'feature', None):
                 features.append(algo.feature)

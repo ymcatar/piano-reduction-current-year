@@ -108,7 +108,7 @@ class LogWriter:
         for feature in features:
             self.add_feature(feature)
 
-    def add_score(self, name, score):
+    def add_score(self, name, score, **kwargs):
         score = copy.deepcopy(score)
         self.score_instances[name] = score
 
@@ -132,7 +132,8 @@ class LogWriter:
         self.scores.append({
             'name': name,
             'xml': name + '.xml',
-            'featureData': name + '.json'
+            'featureData': name + '.json',
+            **kwargs  # title, help
             })
 
     def get_metadata(self):

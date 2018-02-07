@@ -13,7 +13,7 @@
     "d3-interpolate": "^1.1.6",
     "lodash": "^4.17.4",
     "vue": "^2.4.4",
-    "vue-material": "^1.0.0-beta-6"
+    "vue-material": "^1.0.0-beta-8"
   },
   "browserslist": [
     "> 1%",

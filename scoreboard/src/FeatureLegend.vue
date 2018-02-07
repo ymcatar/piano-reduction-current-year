@@ -58,4 +58,7 @@ export default {
     font-size: 0.8em;
     color: #0000ff;
   }
+  p {
+    margin-top: 4px; margin-bottom: 4px;
+  }
 </style>
