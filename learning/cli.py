@@ -9,12 +9,9 @@ import os.path
 import sys
 import textwrap
 import time
-from music21 import chord, expressions, layout
-from matplotlib import cm
-from matplotlib import pyplot as plt
-from matplotlib import colors
+from music21 import expressions, layout
+from pprint import pformat
 import numpy as np
-from .piano.alignment import (LEFT_HAND, RIGHT_HAND)
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -177,83 +174,15 @@ def command_reduce(args, **kwargs):
         metrics = ScoreMetrics(reducer, result, target_out.score)
         logging.info('Score metrics\n' + metrics.format())
 
-    if args.heat:
-        logging.info('Displaying heat map')
-
-        aligns = [n.editorial.misc['align'] for n in target]
-        mappable = cm.ScalarMappable(colors.Normalize(0, 1), cm.GnBu)
-        mappable.set_array(aligns)
-        rgbas = mappable.to_rgba(aligns)
-
-        # Show the distribution and a colorbar
-        _, _, patches = plt.hist(aligns, range=(0, 1), bins=10)
-        # Set the colour of each bar
-        cs = mappable.to_rgba(np.linspace(0.05, 0.95, 10))
-        for c, p in zip(cs, patches):
-            plt.setp(p, 'facecolor', c)
-        plt.title('Distribution of y')
-        plt.colorbar(mappable)
-
-        # Annotate on the score
-        for n, rgba in zip(target, rgbas):
-            n.style.color = '#{:02X}{:02X}{:02X}'.format(
-                *(int(i * 256) for i in rgba[:3]))
-
-        if args.label:
-            for n in target.score.recurse().notes:
-                if isinstance(n, chord.Chord):
-                    n.lyric = '/'.join(
-                        '{:.2f}'.format(i.editorial.misc['align']) for i in n)
-                else:
-                    n.lyric = '{:.2f}'.format(n.editorial.misc['align'])
-
-        if args.type != 'combined':
-            target.score.show('musicxml')
-
-    if args.type == 'combined':
-        target.score.toWrittenPitch(inPlace=True)
-
-        COLORS = {
-            LEFT_HAND: '#009900',
-            RIGHT_HAND: '#0000FF'
-            }
-
-        # Combine scores
-        if not args.heat:
-            for n in target:
-                if reducer.label_type == 'align':
-                    n.style.color = ('#0000FF' if n.editorial.misc['align'] >= 0.5
-                                     else '#000000')
-                elif reducer.label_type == 'hand':
-                    n.style.color = COLORS.get(n.editorial.misc['hand'], '#000000')
-
-        merge_reduced_to_original(target.score, result)
-
-        description = textwrap.dedent('''\
-            Original score compared to reduced score.
-            Blue notes indicate the notes that are kept.
-            Model: {}
-            Generated at {}
-            '''.format(model.describe(),
-                       datetime.datetime.now().isoformat()))
-        add_description_to_score(target.score, description)
-
-        result = target.score
-    else:
-        description = textwrap.dedent('''\
-            Reduced score.
-            Model: {}
-            Generated at {}
-            '''.format(model.describe(), datetime.datetime.now().isoformat()))
-        add_description_to_score(result, description)
-
-    writer = LogWriter(config.LOG_DIR)
-    logging.info('Log directory: {}'.format(writer.dir))
-    writer.add_features(reducer.input_features)
-    writer.add_features(reducer.output_features)
-    writer.add_score('combined', result, title='Orig. + Gen. Reduction',
-                     help=description)
-    writer.finalize()
+    description = textwrap.dedent('''\
+        Model: {}
+        Generated at: {}
+        Reducer arguments:
+        {}
+        ''').format(model.describe(),
+                    datetime.datetime.now().isoformat(),
+                    pformat(reducer.args, width=100))
+    add_description_to_score(result, description)
 
     if args.no_output:
         pass
@@ -264,8 +193,16 @@ def command_reduce(args, **kwargs):
         logging.info('Displaying output')
         result.show('musicxml')
 
-    if args.heat:
-        plt.show()
+    target.score.toWrittenPitch(inPlace=True)
+    merge_reduced_to_original(target.score, result)
+
+    writer = LogWriter(config.LOG_DIR)
+    logging.info('Log directory: {}'.format(writer.dir))
+    writer.add_features(reducer.input_features)
+    writer.add_features(reducer.output_features)
+    writer.add_score('combined', target.score, title='Orig. + Gen. Reduction',
+                     help=description)
+    writer.finalize()
 
     logging.info('Done')
 
@@ -398,13 +335,6 @@ def run_model_cli(module):
         'file', help='Input file. Optionally specify an input-output pair '
                      'to evaluate test metrics.')
     reduce_parser.add_argument('--output', '-o', help='Output to file')
-    reduce_parser.add_argument('--type', '-t', help='Output type',
-                               choices=['reduced', 'combined'],
-                               default='combined')
-    reduce_parser.add_argument('--heat', action='store_true',
-                               help='Output heat map')
-    reduce_parser.add_argument('--label', action='store_true',
-                               help='Add labels in heat map')
     reduce_parser.add_argument('--model', '-m', help='Model file')
     reduce_parser.add_argument('--no-output', '-s', action='store_true',
                                help='Disable score output')

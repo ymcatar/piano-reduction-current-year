@@ -280,8 +280,8 @@ export default {
 }
 
 .info-help {
-  overflow-y: auto;
-  white-space: pre-line;
+  overflow: auto;
+  white-space: pre;
 }
 
 .help {

@@ -42,13 +42,12 @@ class Reducer(object):
         self.contractions = [ensure_algorithm(algo) for algo in contractions]
         self.structures = [ensure_algorithm(algo) for algo in structures]
 
-        self.args = (
-            [], {
-                'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
-                'alignment': dump_algorithm(self.alignment),
-                'contractions': [dump_algorithm(algo) for algo in self.contractions],
-                'structures': [dump_algorithm(algo) for algo in self.structures],
-            })
+        self.args = {
+            'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
+            'alignment': dump_algorithm(self.alignment),
+            'contractions': [dump_algorithm(algo) for algo in self.contractions],
+            'structures': [dump_algorithm(algo) for algo in self.structures],
+        }
 
     @property
     def algorithms(self):
