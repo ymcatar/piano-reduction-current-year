@@ -100,11 +100,11 @@ export default {
     pages: null,
     featureData: null,
 
-    annotationKeys: ['notehead0', 'notehead1', 'leftText'],
+    annotationKeys: ['notehead0', 'notehead1', 'rightText'],
     annotationTypes: {
       notehead0: 'colour',
       notehead1: 'colour',
-      leftText: 'text',
+      rightText: 'text',
     },
     annotationMap: {},
 
@@ -175,13 +175,16 @@ export default {
             }
           }
         }
-        const leftText = this.getFeature('leftText');
-        if (leftText) {
-          const value = data[this.annotationMap['leftText']];
+        const rightText = this.getFeature('rightText');
+        if (rightText) {
+          const value = data[this.annotationMap['rightText']];
           if (typeof value === 'boolean') {
-            props.leftText = value ? '+' : '';
+            props.rightText = value ? '+' : '';
+          } else if (typeof value === 'number') {
+            const rounded = Math.round(value * 100) / 100;
+            props.rightText = String(rounded);
           } else if (typeof value !== 'undefined' && value !== null) {
-            props.leftText = String(value);
+            props.rightText = String(value);
           }
         }
 

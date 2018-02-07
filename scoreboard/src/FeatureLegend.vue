@@ -56,6 +56,6 @@ export default {
     min-width: 60px;
 
     font-size: 0.8em;
-    color: #ff0000;
+    color: #0000ff;
   }
 </style>

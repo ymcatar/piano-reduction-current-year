@@ -149,47 +149,57 @@ export default {
         this.ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
 
         // Annotations
-        for (const key in this.noteMaps[pageIndex]) {
-          if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
-          const entry = this.noteMaps[pageIndex][key];
-          const annotation = this.annotations[key];
-          if (!annotation) continue;
+        for (const layer of ['notehead', 'text', 'shape']) {
+          for (const key in this.noteMaps[pageIndex]) {
+            if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
+            const entry = this.noteMaps[pageIndex][key];
+            const annotation = this.annotations[key];
+            if (!annotation) continue;
 
-          let colour = '#000000';
-          for (let i = 0; i < annotation.noteheads.length; i++) {
-            if (annotation.noteheads[i] !== '#000000')
-              colour = annotation.noteheads[i];
-          }
-          if (colour) {
-            this.ctx.fillStyle = colour;
-            const path = new Path2D(entry.path);
-            let ctm = entry.ctm;
-            this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
-            this.ctx.fill(path);
-            ctm = ctm.inverse();
-            this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
-          }
-          if (annotation.leftText) {
-            const OFFSET = 1;
-            this.ctx.fillStyle = '#FF0000';
-            this.ctx.font = 'bold 9px Roboto, Noto Sans, sans-serif';
-            this.ctx.textAlign = 'right';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(
-              annotation.leftText,
-              entry.bBox.x - OFFSET,
-              entry.bBox.y + 0.5 * entry.bBox.height);
-          }
-          if (annotation.circle) {
-            const OFFSET = 2;
-            this.ctx.strokeStyle = annotation.circle;
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.ellipse(
-              entry.bBox.x + 0.5 * entry.bBox.width, entry.bBox.y + 0.5 * entry.bBox.height,
-              entry.bBox.width / 2 + OFFSET, entry.bBox.height / 2 + OFFSET,
-              0, 0, 2*Math.PI);
-            this.ctx.stroke();
+            if (layer === 'notehead') {
+              let colour = '#000000';
+              for (let i = 0; i < annotation.noteheads.length; i++) {
+                if (annotation.noteheads[i] !== '#000000')
+                  colour = annotation.noteheads[i];
+              }
+              if (colour) {
+                this.ctx.fillStyle = colour;
+                const path = new Path2D(entry.path);
+                let ctm = entry.ctm;
+                this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+                this.ctx.fill(path);
+                ctm = ctm.inverse();
+                this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+              }
+            } else if (layer === 'text') {
+              if (annotation.rightText) {
+                const OFFSET = 1;
+                this.ctx.fillStyle = '#0000FF';
+                this.ctx.strokeStyle = '#FFFFFF';
+                this.ctx.lineWidth = 1;
+                this.ctx.font = 'bold 8px Roboto, Noto Sans, sans-serif';
+                this.ctx.textAlign = 'left';
+                this.ctx.textBaseline = 'middle';
+                const args = [
+                  annotation.rightText,
+                  entry.bBox.x + entry.bBox.width + OFFSET,
+                  entry.bBox.y + 0.5 * entry.bBox.height];
+                this.ctx.strokeText(...args);
+                this.ctx.fillText(...args);
+              }
+            } else if (layer === 'shape') {
+              if (annotation.circle) {
+                const OFFSET = 2;
+                this.ctx.strokeStyle = annotation.circle;
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.ellipse(
+                  entry.bBox.x + 0.5 * entry.bBox.width, entry.bBox.y + 0.5 * entry.bBox.height,
+                  entry.bBox.width / 2 + OFFSET, entry.bBox.height / 2 + OFFSET,
+                  0, 0, 2*Math.PI);
+                this.ctx.stroke();
+              }
+            }
           }
         }
       }
