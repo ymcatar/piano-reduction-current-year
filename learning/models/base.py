@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class BaseModel(object):
     def __init__(self, reducer):
         self.reducer = reducer
@@ -23,6 +26,20 @@ class BaseModel(object):
         a predicted class.
         '''
         raise NotImplementedError()
+
+    def fit_structured(self, X, y):
+        real_X = np.vstack([nodes for nodes, _, _ in X])
+        real_y = np.vstack(list(y))
+        self.fit(real_X, real_y)
+
+    def evaluate_structured(self, X, y):
+        real_X = np.vstack([nodes for nodes, _, _ in X])
+        real_y = np.vstack(list(y))
+        return self.evaluate(real_X, real_y)
+
+    def predict_structured(self, X):
+        real_X, _, _ = X
+        return self.predict(real_X)
 
     def describe(self):
         '''

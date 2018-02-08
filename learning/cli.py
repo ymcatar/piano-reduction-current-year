@@ -8,13 +8,14 @@ import logging
 import os.path
 import sys
 import textwrap
+import time
 from music21 import chord, expressions, layout
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import numpy as np
 from .piano.alignment import (LEFT_HAND, RIGHT_HAND)
-from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES
+from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -118,16 +119,17 @@ def train(args, module, save_model=False, **kwargs):
     dataset = Dataset(reducer, paths=args.sample,
                       use_cache=getattr(args, 'cache', False))
     if getattr(args, 'validation', False):
-        X, y, _, _ = dataset.split_dataset(dataset.find_index(args.file))
+        train_dataset, _ = dataset.split_dataset(dataset.find_index(args.file))
+        X, y = train_dataset.get_matrices(structured=True)
     else:
-        X, y = dataset.get_all()
+        X, y = dataset.get_matrices(structured=True)
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
     logging.info('Training ML model')
 
-    model.fit(X, y)
-    logging.info('Training metric = {}'.format(model.evaluate(X, y)))
+    model.fit_structured(X, y)
+    logging.info('Training metric = {}'.format(model.evaluate_structured(X, y)))
 
     if save_model:
         output = args.output or get_default_save_file(module)
@@ -158,11 +160,11 @@ def command_reduce(args, **kwargs):
     target = target_entry.input_score_obj
     target_out = target_entry.output_score_obj
 
-    X_test = target_entry.X
+    X_test = (target_entry.X, target_entry.E, target_entry.F)
     y_test = target_entry.y
     logging.info('Predicting')
 
-    y_proba = reducer.predict_from(model, target, X=X_test)
+    y_proba = reducer.predict_from(model, target, X=X_test, mapping=target_entry.C, structured=True)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -296,12 +298,13 @@ def command_show(args, module, **kwargs):
 
 
 def command_crossval(args, module, **kwargs):
+    start = time.time()
     logging.info('Initializing reducer')
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
     dataset = Dataset(reducer, use_cache=True, keep_scores=True, paths=CROSSVAL_SAMPLES)
-    dataset.get_all()
+    dataset.get_matrices()
 
     all_metrics = defaultdict(list)
     metric_names = {}
@@ -310,7 +313,9 @@ def command_crossval(args, module, **kwargs):
     for i in range(len(dataset)):
         logging.info('Fold {}: {!r}'.format(i, dataset.entries[i].in_path))
         logging.info('-' * 60)
-        X_train, y_train, X_valid, y_valid = dataset.split_dataset(i)
+        train_dataset, valid_dataset = dataset.split_dataset(i)
+        X_train, y_train = train_dataset.get_matrices()
+        X_valid, y_valid = valid_dataset.get_matrices()
 
         logging.info('Training')
         model.fit(X_train, y_train)
@@ -319,7 +324,7 @@ def command_crossval(args, module, **kwargs):
         target_out = dataset.entries[i].output_score_obj
 
         logging.info('Predicting')
-        y_proba = reducer.predict_from(model, target_in, X=X_valid)
+        y_proba = reducer.predict_from(model, target_in, X=X_valid, mapping=dataset.entries[i].C)
 
         post_processor = PostProcessor()
         result = post_processor.generate_piano_score(
@@ -339,11 +344,16 @@ def command_crossval(args, module, **kwargs):
 
     logging.info('=' * 60)
     out = []
+    csv = [args.name]
     for key, values in all_metrics.items():
         name = metric_names[key]
         avg = np.mean(values)
         out.append('{:35} {:>13.4f}'.format(name, avg))
+        csv.append(str(avg))
     logging.info('Cross-validated metrics (by averaging)\n' + '\n'.join(out))
+    print(','.join('"{}"'.format(i) for i in csv))
+
+    logging.info('Time elapsed: {}s'.format(time.time() - start))
 
 
 def main(args, **kwargs):
@@ -355,6 +365,8 @@ def main(args, **kwargs):
         command_show(args, **kwargs)
     elif args.command == 'crossval':
         command_crossval(args, **kwargs)
+    elif args.command == 'clear-cache':
+        clear_cache(args.substring)
     else:
         raise NotImplementedError()
 
@@ -404,7 +416,14 @@ def run_model_cli(module):
         'file', help='Input file. Optionally specify an input-output pair '
                      'to show alignment features.')
 
-    subparsers.add_parser('crossval', help='Evaluate model using cross validation')
+    crossval_parser = subparsers.add_parser(
+        'crossval', help='Evaluate model using cross validation')
+    crossval_parser.add_argument('name', help='Description of this run',
+                                 nargs='?', default='Model')
+
+    clear_cache_parser = subparsers.add_parser(
+        'clear-cache', help='Clear feature cache')
+    clear_cache_parser.add_argument('substring', nargs='?')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]

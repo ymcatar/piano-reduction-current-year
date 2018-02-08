@@ -20,7 +20,7 @@ class NN(TflearnModel):
         super().__init__(reducer, net)
 
     def fit(self, X, Y):
-        super().fit(X, Y, n_epoch=10)
+        super().fit(X, Y, n_epoch=10, shuffle=True)
 
 
 reducer_args = {

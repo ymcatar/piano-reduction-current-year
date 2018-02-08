@@ -2,6 +2,7 @@ import binascii
 from collections import defaultdict
 import copy
 import datetime
+from fractions import Fraction
 from itertools import product
 import json
 import logging
@@ -74,6 +75,8 @@ class MyJSONEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, Fraction):
+            return float(obj)
         else:
             return super().default(obj)
 
