@@ -65,7 +65,8 @@ class AlignPitchClassOnset(AlignmentMethod):
                 'discarded': ('#000000', 'Discarded'),
                 },
             '#000000',
-            help='How the note is kept'
+            help='How the note is kept',
+            group='alignment'
             ),
         writer.CategoricalFeature(
             'rev_align_type',
@@ -76,6 +77,7 @@ class AlignPitchClassOnset(AlignmentMethod):
                 'fabricated': ('#FF0000', 'Fabricated by arranger'),
                 },
             '#000000',
-            help='Where the note comes from'
+            help='Where the note comes from',
+            group='alignment'
             ),
         ]

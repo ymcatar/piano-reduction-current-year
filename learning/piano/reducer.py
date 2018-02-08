@@ -41,13 +41,12 @@ class Reducer(object):
         self.contractions = [ensure_algorithm(algo) for algo in contractions]
         self.structures = [ensure_algorithm(algo) for algo in structures]
 
-        self.args = (
-            [], {
-                'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
-                'alignment': dump_algorithm(self.alignment),
-                'contractions': [dump_algorithm(algo) for algo in self.contractions],
-                'structures': [dump_algorithm(algo) for algo in self.structures],
-            })
+        self.args = {
+            'algorithms': [dump_algorithm(algo) for algo in self.algorithms],
+            'alignment': dump_algorithm(self.alignment),
+            'contractions': [dump_algorithm(algo) for algo in self.contractions],
+            'structures': [dump_algorithm(algo) for algo in self.structures],
+        }
 
     @property
     def algorithms(self):
@@ -91,32 +90,52 @@ class Reducer(object):
         return y_proba
 
     @property
-    def features(self):
+    def input_features(self):
         features = []
 
         for algo in self.algorithms:
-            help = algo.__doc__ or algo.create_markings_on.__doc__
-            help = help.strip()
-            dtype = getattr(algo, 'dtype', 'bool')
-            if dtype == 'float':
-                features.append(writerlib.FloatFeature(
-                    algo.key, getattr(algo, dtype, getattr(algo, 'range')),
-                    help=help))
-            else:
-                features.append(writerlib.BoolFeature(algo.key, help=help))
+            if list(algo.all_keys) != [algo.key]:
+                # Multi-key features not supported yet
+                continue
+            feature = writerlib.guess_feature(algo)
+            features.append(feature)
 
-        # Note: These are predictions!
+        return features
+
+    @property
+    def structure_features(self):
+        features = []
+
+        for algo in self.contractions:
+            sub = writerlib.guess_feature(algo)
+            feature = writerlib.StructureFeature(
+                sub.name, sub, directed=True, help=sub.help, group='contractions')
+            features.append(feature)
+
+        for algo in self.structures:
+            sub = writerlib.guess_feature(algo)
+            feature = writerlib.StructureFeature(
+                sub.name, sub, help=sub.help, group='structures')
+            features.append(feature)
+
+        return features
+
+    @property
+    def output_features(self):
+        features = []
+
         if self.label_type == 'align':
-            features.append(writerlib.BoolFeature(
-                'align', help='Whether the note should be kept.'))
+            features.append(writerlib.FloatFeature(
+                'align', range=[0.0, 1.0],
+                help='How likely the note should be kept.', group='output'))
         elif self.label_type == 'hand':
             legend = {
-                '#0000FF': ('Upper staff', 1),
-                '#00FF00': ('Lower staff', 2),
-                '#000000': ('Discarded', 0),
+                0: ('#000000', 'Discarded'),
+                1: ('#3333FF', 'Upper staff'),
+                2: ('#33FF33', 'Lower staff'),
                 }
             features.append(writerlib.CategoricalFeature(
                 'hand', legend, '#000000',
-                help='Which staff the note should be kept in.'))
+                help='Which staff the note should be kept in.', group='output'))
 
         return features

@@ -58,10 +58,6 @@ def describe_algorithm(algo):
     return 'cache:' + json.dumps(args, sort_keys=True)
 
 
-def describe_alignment(alignment):
-    return 'cache:' + json.dumps(['alignment', *dump_algorithm(alignment)], sort_keys=True)
-
-
 def set_in_cache(cache, description, value):
     # Since dataset names have limited length, we use the attrs dict to index
     # the dataset name for each description
@@ -86,6 +82,8 @@ class DatasetEntry:
     def __init__(self, path_pair=None, score_obj_pair=None):
         self.X = None
         self.y = None
+        self.contractions = {}
+        self.structures = {}
         assert (path_pair is None) != (score_obj_pair is None), \
             'exactly one of path_pair and score_obj_pair must be provided!'
 
@@ -111,10 +109,12 @@ class DatasetEntry:
         else:
             return '<{}>'.format(self.input_score_obj.score.metadata.title or 'Score')
 
-    def _load_marking(self, reducer, algo, use_cache=True, cache=None):
+    def _load_marking(self, reducer, algo, *, use_cache, cache):
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
+            for i, key in enumerate(algo.all_keys):
+                self.input_score_obj.annotate(ds[:, i], key)
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating {}'.format(type(algo).__name__))
@@ -128,7 +128,7 @@ class DatasetEntry:
         for i, key in enumerate(algo.all_keys):
             self.X[:, reducer.all_keys.index(key)] = ds[:, i]
 
-    def _load_contraction(self, reducer, algo, use_cache=True, cache=None):
+    def _load_contraction(self, reducer, algo, *, use_cache, cache):
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
@@ -138,27 +138,31 @@ class DatasetEntry:
             ds = list(algo.create_contractions(self.input_score_obj))
             if cache:
                 set_in_cache(cache, description, ds)
+        self.contractions[algo.key] = [((r[0], r[1]), ()) for r in ds]
 
         return ds
 
-    def _load_structure(self, reducer, algo, use_cache=True, cache=None):
+    def _load_structure(self, reducer, algo, *, use_cache, cache):
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating structure {}'.format(type(algo).__name__))
-            ds = [np.concatenate(x, axis=0)
-                  for x in algo.create(self.input_score_obj)]
+            # Concatenate to simplify caching
+            ds = np.stack([np.concatenate(x, axis=0)
+                           for x in algo.create(self.input_score_obj)])
             if cache:
                 set_in_cache(cache, description, ds)
+        self.structures[algo.key] = [((r[0], r[1]), r[2:]) for r in ds]
 
         return ds
 
-    def _load_alignment_marking(self, reducer, algo, extra=False, use_cache=True, cache=None):
-        description = describe_alignment(algo)
+    def _load_alignment_marking(self, reducer, algo, *, extra=False, use_cache, cache):
+        description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
+            self.input_score_obj.annotate(ds, algo.key)
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating alignment')
@@ -220,8 +224,13 @@ class DatasetEntry:
                 if cache:
                     cache.attrs['len'] = n
 
+            load_options = {
+                'use_cache': use_cache,
+                'cache': cache,
+                }
+
             contraction_iter = itertools.chain(*[
-                self._load_contraction(reducer, algo, use_cache=use_cache, cache=cache)
+                self._load_contraction(reducer, algo, **load_options)
                 for algo in reducer.contractions])
             P = flatten_contractions(contraction_iter, n)
             self.C, self.len = compute_contraction_mapping(P)
@@ -230,7 +239,7 @@ class DatasetEntry:
 
             self.X = np.empty((n, len(reducer.all_keys)), dtype='float')
             for algo in reducer.algorithms:
-                self._load_marking(reducer, algo, use_cache=use_cache, cache=cache)
+                self._load_marking(reducer, algo, **load_options)
             self.X = contract_by(self.X, self.C)
 
             n_edge_features = sum(a.n_features for a in reducer.structures)
@@ -238,7 +247,7 @@ class DatasetEntry:
             d = 0
             structure = defaultdict(lambda: np.zeros(n_edge_features, dtype='float'))
             for algo in reducer.structures:
-                data = self._load_structure(reducer, algo, use_cache=use_cache, cache=cache)
+                data = self._load_structure(reducer, algo, **load_options)
                 for row in data:
                     edge, features = row[:2], row[2:]
                     structure[tuple(sorted(edge))][d:d + algo.n_features] = features
@@ -253,7 +262,7 @@ class DatasetEntry:
             if self.has_output:
                 self.y = np.empty((n, 1), dtype='int')
                 self._load_alignment_marking(reducer, reducer.alignment, extra=extra,
-                                             use_cache=use_cache, cache=cache)
+                                             **load_options)
                 self.y = contract_by(self.y, self.C)
 
             if keep_scores:
@@ -278,6 +287,10 @@ class Dataset:
             self.entries = [DatasetEntry(p.split(':', 1)) for p in paths]
 
         self.reducer = reducer
+        self.options = {
+            'use_cache': use_cache,
+            'keep_scores': keep_scores,
+            }
         self.use_cache = use_cache
         self.keep_scores = keep_scores
 
@@ -287,8 +300,7 @@ class Dataset:
     def __getitem__(self, index):
         entries = self.entries[index]
 
-        return Dataset(self.reducer, entries=entries, use_cache=self.use_cache,
-                       keep_scores=self.keep_scores)
+        return Dataset(self.reducer, entries=entries, **self.options)
 
     def get_matrices(self, structured=False):
         Xys = [self.load(i, structured=structured) for i in range(len(self))]
@@ -318,16 +330,13 @@ class Dataset:
         train_entries = [e for i, e in enumerate(self.entries) if i not in indices]
         valid_entries = [e for i, e in enumerate(self.entries) if i in indices]
 
-        return (Dataset(self.reducer, entries=train_entries,
-                        use_cache=self.use_cache, keep_scores=self.keep_scores),
-                Dataset(self.reducer, entries=valid_entries,
-                        use_cache=self.use_cache, keep_scores=self.keep_scores))
+        return (Dataset(self.reducer, entries=train_entries, **self.options),
+                Dataset(self.reducer, entries=valid_entries, **self.options))
 
     def load(self, index, structured=False):
         entry = self.entries[index]
         if not entry.loaded:
-            entry.load(self.reducer, use_cache=self.use_cache,
-                       keep_scores=self.keep_scores)
+            entry.load(self.reducer, **self.options)
 
         if not structured:
             return entry.X, entry.y

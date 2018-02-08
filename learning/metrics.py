@@ -36,12 +36,6 @@ class ModelMetrics:
         if 'bin_accuracy' in keys:
             add('bin_accuracy', '(0-1) Accuracy',
                 metrics.accuracy_score(y_test_bin, y_pred_bin))
-        if 'bin_precision' in keys:
-            add('bin_precision', '(0-1) Precision, TP/(TP+FP)',
-                metrics.precision_score(y_test_bin, y_pred_bin))
-        if 'bin_recall' in keys:
-            add('bin_recall', '(0-1) Recall, TP/(TP+FN)',
-                metrics.recall_score(y_test_bin, y_pred_bin))
         if 'bin_roc_score' in keys:
             add('bin_roc_score', '(0-1) ROC AUC',
                 metrics.roc_auc_score(y_test_bin, y_proba_bin))
@@ -55,8 +49,6 @@ class ModelMetrics:
     ALL = [
         'accuracy',
         'bin_accuracy',
-        'bin_precision',
-        'bin_recall',
         'bin_roc_score',
         'confusion_matrix',
         'bin_confusion_matrix',

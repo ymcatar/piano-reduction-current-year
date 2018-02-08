@@ -100,8 +100,8 @@ class AlignMinOctaveHand(AlignmentMethod):
                 2: ('#33FF33', 'Lower staff'),
                 },
             '#000000',
-            help='Which staff the note should be kept in, determined with '
-                 'MinOctaveHand.'
+            help='Which staff the note is kept in, determined with MinOctaveHand.',
+            group='alignment'
             ),
         writer.CategoricalFeature(
             'justified',
@@ -110,6 +110,7 @@ class AlignMinOctaveHand(AlignmentMethod):
                 'false': ('#FF0000', 'Unjustified'),
                 },
             '#000000',
-            help='Which the output note is justified by some input note label.'
+            help='Which the output note is justified by some input note label.',
+            group='alignment'
             ),
         ]

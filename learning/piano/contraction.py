@@ -13,6 +13,10 @@ class ContractionAlgorithm:
         raise NotImplemented()
 
     @property
+    def key(self):
+        return type(self).__name__
+
+    @property
     def args(self):
         return ([], {})
 

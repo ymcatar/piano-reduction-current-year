@@ -7,8 +7,19 @@
           <md-radio v-model="selectedScoreName" :value="score.name"
             class="md-primary "/>
           <span class="md-list-item-text">
-            {{score.name}}
+            {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
+        </md-list-item>
+
+        <md-subheader>
+          <span>Information</span>
+          <span style="flex: 1"></span>
+          <md-button class="md-icon-button" @click="showInfo = !showInfo">
+            <md-icon>arrow_drop_{{showInfo ? 'up' : 'down'}}</md-icon>
+          </md-button>
+        </md-subheader>
+        <md-list-item v-if="showInfo && selectedScore && selectedScore.help">
+          <div class="info-help">{{selectedScore.help}}</div>
         </md-list-item>
 
         <md-subheader>Controls</md-subheader>
@@ -26,12 +37,15 @@
           <md-list-item :key="key">
             <md-field>
               <label :for="key">{{key}}</label>
-              <md-select v-model="annotationMap[key]" :id="key">
+              <md-select v-model="annotationMap[key]" :id="key" md-dense>
                 <md-option key="null" value="none"></md-option>
-                <md-option v-for="feature of run.features" :key="feature.name"
-                    :value="feature.name">
-                  {{feature.name}}
-                </md-option>
+                <md-optgroup v-for="(features, group) in featureGroups"
+                  :key="group" :label="group || '(No group)'">
+                  <md-option v-for="feature of features" :key="feature.name"
+                      :value="feature.name">
+                    {{feature.name}}
+                  </md-option>
+                </md-optgroup>
               </md-select>
             </md-field>
           </md-list-item>
@@ -44,6 +58,30 @@
             </div>
           </md-list-item>
         </template>
+
+        <md-list-item>
+          <md-field>
+            <label for="ray">ray</label>
+            <md-select v-model="annotationMap.ray" id="ray" md-dense>
+              <md-option key="null" value="none"></md-option>
+                <md-optgroup v-for="(features, group) in structureFeatureGroups"
+                  :key="group" :label="group || '(No group)'">
+                  <md-option v-for="feature of features" :key="feature.name"
+                      :value="feature.name">
+                    {{feature.name}}
+                  </md-option>
+                </md-optgroup>
+            </md-select>
+          </md-field>
+        </md-list-item>
+
+        <md-list-item>
+          <div class="help">
+            <feature-legend v-if="annotationMap.ray"
+              :type="annotationTypes.ray" :feature="getFeature('ray', true)">
+            </feature-legend>
+          </div>
+        </md-list-item>
 
       </md-list>
 
@@ -60,7 +98,7 @@
           <md-subheader>Note {{id}}</md-subheader>
           <md-list-item>
             <div>
-              <p v-for="v, k in featureData[id]">{{k}}: {{v}}</p>
+              <p v-for="v, k in featureData.notes[id]">{{k}}: {{v}}</p>
             </div>
           </md-list-item>
         </div>
@@ -85,6 +123,7 @@
 </template>
 
 <script>
+import { interpolateRgbBasis } from 'd3-interpolate';
 import { apiRoot } from './config';
 import { fetchJSON } from './common';
 export default {
@@ -99,11 +138,12 @@ export default {
     pages: null,
     featureData: null,
 
-    annotationKeys: ['notehead0', 'notehead1', 'leftText'],
+    annotationKeys: ['notehead0', 'notehead1', 'rightText'],
     annotationTypes: {
       notehead0: 'colour',
       notehead1: 'colour',
-      leftText: 'text',
+      rightText: 'text',
+      ray: 'colour',
     },
     annotationMap: {},
 
@@ -111,10 +151,26 @@ export default {
     pageCount: 100,
     selectedNotes: [],
 
-    defaultColours: {
-      notehead0: '#FF0000',
-      notehead1: '#33FF33',
-    },
+    showInfo: false,
+
+    defaults: (o => {
+      for (const k in o)
+        if (o.hasOwnProperty(k) && o[k].colourBasis)
+          o[k].colourSpace = interpolateRgbBasis(o[k].colourBasis);
+      return o;
+    })({
+      notehead0: {
+        colour: '#FF0000',
+        colourBasis: ['#000000', '#FF0000', '#FF9900', '#FFFF00'],
+      },
+      notehead1: {
+        colour: '#33FF33',
+        colourBasis: ['#000000', '#00FF00', '#00FFFF', '#0000FF'],
+      },
+      ray: {
+        colour: '#33DDDD',
+      },
+    }),
   }),
 
   computed: {
@@ -134,14 +190,14 @@ export default {
         noteheads.push(this.getFeature('notehead' + i));
       }
 
-      const selectedData = this.featureData[this.selectedNotes[0]] || {};
+      const selectedData = this.featureData.notes[this.selectedNotes[0]] || {};
       const selectedPitch = selectedData._pitch;
       const selectedPitchClass = selectedData._pitch_class;
 
-      const result = {};
-      for (const key in this.featureData) {
-        if (!this.featureData.hasOwnProperty(key)) continue;
-        const data = this.featureData[key];
+      const notes = {};
+      for (const key in this.featureData.notes) {
+        if (!this.featureData.notes.hasOwnProperty(key)) continue;
+        const data = this.featureData.notes[key];
         // TODO: Data type aware
         const props = {
           noteheads: noteheads.map(() => '#000000'),
@@ -154,18 +210,25 @@ export default {
             if (nh.dtype === 'categorical') {
               const labelEntry = nh.legend[value];
               props.noteheads[i] = labelEntry ? labelEntry[0] : nh.default;
+            } else if (nh.dtype === 'float') {
+              // Interpolation
+              const t = (value - nh.range[0]) / (nh.range[1] - nh.range[0]);
+              props.noteheads[i] = nh.colourSpace(t).toString();
             } else {
               props.noteheads[i] = value ? nh.colour : '#000000';
             }
           }
         }
-        const leftText = this.getFeature('leftText');
-        if (leftText) {
-          const value = data[this.annotationMap['leftText']];
+        const rightText = this.getFeature('rightText');
+        if (rightText) {
+          const value = data[this.annotationMap['rightText']];
           if (typeof value === 'boolean') {
-            props.leftText = value ? '+' : '';
+            props.rightText = value ? '+' : '';
+          } else if (typeof value === 'number') {
+            const rounded = Math.round(value * 100) / 100;
+            props.rightText = String(rounded);
           } else if (typeof value !== 'undefined' && value !== null) {
-            props.leftText = String(value);
+            props.rightText = String(value);
           }
         }
 
@@ -176,19 +239,49 @@ export default {
         } else if (data._pitch_class === selectedPitchClass) {
           props.circle = '#FFFF99';
         }
-        result[key] = props;
+        notes[key] = props;
       }
-      return result;
+
+      const structures = {};
+      const ray = this.getFeature('ray', /*structured*/ true);
+      if (ray) {
+        const data = this.featureData.structures[ray.name];
+        for (const key in data) {
+          if (!data.hasOwnProperty(key)) continue;
+          structures[key] = {colour: ray.colour, text: data[key], directed: ray.directed};
+        }
+      }
+      return {notes, structures};
+    },
+
+    featureGroups() {
+      const ret = {};
+      for (const feature of this.run.features) {
+        const group = feature.group || '';
+        ret[group] = ret[group] || [];
+        ret[group].push(feature);
+      }
+      return ret;
+    },
+
+    structureFeatureGroups() {
+      const ret = {};
+      for (const feature of this.run.structureFeatures) {
+        const group = feature.group || '';
+        ret[group] = ret[group] || [];
+        ret[group].push(feature);
+      }
+      return ret;
     },
   },
 
   methods: {
-    getFeature(annotation) {
+    getFeature(annotation, structured = false) {
       const name = this.annotationMap[annotation];
-      let feature = this.run.features.find(f => f.name === name);
+      let feature = (structured ? this.run.structureFeatures : this.run.features)
+          .find(f => f.name === name);
       if (feature && annotation) {
-        feature = Object.assign({}, feature);
-        feature.colour = this.defaultColours[annotation];
+        feature = Object.assign({}, this.defaults[annotation], feature);
       }
       return feature;
     },
@@ -207,6 +300,13 @@ export default {
         if (score !== this.selectedScore) return;
         this.pages = pages;
         this.featureData = featureData;
+        // Backward compatibility
+        if (!this.featureData.notes) {
+          this.featureData = {
+            notes: this.featureData,
+            structures: {}
+          };
+        }
       } finally {
         this.loading -= 1;
       }
@@ -234,9 +334,14 @@ export default {
   main { flex: 1; }
 }
 
+.info-help {
+  overflow: auto;
+  white-space: pre;
+}
+
 .help {
   overflow-y: auto;
-  height: 160px;
+  height: 110px;
   white-space: normal;
 }
 
