@@ -113,8 +113,9 @@ class DatasetEntry:
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
-            for i, key in enumerate(algo.all_keys):
-                self.input_score_obj.annotate(ds[:, i], key)
+            if self.input_score_obj:
+                for i, key in enumerate(algo.all_keys):
+                    self.input_score_obj.annotate(ds[:, i], key)
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating {}'.format(type(algo).__name__))
@@ -162,7 +163,8 @@ class DatasetEntry:
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
-            self.input_score_obj.annotate(ds, algo.key)
+            if self.input_score_obj:
+                self.input_score_obj.annotate(ds, algo.key)
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating alignment')
@@ -192,6 +194,9 @@ class DatasetEntry:
 
         # Write cache whenever loading from file
         write_cache = self.in_path is not None
+
+        if keep_scores:
+            self.ensure_scores_loaded()
 
         cache = None
         try:
@@ -263,9 +268,6 @@ class DatasetEntry:
                 self._load_alignment_marking(reducer, reducer.alignment, extra=extra,
                                              **load_options)
                 self.y = contract_by(self.y, self.C)
-
-            if keep_scores:
-                self.ensure_scores_loaded()
         finally:
             if cache:
                 cache.close()
