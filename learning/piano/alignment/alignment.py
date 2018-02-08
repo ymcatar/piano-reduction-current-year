@@ -91,5 +91,3 @@ def align_all_notes(left_score, right_score, precision=1024,
                     lookup[id(n)] = other_index[i][mi][key]
 
     return Alignment(*lookups)
-
-

@@ -47,7 +47,7 @@ class AlignMinOctaveHand(AlignmentMethod):
             n.editorial.misc['justified'] = False
 
         for measure in (input_score.recurse(skipSelf=True)
-                .getElementsByClass(stream.Measure)):
+                        .getElementsByClass(stream.Measure)):
             for voice in measure.voices or [measure]:
                 votes = Counter()
                 for n in iter_notes(voice):

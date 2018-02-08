@@ -93,6 +93,7 @@ def test_dataset_entry_from_file():
     # Ensures the cache was indeed created
     os.remove(cache_path)
 
+
 def test_dataset_entry_from_object():
     reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
     try:

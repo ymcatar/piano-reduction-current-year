@@ -9,6 +9,7 @@ from .algorithm.base import iter_notes
 logger = logging.getLogger('learning.piano.score')
 logger.setLevel(logging.WARNING)
 
+
 def _group_by_voices(part):
     '''
     Given a part, return all voices each as a Stream of measures.

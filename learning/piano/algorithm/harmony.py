@@ -7,12 +7,14 @@ from music21 import chord, stream
 
 _flow_state = None
 
+
 def get_flow_state():
     global _flow_state
     if not _flow_state:
         _flow_state = FlowState()
     return _flow_state
     ...
+
 
 class Harmony(ReductionAlgorithm):
     dtype = 'bool'

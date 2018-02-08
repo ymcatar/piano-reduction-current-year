@@ -54,7 +54,6 @@ class StructureFeature(BaseFeature):
         self.directed = directed
         super().__init__(name, dtype='structure', help=help, group=group)
 
-
     def json(self):
         return {**self.__dict__, 'feature': self.feature.__dict__}
 
@@ -185,6 +184,7 @@ class LogWriter:
         for feature in all_features:
             if isinstance(feature, FloatFeature):
                 low, high = feature.range
+
                 def values():
                     yield feature.default
                     yield from (
