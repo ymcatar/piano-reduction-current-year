@@ -14,7 +14,6 @@ from pprint import pformat
 import numpy as np
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
-from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
@@ -150,7 +149,7 @@ def command_reduce(args, **kwargs):
         model = args.model or get_default_save_file(kwargs['module'])
         reducer, model = load(model)
 
-    logging.info('Reading input score')
+    logging.info('Reading score')
     in_path, _, out_path = args.file.partition(':')
     target_entry = DatasetEntry((in_path, out_path))
     target_entry.load(reducer, keep_scores=True)
@@ -212,27 +211,29 @@ def command_reduce(args, **kwargs):
 def command_show(args, module, **kwargs):
     reducer = Reducer(**module.reducer_args)
 
-    logging.info('Reading files')
+    logging.info('Reading score')
     in_path, _, out_path = args.file.partition(':')
-    sample_in = ScoreObject.from_file(in_path)
-    sample_out = ScoreObject.from_file(out_path) if out_path else None
-
-    logging.info('Creating markings')
-    reducer.create_markings_on(sample_in)
-    if out_path:
-        reducer.create_alignment_markings_on(sample_in, sample_out, extra=True)
+    target_entry = DatasetEntry((in_path, out_path))
+    target_entry.load(reducer, keep_scores=True)
+    sample_in = target_entry.input_score_obj
+    sample_out = target_entry.output_score_obj
 
     logging.info('Writing data')
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
+    writer.add_features(reducer.structure_features)
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
         merge_reduced_to_original(sample_in.score, sample_out.score)
-        writer.add_score('combined', sample_in.score, title='Orig. + Ex. Reduction')
+        writer.add_score('combined', sample_in.score,
+                         structure_data={**target_entry.contractions, **target_entry.structures},
+                         title='Orig. + Ex. Reduction')
     else:
-        writer.add_score('input', sample_in.score, title='Orig.')
+        writer.add_score('input', sample_in.score,
+                         structure_data={**target_entry.contractions, **target_entry.structures},
+                         title='Orig.')
     writer.finalize()
 
     logging.info('Done')
@@ -317,7 +318,7 @@ def run_model_cli(module):
 
     parser = argparse.ArgumentParser(description='Piano Reduction System')
 
-    parser.add_argument('--sample', '-S', nargs='*',
+    parser.add_argument('--sample', '-S', action='append',
                         help='A sample file pair, separated by a colon (:). '
                              'If unspecified, the default set of samples will '
                              'be used.')

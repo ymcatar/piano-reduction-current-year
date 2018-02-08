@@ -113,7 +113,8 @@ class DatasetEntry:
         description = describe_algorithm(algo)
         if cache and use_cache and description in cache.attrs:
             ds = cache[cache.attrs[description]]
-            self.input_score_obj.annotate(ds, algo.key)
+            for i, key in enumerate(algo.all_keys):
+                self.input_score_obj.annotate(ds[:, i], key)
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating {}'.format(type(algo).__name__))
