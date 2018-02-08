@@ -17,8 +17,7 @@ class AlignMinOctaveHand(AlignmentMethod):
     all_keys = ['feasible hands', 'justified', 'hand']
     key = 'hand'
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj,
-                                     extra=False):
+    def run(self, input_score_obj, output_score_obj, extra=False):
         '''
         Assign hands using the following precedence rules:
 

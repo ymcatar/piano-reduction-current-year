@@ -15,7 +15,7 @@ class PitchClassStatistics(ReductionAlgorithm):
     def __init__(self):
         super(PitchClassStatistics, self).__init__()
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each bar, a histogram of the pitch classes is constructed.
         '''

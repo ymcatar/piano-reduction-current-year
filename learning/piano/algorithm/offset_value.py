@@ -8,6 +8,6 @@ class OffsetValue(ReductionAlgorithm):
     dtype = 'float'
     range = (0.0, None)
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         for n, offset in iter_notes_with_offset(score_obj._score, recurse=True):
             get_markings(n)[self.key] = offset

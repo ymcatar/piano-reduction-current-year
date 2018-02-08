@@ -29,7 +29,7 @@ class ReductionAlgorithm(object):
         '''
         return ([], {})
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         raise NotImplementedError()
 
 

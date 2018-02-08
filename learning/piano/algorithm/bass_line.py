@@ -10,7 +10,7 @@ class BassLine(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each bar, the part with the lowest median pitch space is marked.
         '''

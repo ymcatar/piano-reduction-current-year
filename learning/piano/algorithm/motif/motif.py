@@ -11,7 +11,7 @@ class Motif(ReductionAlgorithm):
     def __init__(self):
         super(Motif, self).__init__()
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         For each score, find out the motif and mark it
         '''

@@ -9,7 +9,7 @@ class OnsetAfterRest(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each voice, each note occurring immediately after a rest is marked.
         '''

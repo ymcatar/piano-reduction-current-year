@@ -118,7 +118,7 @@ class DatasetEntry:
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating {}'.format(type(algo).__name__))
-            algo.create_markings_on(self.input_score_obj)
+            algo.run(self.input_score_obj)
             ds = np.hstack(
                 self.input_score_obj.extract(key, dtype='float', default=0)[:, np.newaxis]
                 for key in algo.all_keys)
@@ -135,7 +135,7 @@ class DatasetEntry:
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating contraction {}'.format(type(algo).__name__))
-            ds = list(algo.create_contractions(self.input_score_obj))
+            ds = list(algo.run(self.input_score_obj))
             if cache:
                 set_in_cache(cache, description, ds)
         self.contractions[algo.key] = [((r[0], r[1]), ()) for r in ds]
@@ -151,7 +151,7 @@ class DatasetEntry:
             logging.info('Evaluating structure {}'.format(type(algo).__name__))
             # Concatenate to simplify caching
             ds = np.stack([np.concatenate(x, axis=0)
-                           for x in algo.create(self.input_score_obj)])
+                           for x in algo.run(self.input_score_obj)])
             if cache:
                 set_in_cache(cache, description, ds)
         self.structures[algo.key] = [((r[0], r[1]), r[2:]) for r in ds]
@@ -166,8 +166,7 @@ class DatasetEntry:
         else:
             self.ensure_scores_loaded()
             logging.info('Evaluating alignment')
-            algo.create_alignment_markings_on(self.input_score_obj,
-                                              self.output_score_obj, extra=extra)
+            algo.run(self.input_score_obj, self.output_score_obj, extra=extra)
             ds = self.input_score_obj.extract(algo.key, dtype='int')
             if cache:
                 set_in_cache(cache, description, ds)

@@ -9,7 +9,7 @@ class RhythmVariety(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each voice, each note that
         -   is adjacent to a rest, or

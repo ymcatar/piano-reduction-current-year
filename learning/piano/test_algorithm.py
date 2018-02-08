@@ -28,7 +28,7 @@ def test_binary_algorithms(algo, output_name):
     output = converter.parse(
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
-    algo.create_markings_on(s)
+    algo.run(s)
     alignment = align_all_notes(input, output)
 
     for measure in input.recurse(
@@ -61,7 +61,7 @@ def test_continuous_algorithms(algo, output_name):
     output = converter.parse(
         'learning/piano/test_sample/algorithm_{}.xml'.format(output_name))
 
-    algo.create_markings_on(s)
+    algo.run(s)
     alignment = align_all_notes(input, output)
 
     for measure in input.recurse(
@@ -87,7 +87,7 @@ def test_pitch_class_statistics():
     input = s.score
 
     algo = algorithm.PitchClassStatistics()
-    algo.create_markings_on(s)
+    algo.run(s)
 
     expecteds = {
         #     C  C# D  D# E  F  F# G  G# A  A# B

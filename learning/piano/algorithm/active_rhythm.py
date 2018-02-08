@@ -9,7 +9,7 @@ class ActiveRhythm(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each bar, the part(s) with the most number of notes is marked.
         '''

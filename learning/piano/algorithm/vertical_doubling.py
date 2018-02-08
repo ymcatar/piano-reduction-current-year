@@ -9,7 +9,7 @@ class VerticalDoubling(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each offset, notes with a pitch class that appears at least twice is
         marked.

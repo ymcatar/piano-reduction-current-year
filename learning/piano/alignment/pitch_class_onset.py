@@ -22,7 +22,7 @@ class AlignPitchClassOnset(AlignmentMethod):
     all_keys = ['align_type', 'rev_align_type', 'align']
     key = 'align'
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
+    def run(self, input_score_obj, output_score_obj, extra=False):
         '''
         Match notes using pitch class and onset values only, ignoring duration
         and octave.
@@ -47,8 +47,7 @@ class AlignPitchClassOnset(AlignmentMethod):
             n.editorial.misc['align'] = bool(align_type)
 
         if extra:
-            self.create_alignment_markings_on(output_score_obj, input_score_obj,
-                                              extra=False)
+            self.run(output_score_obj, input_score_obj, extra=False)
             for n in output_score_obj:
                 n.editorial.misc['rev_align_type'] = \
                     n.editorial.misc['align_type'] or 'fabricated'

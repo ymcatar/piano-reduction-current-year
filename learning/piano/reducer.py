@@ -18,10 +18,14 @@ class Reducer(object):
     '''
     def __init__(self, algorithms, alignment, contractions=[], structures=[]):
         '''
+        Each algorithm is either specified by an *Algorithm instance, or a tuple
+        (class.path, args, kwargs).
         Arguments:
-            algorithms: List of Algorithm objects or (class.path, args, kwargs)
+            algorithms: List of algorithms.
                 tuple.
-            alignment: Name of the alignment method.
+            alignment: Alignment algorithm.
+            contractions: List of contraction algorithms.
+            structures: List of structure algorithms.
         '''
 
         self._algorithms = []
@@ -56,24 +60,7 @@ class Reducer(object):
     def all_keys(self):
         return self._all_keys
 
-    def create_markings_on(self, score_obj, use_cache=False):
-        d = DatasetEntry(score_obj_pair=(score_obj, None))
-        d.load(self, use_cache=use_cache)
-        return d.X
-
-    def create_contractions(self, score_obj, use_cache=False):
-        raise NotImplementedError()  # TODO
-
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False,
-                                     use_cache=False):
-        d = DatasetEntry(score_obj_pair=(input_score_obj, output_score_obj))
-        d.load(self, use_cache=use_cache, extra=extra)
-        return d.y
-
-    def predict_from(self, model, score_obj, X=None, mapping=None, structured=False):
-        if X is None:
-            X = self.create_markings_on(score_obj)
-
+    def predict_from(self, model, score_obj, X, mapping=None, structured=False):
         if structured:
             y_proba = model.predict_structured(X)
         else:
