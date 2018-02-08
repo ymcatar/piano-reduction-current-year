@@ -2,9 +2,6 @@ from .base import ReductionAlgorithm, get_markings, iter_notes_with_offset
 
 
 class OffsetValue(ReductionAlgorithm):
-    def __init__(self):
-        super(OffsetValue, self).__init__()
-
     dtype = 'float'
     range = (0.0, None)
 

@@ -3,13 +3,10 @@
 from ..base import ReductionAlgorithm, get_markings
 from .analyzer import MotifAnalyzer
 
-from music21 import stream
-import numpy as np
-
 
 class Motif(ReductionAlgorithm):
-    def __init__(self):
-        super(Motif, self).__init__()
+    dtype = 'float'
+    range = (0, None)
 
     def run(self, score_obj):
         '''

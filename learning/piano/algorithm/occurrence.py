@@ -5,9 +5,6 @@ from collections import Counter
 
 
 class Occurrence(ReductionAlgorithm):
-    def __init__(self):
-        super(Occurrence, self).__init__()
-
     dtype = 'bool'
 
     def run(self, score_obj):

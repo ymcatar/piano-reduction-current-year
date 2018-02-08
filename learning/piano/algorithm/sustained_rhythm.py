@@ -4,9 +4,6 @@ from music21 import stream
 
 
 class SustainedRhythm(ReductionAlgorithm):
-    def __init__(self):
-        super(SustainedRhythm, self).__init__()
-
     dtype = 'bool'
 
     def run(self, score_obj):

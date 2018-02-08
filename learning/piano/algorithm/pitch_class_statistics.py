@@ -12,9 +12,6 @@ class PitchClassStatistics(ReductionAlgorithm):
     def all_keys(self):
         return ['{}_{!s}'.format(self.key, pc) for pc in PITCH_CLASSES]
 
-    def __init__(self):
-        super(PitchClassStatistics, self).__init__()
-
     def run(self, score_obj):
         '''
         In each bar, a histogram of the pitch classes is constructed.

@@ -19,7 +19,7 @@ class ReductionAlgorithm(object):
     @property
     def key(self):
         # Generate a default main key, for convenience
-        return str(self.key_prefix) + '_' + str(self.__class__.__name__)
+        return str(self.key_prefix) + '_' + str(type(self).__name__)
 
     @property
     def args(self):

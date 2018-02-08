@@ -4,9 +4,6 @@ from collections import Counter, defaultdict
 
 
 class VerticalDoubling(ReductionAlgorithm):
-    def __init__(self):
-        super(VerticalDoubling, self).__init__()
-
     dtype = 'bool'
 
     def run(self, score_obj):

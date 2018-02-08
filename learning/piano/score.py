@@ -180,7 +180,7 @@ class ScoreObject(object):
         # We use kwargs for default so that we can distinguish None and unspecified
         out = np.empty(len(self), dtype=dtype)
 
-        for i, n in enumerate(self):
+        for i, n in enumerate(self.notes):
             try:
                 out[i] = n.editorial.misc[key]
             except KeyError:
@@ -198,7 +198,7 @@ class ScoreObject(object):
         if mapping is None:
             assert len(vector) == len(self)
             mapping = range(len(vector))
-        for i, n in zip(mapping, self):
+        for i, n in zip(mapping, self.notes):
             n.editorial.misc[key] = vector[i]
 
     def index(self, n):

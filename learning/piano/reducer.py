@@ -1,15 +1,8 @@
-from .dataset import DatasetEntry
 from .util import ensure_algorithm, dump_algorithm
 
-import importlib
 import numpy as np
 
 from scoreboard import writer as writerlib
-
-
-def import_symbol(path):
-    module, symbol = path.rsplit('.', 1)
-    return getattr(importlib.import_module(module), symbol)
 
 
 class Reducer(object):

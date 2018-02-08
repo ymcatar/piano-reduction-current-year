@@ -10,7 +10,7 @@ class ContractionAlgorithm:
         Returns a list of pairs (x, y) indicating Note y should be contracted to
         Note x.
         '''
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def key(self):
