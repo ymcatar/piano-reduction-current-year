@@ -4,13 +4,10 @@ from music21 import note, stream
 
 
 class EntranceEffect(ReductionAlgorithm):
-    def __init__(self):
-        super(EntranceEffect, self).__init__()
-
     dtype = 'float'
     range = (0.0, None)
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         The entrance effect value for a note is given by the offset to the
         previous rest in the same *voice*, in quarter lengths.

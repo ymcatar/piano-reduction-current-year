@@ -147,7 +147,6 @@ def main(dev=False):
             app.router.add_static('/', path=PUBLIC_DIR, name='public')
             PORT = 8080
 
-
         print('## Visit {} on your browser. ##'.format('http://localhost:8080/'))
 
         logging.info('Running server on {}...'.format(PORT))

@@ -54,7 +54,6 @@ class StructureFeature(BaseFeature):
         self.directed = directed
         super().__init__(name, dtype='structure', help=help, group=group)
 
-
     def json(self):
         return {**self.__dict__, 'feature': self.feature.__dict__}
 
@@ -185,6 +184,7 @@ class LogWriter:
         for feature in all_features:
             if isinstance(feature, FloatFeature):
                 low, high = feature.range
+
                 def values():
                     yield feature.default
                     yield from (
@@ -206,16 +206,7 @@ def guess_feature(algo):
     if getattr(algo, 'feature', None):
         return algo.feature
 
-    METHODS = ['create_markings_on', 'create_alignment_markings_on', 'create_contractions', 'create']
-    help = algo.__doc__
-    if not help:
-        for method in METHODS:
-            if hasattr(algo, method) and getattr(algo, method).__doc__:
-                help = getattr(algo, method).__doc__
-                break
-        else:
-            help = ''
-
+    help = algo.__doc__ or algo.run.__doc__ or ''
     help = textwrap.dedent(help).strip()
     dtype = getattr(algo, 'dtype', 'bool')
     if dtype == 'float':

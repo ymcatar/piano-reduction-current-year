@@ -18,5 +18,5 @@ class AlignmentMethod(object):
         '''
         return ([], {})
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
+    def run(self, input_score_obj, output_score_obj, extra=False):
         raise NotImplementedError()

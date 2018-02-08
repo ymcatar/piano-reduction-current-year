@@ -17,7 +17,7 @@ class StructureAlgorithm:
     def n_features():
         raise NotImplementedError()
 
-    def create(self, score_obj):
+    def run(self, score_obj):
         '''
         Returns an iterator of (edge, features), where
         -   `edge` is a pair with the indices of the two endpoints, and
@@ -40,7 +40,7 @@ class SimultaneousNotes(StructureAlgorithm):
     '''
     n_features = 1
 
-    def create(self, score_obj):
+    def run(self, score_obj):
         for bar in score_obj.by_bar:
             begins_by_offset = defaultdict(set)
             ends_by_offset = defaultdict(set)

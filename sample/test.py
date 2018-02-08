@@ -12,4 +12,3 @@ try:
     print('YES')
 except:
     raise
-

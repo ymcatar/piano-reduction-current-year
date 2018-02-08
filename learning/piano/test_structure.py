@@ -4,8 +4,8 @@ from .structure import SimultaneousNotes
 
 def test_simulateneous_notes():
     s = ScoreObject.from_file('learning/piano/test_sample/algorithm_input_small.xml')
-    structure = dict(SimultaneousNotes().create(s))
-    assert set(structure.keys()) == {
+    structure = dict(SimultaneousNotes().run(s))
+    assert set(tuple(sorted(i)) for i in structure.keys()) == {
         (0, 9),
         (0, 15),
         (9, 15),

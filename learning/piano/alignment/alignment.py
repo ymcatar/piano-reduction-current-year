@@ -27,7 +27,7 @@ class Alignment:
         return len(self.left_lookup)
 
     def __repr__(self):
-        return '<%s at %#x>' % (self.__class__.__name__, id(self))
+        return '<%s at %#x>' % (type(self).__name__, id(self))
 
     def get(self, key, default=None):
         return self.left_lookup.get(id(key, default))
@@ -56,9 +56,8 @@ def align_all_notes(left_score, right_score, precision=1024,
     Returns: an Alignment object.
     '''
 
-    # index[part index][measure index] \
-    #   [(local offset, duration, pitch space)] = list(notes)
-    # The tuple can be completely determined from the Note object itself
+    # index[part index][measure index][key] = list(notes)
+    # where key is determined by key_Func
     scores = [left_score, right_score]
     indices = [defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
                for _ in range(2)]
@@ -92,5 +91,3 @@ def align_all_notes(left_score, right_score, precision=1024,
                     lookup[id(n)] = other_index[i][mi][key]
 
     return Alignment(*lookups)
-
-

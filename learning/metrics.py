@@ -94,7 +94,7 @@ class ScoreMetrics:
             gen_size = sum(not_tie_continue(n) for n in iter_notes(gen_score, recurse=True))
             test_size = sum(not_tie_continue(n) for n in iter_notes(test_score, recurse=True))
             matching_size = sum(not_tie_continue(n) and bool(alignment[n])
-                            for n in iter_notes(gen_score, recurse=True))
+                                for n in iter_notes(gen_score, recurse=True))
 
             total = test_size + gen_size - matching_size
             return matching_size / total if total else 0

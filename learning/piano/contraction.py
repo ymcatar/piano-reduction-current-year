@@ -5,12 +5,12 @@ from .algorithm.base import iter_notes_with_offset
 
 
 class ContractionAlgorithm:
-    def create_contractions(self, score_obj):
+    def run(self, score_obj):
         '''
         Returns a list of pairs (x, y) indicating Note y should be contracted to
         Note x.
         '''
-        raise NotImplemented()
+        raise NotImplementedError()
 
     @property
     def key(self):
@@ -22,7 +22,7 @@ class ContractionAlgorithm:
 
 
 class ContractTies(ContractionAlgorithm):
-    def create_contractions(self, score_obj):
+    def run(self, score_obj):
         '''
         Contract tied notes to their preceding notes.
         '''
@@ -32,7 +32,7 @@ class ContractTies(ContractionAlgorithm):
 
 
 class ContractByPitchOnset(ContractionAlgorithm):
-    def create_contractions(self, score_obj):
+    def run(self, score_obj):
         '''
         Contract notes with the same pitch and the same starting time.
         '''

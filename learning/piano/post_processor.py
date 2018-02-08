@@ -120,7 +120,7 @@ class PostProcessor(object):
                                 n.editorial.misc['hand'] = hand
 
     def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(),
-                       measure_length=0, playable=True):
+                        measure_length=0, playable=True):
         # list of [offset, quarter length, list of (ps, tie)]
         out_notes = []
 

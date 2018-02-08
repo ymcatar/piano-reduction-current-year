@@ -4,12 +4,9 @@ from music21 import note
 
 
 class RhythmVariety(ReductionAlgorithm):
-    def __init__(self):
-        super(RhythmVariety, self).__init__()
-
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each voice, each note that
         -   is adjacent to a rest, or
@@ -21,7 +18,7 @@ class RhythmVariety(ReductionAlgorithm):
                 last_note = None
                 last_duration = 0.0
                 for n in voice.recurse(skipSelf=False).notesAndRests:
-                    set_marking_in_general_note(n, self.key, 0)
+                    set_marking_in_general_note(n, self.key, False)
 
                     # This also marks rests as a side effect, although this
                     # does not serve any purpose.
@@ -29,15 +26,15 @@ class RhythmVariety(ReductionAlgorithm):
                     # Note/Chord -> Rest
                     if (isinstance(last_note, note.NotRest) and
                             isinstance(n, note.Rest)):
-                        set_marking_in_general_note(last_note, self.key, 1)
+                        set_marking_in_general_note(last_note, self.key, True)
                     # Rest -> Note/Chord
                     elif not last_note or isinstance(last_note, note.Rest):
-                        set_marking_in_general_note(n, self.key, 1)
+                        set_marking_in_general_note(n, self.key, True)
                     # Note/Chord -> Note/Chord
                     elif (isinstance(last_note, note.NotRest) and
                             n.duration.quarterLength != last_duration):
-                        set_marking_in_general_note(n, self.key, 1)
-                        set_marking_in_general_note(last_note, self.key, 1)
+                        set_marking_in_general_note(n, self.key, True)
+                        set_marking_in_general_note(last_note, self.key, True)
 
                     last_note = n
                     last_duration = n.duration.quarterLength

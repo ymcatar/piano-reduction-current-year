@@ -19,7 +19,7 @@ class ReductionAlgorithm(object):
     @property
     def key(self):
         # Generate a default main key, for convenience
-        return str(self.key_prefix) + '_' + str(self.__class__.__name__)
+        return str(self.key_prefix) + '_' + str(type(self).__name__)
 
     @property
     def args(self):
@@ -29,7 +29,7 @@ class ReductionAlgorithm(object):
         '''
         return ([], {})
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         raise NotImplementedError()
 
 

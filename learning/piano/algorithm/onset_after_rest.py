@@ -4,23 +4,20 @@ from music21 import stream, note
 
 
 class OnsetAfterRest(ReductionAlgorithm):
-    def __init__(self):
-        super(OnsetAfterRest, self).__init__()
-
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each voice, each note occurring immediately after a rest is marked.
         '''
         for voices in score_obj.voices_by_part:
-                rested = 1
+                rested = True
                 for voice in voices:
                     for measure in voice.getElementsByClass(stream.Measure):
                         for n in measure.notesAndRests:
                             if isinstance(n, note.Rest):
-                                rested = 1
+                                rested = True
                             elif isinstance(n, note.NotRest):
                                 set_marking_in_general_note(n, self.key, rested)
                                 if rested:
-                                    rested = 0
+                                    rested = False

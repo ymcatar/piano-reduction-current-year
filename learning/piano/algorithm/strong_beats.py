@@ -8,7 +8,7 @@ class StrongBeats(ReductionAlgorithm):
 
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         Each note whose onset occurs at an integral multiple of the defined
         division is marked.

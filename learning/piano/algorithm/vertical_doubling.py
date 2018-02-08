@@ -4,12 +4,9 @@ from collections import Counter, defaultdict
 
 
 class VerticalDoubling(ReductionAlgorithm):
-    def __init__(self):
-        super(VerticalDoubling, self).__init__()
-
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each offset, notes with a pitch class that appears at least twice is
         marked.

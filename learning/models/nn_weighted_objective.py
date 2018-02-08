@@ -15,6 +15,7 @@ class NNWeightedObjective(TflearnModel):
         net = tflearn.fully_connected(net, 1, activation='sigmoid')
 
         optimizer = tflearn.optimizers.Adam(learning_rate=1e-4)
+
         def loss(y_pred, y_true):
             return tflearn.objectives.weighted_crossentropy(y_pred, y_true, 0.7)
         net = tflearn.regression(net, optimizer=optimizer, loss=loss)

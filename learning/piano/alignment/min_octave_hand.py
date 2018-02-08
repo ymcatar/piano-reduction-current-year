@@ -17,8 +17,7 @@ class AlignMinOctaveHand(AlignmentMethod):
     all_keys = ['feasible hands', 'justified', 'hand']
     key = 'hand'
 
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj,
-                                     extra=False):
+    def run(self, input_score_obj, output_score_obj, extra=False):
         '''
         Assign hands using the following precedence rules:
 
@@ -48,7 +47,7 @@ class AlignMinOctaveHand(AlignmentMethod):
             n.editorial.misc['justified'] = False
 
         for measure in (input_score.recurse(skipSelf=True)
-                .getElementsByClass(stream.Measure)):
+                        .getElementsByClass(stream.Measure)):
             for voice in measure.voices or [measure]:
                 votes = Counter()
                 for n in iter_notes(voice):

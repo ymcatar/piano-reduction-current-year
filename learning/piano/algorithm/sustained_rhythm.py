@@ -4,12 +4,9 @@ from music21 import stream
 
 
 class SustainedRhythm(ReductionAlgorithm):
-    def __init__(self):
-        super(SustainedRhythm, self).__init__()
-
     dtype = 'bool'
 
-    def create_markings_on(self, score_obj):
+    def run(self, score_obj):
         '''
         In each bar, the non-empty part(s) with the least number of notes is
         marked.

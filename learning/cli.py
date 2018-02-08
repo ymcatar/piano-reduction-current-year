@@ -160,7 +160,8 @@ def command_reduce(args, **kwargs):
     y_test = target_entry.y
     logging.info('Predicting')
 
-    y_proba = reducer.predict_from(model, target, X=X_test, mapping=target_entry.C, structured=True)
+    y_proba = reducer.predict_from(model, target, X=X_test,
+                                   mapping=target_entry.C, structured=True)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -266,7 +267,8 @@ def command_crossval(args, module, **kwargs):
         target_out = dataset.entries[i].output_score_obj
 
         logging.info('Predicting')
-        y_proba = reducer.predict_from(model, target_in, X=X_valid, mapping=dataset.entries[i].C)
+        y_proba = reducer.predict_from(model, target_in, X=X_valid,
+                                       mapping=dataset.entries[i].C)
 
         post_processor = PostProcessor()
         result = post_processor.generate_piano_score(

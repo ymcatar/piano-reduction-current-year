@@ -9,7 +9,7 @@ from .score import ScoreObject
 
 
 class PitchSpace(ReductionAlgorithm):
-    def create_markings_on(self, input_score_obj):
+    def run(self, input_score_obj):
         for n in input_score_obj:
             get_markings(n)[self.key] = n.pitch.ps
 
@@ -19,14 +19,14 @@ class DummySequences(ReductionAlgorithm):
     def all_keys(self):
         return [self.key + '_ascending', self.key + 'descending']
 
-    def create_markings_on(self, input_score_obj):
+    def run(self, input_score_obj):
         for i, n in enumerate(input_score_obj):
             get_markings(n)[self.all_keys[0]] = i
             get_markings(n)[self.all_keys[1]] = -i
 
 
 class AlignDummy(AlignmentMethod):
-    def create_alignment_markings_on(self, input_score_obj, output_score_obj, extra=False):
+    def run(self, input_score_obj, output_score_obj, extra=False):
         for n in input_score_obj:
             get_markings(n)['align'] = True
 
@@ -92,6 +92,7 @@ def test_dataset_entry_from_file():
 
     # Ensures the cache was indeed created
     os.remove(cache_path)
+
 
 def test_dataset_entry_from_object():
     reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
