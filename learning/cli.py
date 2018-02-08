@@ -199,9 +199,11 @@ def command_reduce(args, **kwargs):
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
+    writer.add_features(reducer.structure_features)
     writer.add_features(reducer.output_features)
-    writer.add_score('combined', target.score, title='Orig. + Gen. Reduction',
-                     help=description)
+    writer.add_score('combined', target.score,
+                     structure_data={**target_entry.contractions, **target_entry.structures},
+                     title='Orig. + Gen. Reduction', help=description)
     writer.finalize()
 
     logging.info('Done')

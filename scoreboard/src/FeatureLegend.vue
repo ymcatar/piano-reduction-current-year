@@ -17,6 +17,13 @@
         <div>Value [{{feature.range[0]}}, {{feature.range[1]}}]</div>
       </div>
     </template>
+    <template v-else-if="feature.dtype === 'structure'">
+      <div class="label">
+        <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>
+        <div v-else class="text-box">+</div>
+        <div>{{feature.directed ? 'Directed' : 'Undirected'}}</div>
+      </div>
+    </template>
     <template v-else>
       <div class="label">
         <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>

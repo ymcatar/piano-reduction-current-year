@@ -3,7 +3,6 @@ from .util import ensure_algorithm, dump_algorithm
 
 import importlib
 import numpy as np
-import textwrap
 
 from scoreboard import writer as writerlib
 
@@ -98,17 +97,26 @@ class Reducer(object):
             if list(algo.all_keys) != [algo.key]:
                 # Multi-key features not supported yet
                 continue
-            help = algo.__doc__ or algo.create_markings_on.__doc__
-            help = textwrap.dedent(help).strip()
-            dtype = getattr(algo, 'dtype', 'bool')
-            if getattr(algo, 'feature', None):
-                features.append(algo.feature)
-            elif dtype == 'float':
-                features.append(writerlib.FloatFeature(
-                    algo.key, getattr(algo, dtype, getattr(algo, 'range')),
-                    help=help, group='input'))
-            else:
-                features.append(writerlib.BoolFeature(algo.key, help=help, group='input'))
+            feature = writerlib.guess_feature(algo)
+            features.append(feature)
+
+        return features
+
+    @property
+    def structure_features(self):
+        features = []
+
+        for algo in self.contractions:
+            sub = writerlib.guess_feature(algo)
+            feature = writerlib.StructureFeature(
+                sub.name, sub, directed=True, help=sub.help, group='contractions')
+            features.append(feature)
+
+        for algo in self.structures:
+            sub = writerlib.guess_feature(algo)
+            feature = writerlib.StructureFeature(
+                sub.name, sub, help=sub.help, group='structures')
+            features.append(feature)
 
         return features
 

@@ -119,8 +119,9 @@ export default {
 
     draw() {
       const start = Date.now();
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      const ctx = this.ctx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       if (!this.pages) return;
       if (!this.bitmaps[0]) {
         this.ensureLoaded(0);
@@ -145,62 +146,94 @@ export default {
         this.visiblePages.unshift({pageX, pageY, pageIndex});
 
         // Draw page
-        this.ctx.setTransform(this.realScale, 0, 0, this.realScale, pageX, pageY);
-        this.ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
+        ctx.setTransform(this.realScale, 0, 0, this.realScale, pageX, pageY);
+        ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height);
 
         // Annotations
-        for (const layer of ['notehead', 'text', 'shape']) {
-          for (const key in this.noteMaps[pageIndex]) {
-            if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
-            const entry = this.noteMaps[pageIndex][key];
-            const annotation = this.annotations[key];
+        const self = this;
+        const iterEntries = function*() {
+          for (const key in self.noteMaps[pageIndex]) {
+            if (!self.noteMaps[pageIndex].hasOwnProperty(key)) continue;
+            const entry = self.noteMaps[pageIndex][key];
+            const annotation = self.annotations.notes[key];
             if (!annotation) continue;
-
-            if (layer === 'notehead') {
-              let colour = '#000000';
-              for (let i = 0; i < annotation.noteheads.length; i++) {
-                if (annotation.noteheads[i] !== '#000000')
-                  colour = annotation.noteheads[i];
-              }
-              if (colour) {
-                this.ctx.fillStyle = colour;
-                const path = new Path2D(entry.path);
-                let ctm = entry.ctm;
-                this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
-                this.ctx.fill(path);
-                ctm = ctm.inverse();
-                this.ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
-              }
-            } else if (layer === 'text') {
-              if (annotation.rightText) {
-                const OFFSET = 1;
-                this.ctx.fillStyle = '#0000FF';
-                this.ctx.strokeStyle = '#FFFFFF';
-                this.ctx.lineWidth = 1;
-                this.ctx.font = 'bold 8px Roboto, Noto Sans, sans-serif';
-                this.ctx.textAlign = 'left';
-                this.ctx.textBaseline = 'middle';
-                const args = [
-                  annotation.rightText,
-                  entry.bBox.x + entry.bBox.width + OFFSET,
-                  entry.bBox.y + 0.5 * entry.bBox.height];
-                this.ctx.strokeText(...args);
-                this.ctx.fillText(...args);
-              }
-            } else if (layer === 'shape') {
-              if (annotation.circle) {
-                const OFFSET = 2;
-                this.ctx.strokeStyle = annotation.circle;
-                this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.ellipse(
-                  entry.bBox.x + 0.5 * entry.bBox.width, entry.bBox.y + 0.5 * entry.bBox.height,
-                  entry.bBox.width / 2 + OFFSET, entry.bBox.height / 2 + OFFSET,
-                  0, 0, 2*Math.PI);
-                this.ctx.stroke();
-              }
-            }
+            yield [entry, annotation];
           }
+        };
+
+        // Notehead
+        for (const [entry, annotation] of iterEntries()) {
+          let colour = '#000000';
+          for (let i = 0; i < annotation.noteheads.length; i++) {
+            if (annotation.noteheads[i] !== '#000000')
+              colour = annotation.noteheads[i];
+          }
+          if (colour) {
+            ctx.fillStyle = colour;
+            const path = new Path2D(entry.path);
+            let ctm = entry.ctm;
+            ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+            ctx.fill(path);
+            ctm = ctm.inverse();
+            ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+          }
+        }
+
+        // Text
+        ctx.fillStyle = '#0000FF';
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 1;
+        ctx.font = 'bold 8px Roboto, Noto Sans, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        for (const [entry, annotation] of iterEntries()) {
+          if (annotation.rightText) {
+            const OFFSET = 1;
+            const args = [
+              annotation.rightText,
+              entry.bBox.x + entry.bBox.width + OFFSET,
+              entry.bBox.y + 0.5 * entry.bBox.height];
+            ctx.strokeText(...args);
+            ctx.fillText(...args);
+          }
+        }
+
+        // Shape
+        const OFFSET = 2;
+        ctx.lineWidth = 2;
+        for (const [entry, annotation] of iterEntries()) {
+          if (annotation.circle) {
+            ctx.strokeStyle = annotation.circle;
+            ctx.beginPath();
+            ctx.ellipse(
+              entry.bBox.x + 0.5 * entry.bBox.width, entry.bBox.y + 0.5 * entry.bBox.height,
+              entry.bBox.width / 2 + OFFSET, entry.bBox.height / 2 + OFFSET,
+              0, 0, 2*Math.PI);
+            ctx.stroke();
+          }
+        }
+
+        // Ray
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.lineWidth = 2;
+        const RADIUS = 4;
+        for (const key in this.annotations.structures) {
+          if (!this.annotations.structures.hasOwnProperty(key)) continue;
+          const [u, v] = key.split(':');
+          const entry = this.annotations.structures[key];
+          const upos = this.findNoteLocation(u), vpos = this.findNoteLocation(v);
+          if (!upos || !vpos) continue;
+          if (entry.directed) {
+            ctx.fillStyle = entry.colour;
+            ctx.beginPath();
+            ctx.ellipse(upos.x, upos.y, RADIUS, RADIUS, 0, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+          ctx.strokeStyle = entry.colour;
+          ctx.beginPath();
+          ctx.moveTo(upos.x, upos.y);
+          ctx.lineTo(vpos.x, vpos.y);
+          ctx.stroke();
         }
       }
       if (pageIndex < this.pages.length)
@@ -270,6 +303,18 @@ export default {
       }
     },
 
+    findNoteLocation(key) {
+      for (const {pageX, pageY, pageIndex} of this.visiblePages) {
+        const entry = this.noteMaps[pageIndex][key];
+        if (entry) {
+          return {
+            x: pageX + (entry.bBox.x + 0.5 * entry.bBox.width) * this.realScale,
+            y: pageY + (entry.bBox.y + 0.5 * entry.bBox.height) * this.realScale
+          };
+        }
+      }
+      return null;
+    },
   },
 
   watch: {

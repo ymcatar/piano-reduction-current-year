@@ -64,7 +64,7 @@ async def update_run_map():
                 })
             run_map[run] = run_data
         except (OSError, json.JSONDecodeError):
-            logging.info('Error loading run {}'.format(run), excinfo=True)
+            logging.info('Error loading run {}'.format(run), exc_info=True)
     global runs
     runs = sorted(run_map.values(), key=lambda d: -d['timestamp'])
 
