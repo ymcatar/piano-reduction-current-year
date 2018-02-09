@@ -1,5 +1,6 @@
-from music21 import converter, layout, note, stream
+from music21 import converter, layout, stream
 from collections import defaultdict
+import copy
 from itertools import zip_longest
 import logging
 import numpy as np
@@ -20,15 +21,19 @@ def _group_by_voices(part):
     voices = defaultdict(lambda: stream.Voice())
 
     for m in part.getElementsByClass(stream.Measure):
-        for measure_voice in m.voices:
+        for measure_voice in m.voices or [m]:
             voice_measure = m.cloneEmpty(derivationMethod='group_by_voices')
             voice_measure.mergeElements(measure_voice)
-            voices[measure_voice.id].insert(m.offset, voice_measure)
+            if isinstance(measure_voice, stream.Measure):
+                vid = '1'
+            else:
+                vid = str(measure_voice.id)
+            voices[vid].insert(m.offset, voice_measure)
 
     for vid, voice in voices.items():
         voice.id = vid
 
-    return sorted(voices.values(), key=lambda v: str(v.id))
+    return sorted(voices.values(), key=lambda v: v.id)
 
 
 class ScoreObject(object):
@@ -39,72 +44,14 @@ class ScoreObject(object):
     '''
     def __init__(self, score):
         '''
-        Preprocess the score. The input hierarchy is:
-
-            Stream -> Part -> Measure (maybe -> Voice)
-
-        When there is only one voice in the measure, the Voice object may not
-        exist. We rectify this by requiring Voice objects under the measure.
-        If a voice does not exist in a certain measure, we create a Voice filled
-        with rests.
+        Preprocess the score.
         '''
-        def preprocess_measure(measure, vids):
-            result = measure.cloneEmpty(derivationMethod='preprocess')
+        result = copy.deepcopy(score)
 
-            vids_in_measure = set(str(v.id) for v in measure.voices)
-
-            if not vids_in_measure:
-                voice = stream.Voice(id='1')
-                voice.mergeAttributes(measure)
-                for elem in measure:
-                    if isinstance(elem, note.GeneralNote):
-                        voice.insert(elem)
-                    else:
-                        # Things like TimeSignature, MetronomeMark, etc.
-                        if elem.offset == 0:
-                            result.insert(elem)
-                        else:
-                            voice.insert(elem)
-                result.insert(0, voice)
-                vids_in_measure.add('1')
-            else:
-                result.mergeElements(measure)
-
-            for vid in vids.difference(vids_in_measure):
-                voice = stream.Voice(id=vid)
-                rest = note.Rest(duration=measure.barDuration)
-                rest.hideObjectOnPrint = True
-                voice.insert(0, rest)
-                result.insert(0, voice)
-
+        logger.info('Layout clean-up')
+        for measure in score.recurse(skipSelf=False).getElementsByClass(stream.Measure):
             # Remove page breaks so that it doesn't mess with our output layout
-            result.removeByClass([layout.PageLayout, layout.SystemLayout])
-
-            return result
-
-        def preprocess_part(part):
-            result = part.cloneEmpty(derivationMethod='preprocess')
-
-            # Find all voices ids
-            vids = {'1'}
-            for m in part.getElementsByClass(stream.Measure):
-                for v in m.voices:
-                    vids.add(str(v.id))
-
-            for elem in part:
-                if isinstance(elem, stream.Measure):
-                    result.insert(elem.offset, preprocess_measure(elem, vids))
-                else:
-                    result.insert(elem)
-            return result
-
-        logger.info('Group voice')
-        result = score.cloneEmpty(derivationMethod='preprocess')
-        for elem in score:
-            if isinstance(elem, stream.Part):
-                result.insert(elem.offset, preprocess_part(elem))
-            else:
-                result.insert(elem)
+            measure.removeByClass([layout.PageLayout, layout.SystemLayout])
 
         logger.info('Instrument transposition')
         # Remove instrument transposition
@@ -129,7 +76,7 @@ class ScoreObject(object):
                 bar.insert(0, p)
             self.by_bar.append(bar)
 
-        logger.info('Voice grouping')
+        logger.info('Voice indexing')
         self.voices_by_part = []
         for part in result.parts:
             self.voices_by_part.append(_group_by_voices(part))

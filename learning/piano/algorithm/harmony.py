@@ -38,7 +38,7 @@ class Harmony(ReductionAlgorithm):
         # Mark Dissonance
         for part in score.parts:
             for midx, measure in enumerate(part.getElementsByClass(stream.Measure)):
-                for voice in measure.voices:
+                for voice in measure.voices or [measure]:
                     current_event_group = event.event_container.event_groups[midx]
                     if not current_event_group.events:
                         continue
