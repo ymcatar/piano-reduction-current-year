@@ -1,8 +1,10 @@
 import argparse
 from collections import defaultdict
+import copy
 import datetime
 import functools
 import importlib
+from itertools import chain
 import json
 import logging
 import os.path
@@ -12,8 +14,10 @@ import time
 from music21 import expressions, layout
 from pprint import pformat
 import numpy as np
+from .piano.alignment.difference import AlignDifference
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
+from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
@@ -40,19 +44,24 @@ def add_description_to_score(score, description):
     score.parts[-1].measure(-1).insert(0, te)
 
 
-def merge_reduced_to_original(original, reduced):
+def merge_to_score(target, source, labels=('1st', '2nd')):
+    for part in target.parts:
+        for inst in part.getInstruments():
+            inst.partName = labels[0]
     # Add braces for clarity
-    group = layout.StaffGroup(list(original.parts), name='Original',
-                              abbreviation='Orig.', symbol='brace')
-    original.insert(0, group)
+    target.removeByClass(layout.StaffGroup)
+    group = layout.StaffGroup(list(target.parts), name=labels[0], symbol='brace')
+    target.insert(0, group)
 
-    # Merge reduced parts
-    original.mergeElements(reduced.parts)
+    # Merge source parts
+    target.mergeElements(source.parts)
 
+    for part in source.parts:
+        for inst in part.getInstruments():
+            inst.partName = labels[1]
     # More braces
-    group = layout.StaffGroup(list(reduced.parts), name='Reduced',
-                              abbreviation='Red.', symbol='brace')
-    original.insert(0, group)
+    group = layout.StaffGroup(list(source.parts), name=labels[1], symbol='brace')
+    target.insert(0, group)
 
 
 def create_reducer_and_model(module):
@@ -175,14 +184,14 @@ def command_reduce(args, **kwargs):
         logging.info('Score metrics\n' + metrics.format())
 
     description = textwrap.dedent('''\
+        Command: {}
         Model: {}
         Generated at: {}
-        Reducer arguments:
-        {}
-        ''').format(model.describe(),
-                    datetime.datetime.now().isoformat(),
-                    pformat(reducer.args, width=100))
+        ''').format(' '.join(sys.argv[:]),
+                    model.describe(),
+                    datetime.datetime.now().isoformat())
     add_description_to_score(result, description)
+    description += '\nReducer arguments:\n' + pformat(reducer.args, width=100)
 
     if args.no_output:
         pass
@@ -194,16 +203,30 @@ def command_reduce(args, **kwargs):
         result.show('musicxml')
 
     target.score.toWrittenPitch(inPlace=True)
-    merge_reduced_to_original(target.score, result)
+    merge_to_score(target.score, result, labels=('Orig', 'Gen'))
 
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)
     writer.add_features(reducer.output_features)
+
     writer.add_score('combined', target.score,
                      structure_data={**target_entry.contractions, **target_entry.structures},
                      title='Orig. + Gen. Reduction', help=description)
+
+    if target_out:
+        differ = AlignDifference()
+        writer.add_features(differ.features)
+
+        comparison = copy.deepcopy(target_out)
+        comparison_result = ScoreObject(result)
+        differ.run(comparison, comparison_result, extra=True)
+        merge_to_score(comparison.score, comparison_result.score,
+                       labels=('Ex', 'Gen'))
+        writer.add_score('comparison', comparison.score,
+                         title='Ex. + Gen. Reduction', help=description)
+
     writer.finalize()
 
     logging.info('Done')
@@ -227,7 +250,7 @@ def command_show(args, module, **kwargs):
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
-        merge_reduced_to_original(sample_in.score, sample_out.score)
+        merge_to_score(sample_in.score, sample_out.score, labels=('Orig', 'Ex'))
         writer.add_score('combined', sample_in.score,
                          structure_data={**target_entry.contractions, **target_entry.structures},
                          title='Orig. + Ex. Reduction')

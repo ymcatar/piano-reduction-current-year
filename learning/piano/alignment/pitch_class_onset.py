@@ -55,6 +55,11 @@ class AlignPitchClassOnset(AlignmentMethod):
                 del n.editorial.misc['align']
 
     features = [
+        writer.BoolFeature(
+            'align',
+            help='Whether the note is kept',
+            group='alignment',
+            ),
         writer.CategoricalFeature(
             'align_type',
             {

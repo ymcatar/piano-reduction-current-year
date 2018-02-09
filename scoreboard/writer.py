@@ -62,7 +62,7 @@ def generate_colours():
     '''
     Generate unique colours to colour each note.
     '''
-    for rgb in product(range(1, 51, 2), repeat=3):
+    for rgb in product(range(1, 121, 1), repeat=3):
         yield '#{:02X}{:02X}{:02X}'.format(*rgb)
 
 

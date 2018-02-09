@@ -108,7 +108,9 @@ class ScoreObject(object):
 
         logger.info('Instrument transposition')
         # Remove instrument transposition
-        result.toSoundingPitch(inPlace=True)
+        for part in result.parts:
+            if part.atSoundingPitch == False:  # atSoundingPitch can be 'unknown'
+                part.toSoundingPitch(inPlace=True)
 
         self.original_score = score
         self._score = result
