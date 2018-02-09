@@ -12,7 +12,7 @@ import sys
 import textwrap
 import time
 from music21 import expressions, layout
-from pprint import pformat
+from pprint import pformat, pprint
 import numpy as np
 from .piano.alignment.difference import AlignDifference
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
@@ -24,6 +24,7 @@ from .models.sk import WrappedSklearnModel
 from .metrics import ModelMetrics, ScoreMetrics
 from . import config
 from scoreboard.writer import LogWriter
+import scoreboard.writer as writerlib
 
 
 def configure_logger():
@@ -176,12 +177,21 @@ def command_reduce(args, **kwargs):
     result = post_processor.generate_piano_score(
         target, reduced=True, playable=True, label_type=reducer.label_type)
 
+    writer_features = []
+
     if y_test is not None:
         metrics = ModelMetrics(reducer, y_proba, y_test)
         logging.info('Model metrics\n' + metrics.format())
 
         metrics = ScoreMetrics(reducer, result, target_out.score)
         logging.info('Score metrics\n' + metrics.format())
+
+        # Wrongness marking
+        y_pred = np.argmax(y_proba, axis=1)
+        correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
+        target.annotate(correction, 'correction', mapping=target_entry.C)
+        writer_features.append(writerlib.TextFeature(
+            'correction', help='The correct label, if wrong', group='output'))
 
     description = textwrap.dedent('''\
         Command: {}
@@ -210,6 +220,7 @@ def command_reduce(args, **kwargs):
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)
     writer.add_features(reducer.output_features)
+    writer.add_features(writer_features)
 
     writer.add_score('combined', target.score,
                      structure_data={**target_entry.contractions, **target_entry.structures},
@@ -261,6 +272,19 @@ def command_show(args, module, **kwargs):
     writer.finalize()
 
     logging.info('Done')
+
+
+def command_info(args, **kwargs):
+    model = args.model or get_default_save_file(kwargs['module'])
+    reducer, model = load(model)
+
+    print('Model: {}'.format(model.describe()))
+    print('Reducer arguments:')
+    pprint(reducer.args)
+    weights = model.describe_weights()
+    if weights is not NotImplemented:
+        print('Weights:')
+        print('\n'.join('{:<32}{}'.format(k, v) for k, v in weights))
 
 
 def command_crossval(args, module, **kwargs):
@@ -330,6 +354,8 @@ def main(args, **kwargs):
         command_reduce(args, **kwargs)
     elif args.command == 'show':
         command_show(args, **kwargs)
+    elif args.command == 'info':
+        command_info(args, **kwargs)
     elif args.command == 'crossval':
         command_crossval(args, **kwargs)
     elif args.command == 'clear-cache':
@@ -375,6 +401,9 @@ def run_model_cli(module):
     show_parser.add_argument(
         'file', help='Input file. Optionally specify an input-output pair '
                      'to show alignment features.')
+
+    info_parser = subparsers.add_parser('info', help='Describe trained model')
+    info_parser.add_argument('--model', '-m', help='Model file')
 
     crossval_parser = subparsers.add_parser(
         'crossval', help='Evaluate model using cross validation')

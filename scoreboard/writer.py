@@ -27,6 +27,12 @@ class BoolFeature(BaseFeature):
                          group=group)
 
 
+class TextFeature(BaseFeature):
+    def __init__(self, name, default='', help='', group=None):
+        super().__init__(name, dtype='text', default=default, help=help,
+                         group=group)
+
+
 class FloatFeature(BaseFeature):
     def __init__(self, name, range=None, default=0.0, help='', group=None):
         '''

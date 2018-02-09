@@ -6,6 +6,12 @@ import h5py
 
 
 class PyStructCRF(BaseModel):
+    '''
+    Implements a CRF model with PyStruct.
+
+    There are unary and pairwise potentials. Note that pairwise potentials are
+    directed.
+    '''
     def __init__(self, reducer):
         super().__init__(reducer)
 
@@ -40,3 +46,27 @@ class PyStructCRF(BaseModel):
     def load(self, fp):
         with h5py.File(fp, 'r') as f:
             self.learner.w = np.asarray(f['w'])
+
+    def describe_weights(self):
+        w = self.learner.w
+        n_features = self.model.n_features
+        n_states = self.model.n_states
+        items = []
+        # Unary features
+        mat = w[:n_features * n_states].reshape(n_features, n_states)
+        items.extend(zip(self.reducer.all_keys, mat))
+
+        # Sort weights descendingly by their mean absolute value
+        items.sort(key=lambda i: -np.mean(np.abs(i[1])))
+
+        # Edge features
+        i = n_features * n_states
+        for algo in self.reducer.structures:
+            for j in range(algo.n_features):
+                mat = w[i:i + n_states**2].reshape(n_states, n_states)
+                items.append(('{}_{}'.format(algo.key, j), mat))
+                i += algo.n_features * n_states**2
+
+        assert i == len(w)
+
+        return items
