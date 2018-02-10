@@ -86,7 +86,10 @@ async def ensure_xml_render(path):
             mscore = environ_local['musescoreDirectPNGPath']
             if not mscore or not os.path.exists(mscore):
                 raise web.HTTPInternalServerError('MuseScore not installed')
-            subprocess.run([mscore, '-o', path[:-3] + 'svg', '-T', '0', path], check=True)
+            process = await asyncio.create_subprocess_exec(
+                mscore, '-o', path[:-3] + 'svg', '-T', '0', path)
+            await process.wait()
+            assert process.returncode == 0, 'MuseScore terminated with error'
             full_image_paths = sorted(glob.glob('{}-*.svg'.format(basepath)))
             image_paths = [i.rsplit('/', 1)[1] for i in full_image_paths]
 

@@ -116,11 +116,12 @@ class LogWriter:
         self.colour_it = generate_colours()
 
         self.timestamp = int(datetime.datetime.now().timestamp())
-        self.scores = []
+        self.flavours = []
         self.features = {}
         self.structure_features = {}
 
-        self.score_instances = {}
+        self.score_indices = {}
+        self.score_data = {}
 
     def add_feature(self, feature):
         if feature.dtype == 'structure':
@@ -132,9 +133,8 @@ class LogWriter:
         for feature in features:
             self.add_feature(feature)
 
-    def add_score(self, name, score, structure_data=None, **kwargs):
+    def add_score(self, name, score, structure_data=None, flavour=True, **kwargs):
         score = copy.deepcopy(score)
-        self.score_instances[name] = score
 
         note_colours = []
         for n in iter_notes(score, recurse=True):
@@ -158,26 +158,82 @@ class LogWriter:
                 for (u, v), f in data:
                     structures[feat][note_colours[u] + ':' + note_colours[v]] = f
 
-        out = {
+        self.score_data[name] = {
             'notes': notes,
-            'structures': structures
+            'structures': structures,
+            }
+        self.score_indices[name] = {
+            'score': score,
+            **kwargs
             }
 
+        if flavour:
+            self.add_flavour([name], **kwargs)
+
+    def add_flavour(self, names, **kwargs):
+        '''
+        Create a combined view of multiple scores.
+        '''
+
+        # Compute metadata
+        indices = [self.score_indices[n] for n in names]
+        name = '_'.join(names)
+        title = ' + '.join(idx.get('title', n) for n, idx in zip(names, indices))
+        help = kwargs.get('help')
+        if not help:
+            help = '\n'.join(idx.get('title', n) + ': ' + idx.get('help', '')
+                             for n, idx in zip(names, indices))
+
+        # Combine scores
+        score = music21.stream.Score()
+        score.metadata = (self.score_indices[names[0]]['score'].metadata or
+            music21.metadata.Metadata(title='', composer=''))
+
+        for n in names:
+            index = self.score_indices[n]
+            parts = index['score'].parts
+            group_name = index.get('title', n)
+
+            # Rename parts to indicate their group
+            for part in parts:
+                # Backup the original part name
+                if not 'partName' in part.editorial.misc:
+                    part.editorial.misc['partName'] = part.partName
+                abbrev = part.partAbbreviation or part.editorial.misc.get('partName')
+                if not abbrev:
+                    inst = part.getInstrument()
+                    if inst:
+                        abbrev = inst.instrumentAbbreviation or inst.instrumentName or '?'
+                part.partName = '({}) {}'.format(group_name, abbrev)
+                score.insert(0, part)
+
+            # Add a brace for clarity
+            sg = music21.layout.StaffGroup(list(parts), name=group_name, symbol='brace')
+            score.insert(0, sg)
+
         score.write('musicxml', fp=os.path.join(self.dir, name + '.xml'))
+
+        # Write feature data
+        datas = [self.score_data[n] for n in names]
+        out = {
+            'notes': dict(p for data in datas for p in data['notes'].items()),
+            'structures': dict(p for data in datas for p in data['structures'].items()),
+            }
         with open(os.path.join(self.dir, name + '.json'), 'w') as f:
             json.dump(out, f, indent=2, cls=MyJSONEncoder)
 
-        self.scores.append({
+        self.flavours.append({
             'name': name,
             'xml': name + '.xml',
             'featureData': name + '.json',
-            **kwargs  # title, help
+            'title': title,
+            'help': help,
             })
 
     def get_metadata(self):
         return {
             'timestamp': self.timestamp,
-            'scores': self.scores,
+            'scores': self.flavours,
             'features': [f.__dict__ for f in self.features.values()],
             'structureFeatures': [f.json() for f in self.structure_features.values()]
             }
@@ -195,8 +251,8 @@ class LogWriter:
                     yield feature.default
                     yield from (
                         n.editorial.misc.get(feature.name, feature.default)
-                        for score in self.score_instances.values()
-                        for n in iter_notes(score, recurse=True))
+                        for idx in self.score_indices.values()
+                        for n in iter_notes(idx['score'], recurse=True))
                 if low is None:
                     low = min(values())
                 if high is None:

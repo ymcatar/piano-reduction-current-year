@@ -248,6 +248,7 @@ export default {
     },
 
     resize() {
+      if (!this.$refs.canvas) return; // Not sure why this happens
       console.info('Resizing');
       let ratio = window.devicePixelRatio;
       // This avoids ugly aliasing

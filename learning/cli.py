@@ -1,17 +1,15 @@
 import argparse
 from collections import defaultdict
-import copy
 import datetime
 import functools
 import importlib
-from itertools import chain
 import json
 import logging
 import os.path
 import sys
 import textwrap
 import time
-from music21 import expressions, layout
+from music21 import expressions
 from pprint import pformat, pprint
 import numpy as np
 from .piano.alignment.difference import AlignDifference
@@ -43,26 +41,6 @@ def add_description_to_score(score, description):
     te.style.absoluteY = -60
     te.style.fontSize = 8
     score.parts[-1].measure(-1).insert(0, te)
-
-
-def merge_to_score(target, source, labels=('1st', '2nd')):
-    for part in target.parts:
-        for inst in part.getInstruments():
-            inst.partName = labels[0]
-    # Add braces for clarity
-    target.removeByClass(layout.StaffGroup)
-    group = layout.StaffGroup(list(target.parts), name=labels[0], symbol='brace')
-    target.insert(0, group)
-
-    # Merge source parts
-    target.mergeElements(source.parts)
-
-    for part in source.parts:
-        for inst in part.getInstruments():
-            inst.partName = labels[1]
-    # More braces
-    group = layout.StaffGroup(list(source.parts), name=labels[1], symbol='brace')
-    target.insert(0, group)
 
 
 def create_reducer_and_model(module):
@@ -213,7 +191,6 @@ def command_reduce(args, **kwargs):
         result.show('musicxml')
 
     target.score.toWrittenPitch(inPlace=True)
-    merge_to_score(target.score, result, labels=('Orig', 'Gen'))
 
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
@@ -222,21 +199,23 @@ def command_reduce(args, **kwargs):
     writer.add_features(reducer.output_features)
     writer.add_features(writer_features)
 
-    writer.add_score('combined', target.score,
-                     structure_data={**target_entry.contractions, **target_entry.structures},
-                     title='Orig. + Gen. Reduction', help=description)
+    result_obj = ScoreObject(result)
+    result = result_obj.score
 
     if target_out:
         differ = AlignDifference()
         writer.add_features(differ.features)
+        differ.run(target_out, result_obj, extra=True)
 
-        comparison = copy.deepcopy(target_out)
-        comparison_result = ScoreObject(result)
-        differ.run(comparison, comparison_result, extra=True)
-        merge_to_score(comparison.score, comparison_result.score,
-                       labels=('Ex', 'Gen'))
-        writer.add_score('comparison', comparison.score,
-                         title='Ex. + Gen. Reduction', help=description)
+    writer.add_score('orig', target.score, title='Orig.',
+                     structure_data={**target_entry.contractions, **target_entry.structures},
+                     flavour=False)
+    writer.add_score('gen', result, title='Gen. Red.', flavour=False)
+    writer.add_flavour(['orig', 'gen'], help=description)
+
+    if target_out:
+        writer.add_score('ex', target_out.score, title='Ex. Red.', flavour=False)
+        writer.add_flavour(['ex', 'gen'], help=description)
 
     writer.finalize()
 
@@ -258,17 +237,16 @@ def command_show(args, module, **kwargs):
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)
+
+    writer.add_score('orig', sample_in.score,
+                     structure_data={**target_entry.contractions, **target_entry.structures},
+                     title='Orig.', flavour=not out_path)
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
-        merge_to_score(sample_in.score, sample_out.score, labels=('Orig', 'Ex'))
-        writer.add_score('combined', sample_in.score,
-                         structure_data={**target_entry.contractions, **target_entry.structures},
-                         title='Orig. + Ex. Reduction')
-    else:
-        writer.add_score('input', sample_in.score,
-                         structure_data={**target_entry.contractions, **target_entry.structures},
-                         title='Orig.')
+        writer.add_score('ex', sample_out.score, title='Ex. Red.', flavour=False)
+        writer.add_flavour(['orig', 'ex'])
+
     writer.finalize()
 
     logging.info('Done')
