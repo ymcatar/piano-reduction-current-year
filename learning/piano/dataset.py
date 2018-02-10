@@ -63,7 +63,8 @@ def set_in_cache(cache, description, value):
     # the dataset name for each description
     if description in cache.attrs:
         key = cache.attrs[description]
-        cache[key][:] = value
+        del cache[key]
+        cache[key] = value
     else:
         serial = 0
         while any(i == '{}'.format(serial) for i in cache.attrs.values()):

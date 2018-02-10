@@ -47,6 +47,12 @@ class BaseModel(object):
         '''
         return type(self).__name__
 
+    def describe_weights(self):
+        '''
+        Returns a list of (key, value) pairs for the model weights.
+        '''
+        return NotImplemented  # Optional
+
     def save(self, fp):
         '''
         Save the model parameters to the given file object.

@@ -72,7 +72,7 @@ class EventAnalyzer:
             for midx, measure in enumerate(part.getElementsByClass(music21.stream.Measure)):
                 if midx not in measure_data:
                     measure_data[midx] = []
-                for voice in measure.voices:
+                for voice in measure.voices or [measure]:
                     for noteObj in voice.notes:
                         measure_data[midx].append(noteObj)
         self.set_measure_by_data(measure_data)

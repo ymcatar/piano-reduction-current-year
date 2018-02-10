@@ -97,8 +97,12 @@ export default {
         this.bitmaps[pageIndex] = await new Promise((resolve, reject) => {
           const img = document.createElement('img');
           img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = 'data:image/svg+xml;base64,' + btoa(text);
+          img.onerror = (e) => {
+            const error = new Error('Error parsing SVG');
+            error.error = e;
+            reject(error);
+          };
+          img.src = 'data:image/svg+xml;utf8,' + text;
         });
         // Vue.js sucks? Change detection issue
         this.bitmaps = this.bitmaps.slice();
