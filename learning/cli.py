@@ -149,7 +149,7 @@ def command_reduce(args, **kwargs):
     logging.info('Predicting')
 
     y_proba = reducer.predict_from(model, target, X=X_test,
-                                   mapping=target_entry.C, structured=True)
+                                   mapping=target_entry.mapping, structured=True)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -167,7 +167,7 @@ def command_reduce(args, **kwargs):
         # Wrongness marking
         y_pred = np.argmax(y_proba, axis=1)
         correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
-        target.annotate(correction, 'correction', mapping=target_entry.C)
+        target.annotate(target_entry.mapping.unmap_matrix(correction), 'correction')
         writer_features.append(writerlib.TextFeature(
             'correction', help='The correct label, if wrong', group='output'))
 
@@ -189,8 +189,6 @@ def command_reduce(args, **kwargs):
     else:
         logging.info('Displaying output')
         result.show('musicxml')
-
-    target.score.toWrittenPitch(inPlace=True)
 
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))

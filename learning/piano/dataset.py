@@ -8,7 +8,6 @@ from collections import defaultdict
 from collections.abc import Sequence
 import hashlib
 import h5py
-import itertools
 import json
 import logging
 import numpy as np
@@ -16,8 +15,7 @@ import os
 import os.path
 from .score import ScoreObject
 from .util import dump_algorithm
-from .contraction import (
-    contract_by, contract_structure_by, compute_contraction_mapping, flatten_contractions)
+from .contraction import ContractionMapping
 
 
 CACHE_DIR = 'sample/cache'
@@ -234,18 +232,18 @@ class DatasetEntry:
                 'cache': cache,
                 }
 
-            contraction_iter = itertools.chain(*[
-                self._load_contraction(reducer, algo, **load_options)
-                for algo in reducer.contractions])
-            P = flatten_contractions(contraction_iter, n)
-            self.C, self.len = compute_contraction_mapping(P)
+            contractions = [
+                c for algo in reducer.contractions
+                for c in self._load_contraction(reducer, algo, **load_options)]
+            self.mapping = ContractionMapping(contractions, n)
+            self.len = self.mapping.output_size
             if self.len != n:
                 logging.info('Contractions: {} notes => {} notes'.format(n, self.len))
 
             self.X = np.empty((n, len(reducer.all_keys)), dtype='float')
             for algo in reducer.algorithms:
                 self._load_marking(reducer, algo, **load_options)
-            self.X = contract_by(self.X, self.C)
+            self.X = self.mapping.map_matrix(self.X)
 
             n_edge_features = sum(a.n_features for a in reducer.structures)
             features = {}
@@ -257,7 +255,7 @@ class DatasetEntry:
                     edge, features = row[:2], row[2:]
                     structure[tuple(sorted(edge))][d:d + algo.n_features] = features
                 d += algo.n_features
-            structure = contract_structure_by(structure, self.C)
+            structure = self.mapping.map_structure(structure)
             self.E = np.empty((len(structure), 2), dtype='int')
             self.F = np.empty((len(structure), n_edge_features), dtype='float')
             for i, (k, v) in enumerate(structure.items()):
@@ -268,7 +266,7 @@ class DatasetEntry:
                 self.y = np.empty((n, 1), dtype='int')
                 self._load_alignment_marking(reducer, reducer.alignment, extra=extra,
                                              **load_options)
-                self.y = contract_by(self.y, self.C)
+                self.y = self.mapping.map_matrix(self.y)
         finally:
             if cache:
                 cache.close()

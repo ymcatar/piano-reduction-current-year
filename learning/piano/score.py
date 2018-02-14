@@ -141,15 +141,12 @@ class ScoreObject(object):
 
         return out
 
-    def annotate(self, vector, key, mapping=None):
+    def annotate(self, vector, key):
         '''
         Annotate the given vector to the score.
         '''
-        if mapping is None:
-            assert len(vector) == len(self)
-            mapping = range(len(vector))
-        for i, n in zip(mapping, self.notes):
-            n.editorial.misc[key] = vector[i]
+        for v, n in zip(vector, self.notes):
+            n.editorial.misc[key] = v
 
     def index(self, n):
         '''

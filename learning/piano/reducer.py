@@ -65,7 +65,7 @@ class Reducer(object):
         else:
             raise NotImplementedError()
 
-        score_obj.annotate(y, self.label_type, mapping=mapping)
+        score_obj.annotate(mapping.unmap_matrix(y), self.label_type)
 
         return y_proba
 
