@@ -21,6 +21,4 @@ class Motif(ReductionAlgorithm):
             for notegram_group in cluster:
                 for notegram in analyzer.notegram_groups[notegram_group]:
                     for note in notegram.get_note_list():
-                        get_markings(note)[self.key] = count
-
-
+                        get_markings(note)[self.key] = bool(count)
