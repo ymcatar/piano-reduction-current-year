@@ -16,9 +16,10 @@ def default_keep_func(n):
 
 class PostProcessor(object):
     def generate_piano_score(self, score_obj, reduced=True, playable=True,
-                             label_type='align'):
+                             label_type='align', keep_func=None):
         if label_type == 'align':
-            keep_func = default_keep_func if reduced else lambda n: True
+            if not keep_func:
+                keep_func = default_keep_func if reduced else lambda n: True
             self.assign_hands(score_obj, keep_func=keep_func)
 
         HANDS = [LEFT_HAND, RIGHT_HAND]

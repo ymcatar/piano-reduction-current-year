@@ -1,5 +1,6 @@
 import argparse
 from collections import defaultdict
+import copy
 import datetime
 import functools
 import importlib
@@ -12,7 +13,9 @@ import time
 from music21 import expressions
 from pprint import pformat, pprint
 import numpy as np
+from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
+from .piano.contraction import IndexMapping
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -211,7 +214,36 @@ def command_reduce(args, **kwargs):
     writer.add_score('gen', result, title='Gen. Red.', flavour=False)
     writer.add_flavour(['orig', 'gen'], help=description)
 
+    # Generate a contracted score
+    target2 = ScoreObject(copy.deepcopy(target.score))
+    def keep_func(n):
+        return not target_entry.mapping.is_contracted(target2.index(n))
+    contracted = post_processor.generate_piano_score(target2, playable=False, keep_func=keep_func)
+    contracted_obj = ScoreObject(contracted)
+    contracted = contracted_obj.score
+
+    # Attach markings
+    def key_func(n, offset, precision):
+        return (int(offset * precision), n.pitch.ps)
+    alignment = align_all_notes(contracted, target.score, ignore_parts=True, key_func=key_func)
+
+    mapping = [None] * len(target_entry.X)  # From contracted index to contracted score index
+    for i, n in enumerate(contracted_obj.notes):
+        for m in alignment[n]:  # We hope the alignment is one-to-one
+            mapping[target_entry.mapping[target.index(m)]] = i
+    mapping = IndexMapping(mapping, output_size=len(contracted_obj))
+    for i, key in enumerate(reducer.all_keys):
+        contracted_obj.annotate(mapping.map_matrix(target_entry.X[:, i], default=0), key)
+    contracted_obj.annotate(mapping.map_matrix(target_entry.y.flatten(), default=0),
+                            reducer.alignment.key)
+
+    structure_data = {k: list(mapping.map_structure(target_entry.mapping.map_structure(dict(v))).items())
+                      for k, v in target_entry.structures.items()}
+    writer.add_score('contr', contracted, structure_data=structure_data, flavour=False,
+                     title='Contr.')
+
     if target_out:
+        writer.add_flavour(['contr', 'gen'], help=description)
         writer.add_score('ex', target_out.score, title='Ex. Red.', flavour=False)
         writer.add_flavour(['ex', 'gen'], help=description)
 
