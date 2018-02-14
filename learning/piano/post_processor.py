@@ -55,7 +55,7 @@ class PostProcessor(object):
 
                         elif isinstance(elem, chord.Chord):
                             for n in elem:
-                                if elem.editorial.misc.get('hand') == hand:
+                                if n.editorial.misc.get('hand') == hand:
                                     notes.append((
                                         elem.offset, n.pitch, n.tie))
 
@@ -71,7 +71,7 @@ class PostProcessor(object):
                     rest_sets.append(rests)
 
                 out_measure = self._create_measure(
-                    notes=notes, rest_sets=rest_sets, measure_length=bar_length)
+                    notes=notes, rest_sets=rest_sets, measure_length=bar_length, playable=playable)
 
                 if key_signature:
                     out_measure.insert(key_signature)
