@@ -10,9 +10,8 @@ reducer_args = {
         algorithm.EntranceEffect(),
         algorithm.Occurrence(),
         algorithm.OnsetAfterRest(),
-        algorithm.PitchClassStatistics(),
         algorithm.RhythmVariety(),
-        algorithm.StrongBeats(division=0.5),
+        algorithm.StrongBeats(division=1.0),
         algorithm.SustainedRhythm(),
         algorithm.VerticalDoubling(),
         algorithm.Motif(),
@@ -24,7 +23,8 @@ reducer_args = {
         contraction.ContractByPitchOnset(),
         ],
     'structures': [
-        structure.SimultaneousNotes(),
+        structure.OnsetNotes(),
+        structure.OnsetBadIntervalNotes(),
         ],
     }
 

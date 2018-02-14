@@ -21,7 +21,7 @@ class PyStructCRF(BaseModel):
             n_states=n_states, n_features=len(reducer.all_keys),
             n_edge_features=n_edge_features, inference_method='max-product')
 
-        self.learner = NSlackSSVM(self.model, max_iter=100, verbose=1, C=0.1)
+        self.learner = NSlackSSVM(self.model, max_iter=200, verbose=1, C=1.0)
 
     def fit_structured(self, X, y):
         y = [i.flatten() for i in y]

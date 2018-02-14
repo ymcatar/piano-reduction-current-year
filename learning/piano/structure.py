@@ -62,3 +62,44 @@ class SimultaneousNotes(StructureAlgorithm):
 
                 active_notes -= ends_by_offset[offset]
                 active_notes.update(begins_by_offset[offset])
+
+
+class OnsetNotes(StructureAlgorithm):
+    '''
+    Connects notes at the same onset.
+    '''
+    n_features = 1
+
+    def run(self, score_obj):
+        for bar in score_obj.by_bar:
+            note_map = defaultdict(list)
+            for n, offset in iter_notes_with_offset(bar, recurse=True):
+                note_map[offset].append(n)
+
+            for notes in note_map.values():
+                for u in notes:
+                    for v in notes:
+                        if u != v:
+                            yield (score_obj.index(u), score_obj.index(v)), (1,)
+
+
+class OnsetBadIntervalNotes(StructureAlgorithm):
+    '''
+    Connects notes at the same onset with "bad" intervals.
+    '''
+    n_features = 1
+
+    def run(self, score_obj):
+        BAD_INTERVALS = (1, 2, 6, 10, 11)
+
+        for bar in score_obj.by_bar:
+            note_map = defaultdict(list)
+            for n, offset in iter_notes_with_offset(bar, recurse=True):
+                note_map[offset].append(n)
+
+            for notes in note_map.values():
+                for u in notes:
+                    for v in notes:
+                        if (u != v and
+                                (int(u.pitch.ps) - int(v.pitch.ps) + 12) % 12 in BAD_INTERVALS):
+                            yield (score_obj.index(u), score_obj.index(v)), (1,)
