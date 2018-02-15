@@ -1,4 +1,5 @@
 from collections import defaultdict
+from music21 import chord, note, stream
 from .algorithm.base import iter_notes_with_offset
 
 
@@ -103,3 +104,31 @@ class OnsetBadIntervalNotes(StructureAlgorithm):
                         if (u != v and
                                 (int(u.pitch.ps) - int(v.pitch.ps) + 12) % 12 in BAD_INTERVALS):
                             yield (score_obj.index(u), score_obj.index(v)), (1,)
+
+
+class AdjacentNotes(StructureAlgorithm):
+    '''
+    Connects notes that occur one after another.
+    '''
+    n_features = 1
+
+    def run(self, score_obj):
+        for voices in score_obj.voices_by_part:
+                last_notes = None
+                for voice in voices:
+                    for measure in voice.getElementsByClass(stream.Measure):
+                        for n in measure.notesAndRests:
+                            if isinstance(n, note.Rest):
+                                last_notes = None
+                            elif isinstance(n, note.NotRest):
+                                if isinstance(n, chord.Chord):
+                                    notes = list(score_obj.index(i) for i in n)
+                                else:
+                                    notes = [score_obj.index(n)]
+
+                                if last_notes:
+                                    for u in notes:
+                                        for v in last_notes:
+                                            yield (u, v), (1,)
+
+                                last_notes = notes
