@@ -160,6 +160,12 @@ def command_reduce(args, **kwargs):
 
     writer_features = []
 
+    target.annotate(
+        target_entry.mapping.parents != np.arange(len(target_entry.mapping.parents)),
+        'contracted')
+    writer_features.append(writerlib.BoolFeature(
+        'contracted', help='Whether the note is contracted to some other note', group='input'))
+
     if y_test is not None:
         metrics = ModelMetrics(reducer, y_proba, y_test)
         logging.info('Model metrics\n' + metrics.format())

@@ -133,7 +133,8 @@ export default {
       }
 
       const scaledMargin = this.pageMargin * this.ratio;
-      const pageWidth = this.bitmaps.map(b => b ? b.width : 0).reduce((a, b) => Math.max(a, b), 0);
+      const pageWidth = this.bitmaps.map(b => b ? b.width : 0).slice(0, -1)
+          .reduce((a, b) => Math.max(a, b), 0);
       console.log(pageWidth);
       this.visiblePages = [];
       let pageIndex, x;
