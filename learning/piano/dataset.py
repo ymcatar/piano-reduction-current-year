@@ -154,7 +154,7 @@ class DatasetEntry:
                            for x in algo.run(self.input_score_obj)])
             if cache:
                 set_in_cache(cache, description, ds)
-        self.structures[algo.key] = [((r[0], r[1]), r[2:]) for r in ds]
+        self.structures[algo.key] = [((int(r[0]), int(r[1])), r[2:]) for r in ds]
 
         return ds
 
@@ -252,7 +252,7 @@ class DatasetEntry:
             for algo in reducer.structures:
                 data = self._load_structure(reducer, algo, **load_options)
                 for row in data:
-                    edge, features = row[:2], row[2:]
+                    edge, features = row[:2].astype('int'), row[2:]
                     structure[tuple(sorted(edge))][d:d + algo.n_features] = features
                 d += algo.n_features
             structure = self.mapping.map_structure(structure)
