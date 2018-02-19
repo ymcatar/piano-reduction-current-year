@@ -78,10 +78,14 @@ class OnsetNotes(StructureAlgorithm):
                 note_map[offset].append(n)
 
             for notes in note_map.values():
+                # Determined by an expert process :)
+                # See experiment 5 (onset frequency)
+                exp_output_notes = (4.85 - 6.23 / len(notes)) if notes else 1
+                pairwise_penalty = exp_output_notes ** -2
                 for u in notes:
                     for v in notes:
                         if u != v:
-                            yield (score_obj.index(u), score_obj.index(v)), (1,)
+                            yield (score_obj.index(u), score_obj.index(v)), (pairwise_penalty,)
 
 
 class OnsetBadIntervalNotes(StructureAlgorithm):

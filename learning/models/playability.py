@@ -16,7 +16,7 @@ reducer_args = {
         algorithm.Motif(),
         algorithm.Harmony(),
         ],
-    'alignment': alignment.AlignMinOctaveHand(),
+    'alignment': alignment.AlignMinOctaveMatching(),
     'contractions': [
         contraction.ContractTies(),
         contraction.ContractByPitchOnset(),

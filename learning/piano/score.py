@@ -70,6 +70,7 @@ class ScoreObject(object):
         for i, measures in enumerate(zip_longest(*iters)):
             assert all(measures), 'Measures missing at index {}'.format(i)
             bar = result.cloneEmpty(derivationMethod='by_bar')
+            bar.offset = measures[0].offset
             for part, m in zip(result.parts, measures):
                 p = part.cloneEmpty(derivationMethod='by_bar')
                 p.insert(0, m)
