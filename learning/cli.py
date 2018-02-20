@@ -153,6 +153,7 @@ def command_reduce(args, **kwargs):
 
     y_proba = reducer.predict_from(model, target, X=X_test,
                                    mapping=target_entry.mapping, structured=True)
+    y_pred = np.argmax(y_proba, axis=1)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -174,7 +175,6 @@ def command_reduce(args, **kwargs):
         logging.info('Score metrics\n' + metrics.format())
 
         # Wrongness marking
-        y_pred = np.argmax(y_proba, axis=1)
         correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
         target.annotate(target_entry.mapping.unmap_matrix(correction), 'correction')
         writer_features.append(writerlib.TextFeature(
@@ -222,9 +222,12 @@ def command_reduce(args, **kwargs):
 
     # Generate a contracted score
     target2 = ScoreObject(copy.deepcopy(target.score))
-    def keep_func(n):
-        return not target_entry.mapping.is_contracted(target2.index(n))
-    contracted = post_processor.generate_piano_score(target2, playable=False, keep_func=keep_func)
+    for n in target2.notes:
+        if target_entry.mapping.is_contracted(target2.index(n)):
+            n.editorial.misc['hand'] = 0
+        else:
+            n.editorial.misc['hand'] = 1 if n.pitch.ps >= 60 else 2
+    contracted = post_processor.generate_piano_score(target2, playable=False, label_type='hand')
     contracted_obj = ScoreObject(contracted)
     contracted = contracted_obj.score
 
@@ -237,11 +240,14 @@ def command_reduce(args, **kwargs):
     for i, n in enumerate(contracted_obj.notes):
         for m in alignment[n]:  # We hope the alignment is one-to-one
             mapping[target_entry.mapping[target.index(m)]] = i
-    mapping = IndexMapping(mapping, output_size=len(contracted_obj))
+    mapping = IndexMapping(mapping, output_size=len(contracted_obj), aggregator=lambda i: i[0])
     for i, key in enumerate(reducer.all_keys):
-        contracted_obj.annotate(mapping.map_matrix(target_entry.X[:, i], default=0), key)
-    contracted_obj.annotate(mapping.map_matrix(target_entry.y.flatten(), default=0),
+        contracted_obj.annotate(mapping.map_matrix(target_entry.X[:, i], default=None), key)
+    contracted_obj.annotate(mapping.map_matrix(y_pred.flatten(), default=None),
                             reducer.alignment.key)
+    if y_test is not None:
+        contracted_obj.annotate(mapping.map_matrix(correction, default=None),
+                                'correction')
 
     structure_data = {k: list(mapping.map_structure(target_entry.mapping.map_structure(dict(v))).items())
                       for k, v in target_entry.structures.items()}

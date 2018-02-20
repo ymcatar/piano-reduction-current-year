@@ -117,14 +117,16 @@ class IndexMapping:
 
     def map_matrix(self, matrix, default=None):
         assert len(matrix) == self.input_size
-        matrix = np.asarray(matrix)
 
-        result = np.empty((self.output_size, *matrix.shape[1:]), dtype=matrix.dtype)
+        if isinstance(matrix, list):
+            result = [None] * len(matrix)
+        else:
+            result = np.empty((self.output_size, *matrix.shape[1:]), dtype=matrix.dtype)
         for g, indices in enumerate(self.groups):
             if indices:
-                result[g, ...] = self.aggregator([matrix[i, ...] for i in indices])
+                result[g] = self.aggregator([matrix[i] for i in indices])
             else:
-                result[g, ...] = default
+                result[g] = default
 
         return result
 
