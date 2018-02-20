@@ -75,43 +75,53 @@ async def list_runs(request):
     return json_response({'runs': runs})
 
 
-xml_map = {}
+async def call_mscore(*args):
+    mscore = environ_local['musescoreDirectPNGPath']
+    if not mscore:
+        mscore = shutil.which('mscore')
+    if not mscore or not os.path.exists(mscore):
+        raise web.HTTPInternalServerError(text='MuseScore not installed')
+    process = await asyncio.create_subprocess_exec(mscore, *args)
+    await process.wait()
+    assert process.returncode == 0, 'MuseScore terminated with error'
 
 
 async def ensure_xml_render(path):
     basepath, _ = os.path.splitext(path)
     out_path = basepath + '-index.json'
     if not os.path.exists(out_path):
-        try:
-            logging.info('Rendering XML: {}'.format(path))
-            mscore = environ_local['musescoreDirectPNGPath']
-            if not mscore:
-                mscore = shutil.which('mscore')
-            if not mscore or not os.path.exists(mscore):
-                raise web.HTTPInternalServerError(text='MuseScore not installed')
-            process = await asyncio.create_subprocess_exec(
-                mscore, '-o', path[:-3] + 'svg', '-T', '0', path)
-            await process.wait()
-            assert process.returncode == 0, 'MuseScore terminated with error'
-            full_image_paths = sorted(glob.glob('{}-*.svg'.format(basepath)))
-            image_paths = [i.rsplit('/', 1)[1] for i in full_image_paths]
+        logging.info('Rendering XML: {}'.format(path))
+        await call_mscore('-o', path[:-3] + 'svg', '-T', '0', path)
+        full_image_paths = sorted(glob.glob('{}-*.svg'.format(basepath)))
+        image_paths = [i.rsplit('/', 1)[1] for i in full_image_paths]
 
-            with open(out_path, 'w') as f:
-                data = {
-                    'pages': image_paths,
-                    }
-                try:
-                    json.dump(data, f)
-                except:
-                    os.remove(out_path)
-                    raise
-        except subprocess.SubprocessError:
-            raise web.HTTPInternalServerError(text='Error rendering XML')
+        with open(out_path, 'w') as f:
+            data = {
+                'pages': image_paths,
+                }
+            try:
+                json.dump(data, f)
+            except:
+                os.remove(out_path)
+                raise
 
     return out_path
 
 
-async def index_xml(request):
+async def ensure_mp3_conversion(path):
+    basepath, _ = os.path.splitext(path)
+    out_path = basepath + '.mp3'
+    if not os.path.exists(out_path):
+        logging.info('Rendering MP3: {}'.format(path))
+        await call_mscore('-o', out_path, path)
+
+    return out_path
+
+
+xml_map, mp3_map = {}, {}
+
+
+async def get_svg_index(request):
     basepath = os.path.join(LOG_DIR, request.match_info['basepath'])
     if not os.path.exists(basepath + '.xml'):
         raise web.HTTPNotFound()
@@ -122,6 +132,21 @@ async def index_xml(request):
         out_path = xml_map[basepath].result()
     else:
         out_path = await xml_map[basepath]
+
+    return web.FileResponse(out_path)
+
+
+async def get_mp3(request):
+    basepath = os.path.join(LOG_DIR, request.match_info['basepath'])
+    if not os.path.exists(basepath + '.xml'):
+        raise web.HTTPNotFound()
+
+    if basepath not in mp3_map:
+        mp3_map[basepath] = asyncio.ensure_future(ensure_mp3_conversion(basepath + '.xml'))
+    if mp3_map[basepath].done():
+        out_path = mp3_map[basepath].result()
+    else:
+        out_path = await mp3_map[basepath]
 
     return web.FileResponse(out_path)
 
@@ -147,7 +172,8 @@ def main(dev=False):
 
     app = web.Application(middlewares=[cors_middleware])
     app.router.add_get('/log/index.json', list_runs)
-    app.router.add_get(r'/log/{basepath:.*}-index.json', index_xml)
+    app.router.add_get(r'/log/{basepath:.*}-index.json', get_svg_index)
+    app.router.add_get(r'/log/{basepath:.*}.mp3', get_mp3)
     app.router.add_get(r'/log/{basepath:.*}.xml', static_xml)
     app.router.add_static('/log/', path=LOG_DIR, name='static')
 

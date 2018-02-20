@@ -41,6 +41,23 @@
           </md-button>
         </md-list-item>
 
+        <md-list-item>
+          <md-field>
+            <label for="playback">Playback</label>
+            <md-select v-model="selectedPlaybackScoreName" id="playback" md-dense>
+              <md-option key="null" value="none"></md-option>
+                <md-option v-for="score of run.scores" :key="score.name" :value="score.name">
+                  {{score.title ? `${score.title} (${score.name})` : score.name}}
+                </md-option>
+            </md-select>
+          </md-field>
+        </md-list-item>
+
+        <audio v-if="selectedPlaybackScore" controls>
+          <source :src="apiPrefix + dropExt(selectedPlaybackScore.xml) + '.mp3'"
+              type="audio/mpeg">
+        </audio>
+
         <md-subheader>
           <span style="flex: 1">Features</span>
           <md-menu>
@@ -159,6 +176,7 @@ export default {
   },
   data: () => ({
     selectedScoreName: null,
+    selectedPlaybackScoreName: null,
 
     loading: 0,
     pages: null,
@@ -204,6 +222,10 @@ export default {
   computed: {
     selectedScore() {
       return this.run.scores.find(s => s.name === this.selectedScoreName);
+    },
+
+    selectedPlaybackScore() {
+      return this.run.scores.find(s => s.name === this.selectedPlaybackScoreName);
     },
 
     apiPrefix() {
@@ -314,6 +336,10 @@ export default {
       return feature;
     },
 
+    dropExt(path) {
+      return path.substr(0, path.lastIndexOf('.'));
+    },
+
     async loadFeatureData() {
       const score = this.selectedScore;
       this.pages = null;
@@ -322,7 +348,7 @@ export default {
       try {
         this.loading += 1;
         const [{pages}, featureData] = await Promise.all([
-          fetchJSON(this.apiPrefix + score.xml.substr(0, score.xml.length - 4) + '-index.json'),
+          fetchJSON(this.apiPrefix + this.dropExt(score.xml) + '-index.json'),
           fetchJSON(this.apiPrefix + score.featureData)
         ]);
         if (score !== this.selectedScore) return;
@@ -408,6 +434,11 @@ export default {
   width: 100%;
   input { flex: 1; margin-left: 8px; margin-right: 8px; }
   .page-disp { width: 20px; }
+}
+
+audio {
+  height: 32px;
+  background-color: white;
 }
 
 .container {
