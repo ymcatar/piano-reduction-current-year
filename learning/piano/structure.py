@@ -26,6 +26,22 @@ class StructureAlgorithm:
         '''
         raise NotImplementedError()
 
+    def get_weights(self, label_type, var_fn):
+        '''
+        Returns a weight variable matrix, where entries are "variables" created
+        using `var_fn`.
+
+        Entries with the same value will be tied.
+        '''
+        if label_type == 'align':
+            n_dims = 2
+        elif label_type == 'hand':
+            n_dims = 3
+        else:
+            raise NotImplementedError()
+
+        return [[var_fn() for _ in range(n_dims)] for _ in range(n_dims)]
+
     @property
     def key(self):
         return type(self).__name__
@@ -33,6 +49,30 @@ class StructureAlgorithm:
     @property
     def args(self):
         return ([], {})
+
+
+def get_repelling_weights(self, label_type, var_fn, use_different=True):
+    nothing = var_fn('no_effect')
+    same = var_fn('same')
+
+    if label_type == 'align':
+        return [
+            [nothing, nothing],
+            [nothing, same],
+            ]
+    elif label_type == 'hand':
+        different = var_fn('different') if use_different else nothing
+        return [
+            [nothing, nothing, nothing],
+            [nothing, same, different],
+            [nothing, different, same],
+            ]
+    else:
+        raise NotImplementedError()
+
+
+def get_hand_only_repelling_weights(self, label_type, var_fn):
+    return get_repelling_weights(self, label_type, var_fn, use_different=False)
 
 
 class SimultaneousNotes(StructureAlgorithm):
@@ -64,6 +104,8 @@ class SimultaneousNotes(StructureAlgorithm):
                 active_notes -= ends_by_offset[offset]
                 active_notes.update(begins_by_offset[offset])
 
+    get_weights = get_repelling_weights
+
 
 class OnsetNotes(StructureAlgorithm):
     '''
@@ -87,6 +129,8 @@ class OnsetNotes(StructureAlgorithm):
                         if u != v:
                             yield (score_obj.index(u), score_obj.index(v)), (pairwise_penalty,)
 
+    get_weights = get_repelling_weights
+
 
 class OnsetBadIntervalNotes(StructureAlgorithm):
     '''
@@ -108,6 +152,8 @@ class OnsetBadIntervalNotes(StructureAlgorithm):
                         if (u != v and
                                 (int(u.pitch.ps) - int(v.pitch.ps) + 12) % 12 in BAD_INTERVALS):
                             yield (score_obj.index(u), score_obj.index(v)), (1,)
+
+    get_weights = get_repelling_weights
 
 
 class AdjacentNotes(StructureAlgorithm):
@@ -136,3 +182,5 @@ class AdjacentNotes(StructureAlgorithm):
                                             yield (u, v), (1,)
 
                                 last_notes = notes
+
+    get_weights = get_hand_only_repelling_weights

@@ -1,8 +1,78 @@
+from collections import namedtuple
+from itertools import product
 import numpy as np
 from .base import BaseModel
 from pystruct.learners import NSlackSSVM
 from pystruct.models import EdgeFeatureGraphCRF
 import h5py
+
+
+Variable = namedtuple('Variable', ['id', 'name'])
+
+
+class MyGraphCRF(EdgeFeatureGraphCRF):
+    '''
+    A PyStruct Model class that chooses proper dimensions according to a Reducer
+    object, and implements parameter tying.
+    '''
+    def __init__(self, reducer):
+        n_states = 3 if reducer.label_type == 'hand' else 2
+        n_edge_features = sum(a.n_features for a in reducer.structures)
+
+        self.pairwise_variables = []
+        pairwise_indices = []
+
+        for algo in reducer.structures:
+            def var_fn(name=None):
+                name = '{}_{}'.format(algo.key, name or str(len(self.pairwise_variables)))
+                var = Variable(id=len(self.pairwise_variables), name=name)
+                self.pairwise_variables.append(var)
+                return var
+
+            var_mats = algo.get_weights(reducer.label_type, var_fn)
+
+            if not isinstance(var_mats[0][0], list):
+                var_mats = [var_mats]
+            assert (len(var_mats), len(var_mats[0]), len(var_mats[0][0])) == \
+                (algo.n_features, n_states, n_states), 'get_weights returned wrong dimensions'
+
+            pairwise_indices.append([[[i.id for i in row] for row in mat] for mat in var_mats])
+
+        self.pairwise_indices = np.concatenate(pairwise_indices)
+
+        super().__init__(
+            n_states=n_states, n_features=len(reducer.all_keys),
+            n_edge_features=n_edge_features, inference_method='ad3')
+
+    def get_unary_weights(self, w):
+        return w[:self.n_states * self.n_features].reshape(self.n_features, self.n_states)
+
+    def get_pairwise_weights(self, w):
+        edge_weights = np.asarray(w[self.n_states * self.n_features:])
+        return edge_weights[self.pairwise_indices]
+
+    def _set_size_joint_feature(self):
+        self.size_joint_feature = self.n_states * self.n_features + len(self.pairwise_variables)
+
+    def _get_pairwise_potentials(self, x, w):
+        self._check_size_w(w)
+        self._check_size_x(x)
+        edge_features = self._get_edge_features(x)
+        pairwise = self.get_pairwise_weights(w).reshape(self.n_edge_features, -1)
+        return np.dot(edge_features, pairwise).reshape(
+            edge_features.shape[0], self.n_states, self.n_states)
+
+    def joint_feature(self, x, y):
+        vec = super().joint_feature(x, y)
+        unaries = vec[:self.n_states * self.n_features]
+
+        edge_features = vec[self.n_states * self.n_features:].reshape(
+            self.n_edge_features, self.n_states, self.n_states)
+        pairwise = np.zeros(len(self.pairwise_variables), dtype='float')
+        for i in product(*(range(i) for i in self.pairwise_indices.shape)):
+            pairwise[self.pairwise_indices[i]] += edge_features[i]
+
+        return np.concatenate([unaries, pairwise])
 
 
 class PyStructCRF(BaseModel):
@@ -14,13 +84,7 @@ class PyStructCRF(BaseModel):
     '''
     def __init__(self, reducer):
         super().__init__(reducer)
-
-        n_states = 3 if reducer.label_type == 'hand' else 2
-        n_edge_features = sum(a.n_features for a in reducer.structures)
-        self.model = EdgeFeatureGraphCRF(
-            n_states=n_states, n_features=len(reducer.all_keys),
-            n_edge_features=n_edge_features, inference_method='max-product')
-
+        self.model = MyGraphCRF(reducer)
         self.learner = NSlackSSVM(self.model, max_iter=250, verbose=1, C=1.0)
 
     def fit_structured(self, X, y):
@@ -49,24 +113,23 @@ class PyStructCRF(BaseModel):
 
     def describe_weights(self):
         w = self.learner.w
-        n_features = self.model.n_features
-        n_states = self.model.n_states
         items = []
         # Unary features
-        mat = w[:n_features * n_states].reshape(n_features, n_states)
+        mat = self.model.get_unary_weights(w)
+        mat = mat[:, 1:] - mat[:, 0:1]  # Weights relative to class 0
         items.extend(zip(self.reducer.all_keys, mat))
 
-        # Sort weights descendingly by their mean absolute value
-        items.sort(key=lambda i: -np.mean(np.abs(i[1])))
+        # Sort weights
+        items.sort(key=lambda i: -np.mean(i[1]))
 
         # Edge features
-        i = n_features * n_states
+        mat = self.model.get_pairwise_weights(w)
+        i = 0
         for algo in self.reducer.structures:
             for j in range(algo.n_features):
-                mat = w[i:i + n_states**2].reshape(n_states, n_states)
-                items.append(('{}_{}'.format(algo.key, j), mat))
-                i += algo.n_features * n_states**2
+                items.append(('{}_{}'.format(algo.key, j), mat[i, :, :]))
+                i += 1
 
-        assert i == len(w)
+        assert i == self.model.n_edge_features
 
         return items
