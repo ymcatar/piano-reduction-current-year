@@ -41,7 +41,24 @@
           </md-button>
         </md-list-item>
 
-        <md-subheader>Features</md-subheader>
+        <md-subheader>
+          <span style="flex: 1">Features</span>
+          <md-menu>
+            <md-button md-menu-trigger class="md-icon-button">
+              <md-icon>more_horiz</md-icon>
+            </md-button>
+
+            <md-menu-content>
+              <md-menu-item v-for="config, name in savedConfigs" :key="name"
+                  @click="onLoadConfig(config)">
+                  {{name}}
+              </md-menu-item>
+              <md-menu-item @click="onSaveConfig()">
+                  <strong>Save Current</strong>
+              </md-menu-item>
+            </md-menu-content>
+          </md-menu>
+        </md-subheader>
         <template v-for="key of annotationKeys">
           <md-list-item :key="key">
             <md-field>
@@ -180,6 +197,8 @@ export default {
         colour: '#33DDDD',
       },
     }),
+
+    savedConfigs: {},
   }),
 
   computed: {
@@ -329,6 +348,21 @@ export default {
     onDownload(score) {
       window.open(this.apiPrefix + score.xml, '_blank');
     },
+
+    onLoadConfig(config) {
+      if (config.annotationMap)
+        this.annotationMap = Object.assign({}, this.annotationMap, config.annotationMap);
+    },
+
+    onSaveConfig() {
+      const name = window.prompt('Name of config:');
+      if (!name) return;
+      this.savedConfigs[name] = {
+        annotationMap: Object.assign({}, this.annotationMap),
+      };
+      this.savedConfigs = Object.assign({}, this.savedConfigs);
+      localStorage['scoreboard:savedConfigs'] = JSON.stringify(this.savedConfigs, null, 4);
+    }
   },
 
   watch: {
@@ -340,6 +374,12 @@ export default {
   mounted() {
     if (this.run.scores.length === 1)
       this.selectedScoreName = this.run.scores[0].name;
+
+    try {
+      this.savedConfigs = JSON.parse(localStorage['scoreboard:savedConfigs']);
+    } catch (err) {
+      this.savedConfigs = {};
+    }
   },
 };
 </script>
