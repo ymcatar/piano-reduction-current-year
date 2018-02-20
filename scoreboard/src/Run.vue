@@ -9,6 +9,9 @@
           <span class="md-list-item-text">
             {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
+          <md-button class="md-icon-button md-dense" @click="onDownload(score)">
+            <md-icon>file_download</md-icon>
+          </md-button>
         </md-list-item>
 
         <md-subheader>
@@ -321,6 +324,10 @@ export default {
     onChangePage(offset) {
       const maxPage = (this.pages ? this.pages.length : 0) - 1;
       this.pageOffset = Math.max(0, Math.min(maxPage, this.pageOffset + offset));
+    },
+
+    onDownload(score) {
+      window.open(this.apiPrefix + score.xml, '_blank');
     },
   },
 

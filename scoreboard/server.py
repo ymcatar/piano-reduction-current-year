@@ -126,6 +126,15 @@ async def index_xml(request):
     return web.FileResponse(out_path)
 
 
+async def static_xml(request):
+    basepath = os.path.join(LOG_DIR, request.match_info['basepath'])
+    if not os.path.exists(basepath + '.xml'):
+        raise web.HTTPNotFound()
+
+    return web.FileResponse(basepath + '.xml',
+                            headers={'Content-Disposition': 'attachment'})
+
+
 def main(dev=False):
     if not dev:
         if not os.path.exists('scoreboard/dist/build.js'):
@@ -139,6 +148,7 @@ def main(dev=False):
     app = web.Application(middlewares=[cors_middleware])
     app.router.add_get('/log/index.json', list_runs)
     app.router.add_get(r'/log/{basepath:.*}-index.json', index_xml)
+    app.router.add_get(r'/log/{basepath:.*}.xml', static_xml)
     app.router.add_static('/log/', path=LOG_DIR, name='static')
 
     with contextlib.ExitStack() as stack:
