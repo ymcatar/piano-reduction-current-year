@@ -23,8 +23,19 @@ def iter_offsets(obj):
             yield bar.offset + offset, notes
 
 
-def xbasis(x):
-    return np.stack([1./x], axis=1)
+def extract(in_notes, out_notes):
+    count = len(in_notes)
+    # Note: Grace notes have 0 duration
+    min_duration = float(min(n.duration.quarterLength for n in in_notes
+                             if n.duration.quarterLength > 0))
+    if len(in_notes) >= len(out_notes):
+        return xbasis(count, min_duration), len(out_notes)
+    else:
+        return None
+
+
+def xbasis(count, min_duration):
+    return np.stack([1/count, np.log2(min_duration)], axis=-1)
 
 
 def compute(paths):
@@ -33,19 +44,19 @@ def compute(paths):
 
     in_map, out_map = [dict(iter_offsets(obj)) for obj in objs]
 
-    data = ((len(in_map[offset]), len(out_map.get(offset, []))) for offset in in_map)
-    data = ((x, y) for x, y in data if x >= y)
+    data = (extract(in_map[offset], out_map.get(offset, [])) for offset in in_map)
+    data = [i for i in data if i is not None]
 
-    tally = Counter(data)
-
+    tally = Counter((1/x[0], y) for x, y in data)
     xy = np.asarray(list(tally.keys()))
     x, y = xy[:, 0], xy[:, 1]
     s = np.asarray(list(tally.values())) * 5
 
-    xb = xbasis(x)
+    xb = np.asarray([x for x, _ in data])
+    yb = np.asarray([y for _, y in data])
     model = LinearRegression()
-    model.fit(xb, y)
-    score = model.score(xb, y)
+    model.fit(xb, yb)
+    score = model.score(xb, yb)
 
     return x, y, s, model, score
 
@@ -63,7 +74,11 @@ def main():
         plt.ylabel('Reduced note count')
 
         xspace = np.linspace(xlim[0]+0.01, xlim[1], xlim[1] * 5)
-        plt.plot(xspace, model.predict(xbasis(xspace)), 'r')
+        for min_duration in [0.25, 0.5, 1.0, 2.0]:
+            yspace = model.predict(xbasis(xspace, np.ones_like(xspace) * min_duration))
+            plt.plot(xspace, yspace, label=str(min_duration))
+
+        plt.legend()
 
         print('Run {}: Coef {} Intercept {} R^2 {}'.format(
             i+1, model.coef_, model.intercept_, score))

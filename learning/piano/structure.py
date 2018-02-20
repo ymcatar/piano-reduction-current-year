@@ -1,4 +1,5 @@
 from collections import defaultdict
+import math
 from music21 import chord, note, stream
 from .algorithm.base import iter_notes_with_offset
 
@@ -122,7 +123,11 @@ class OnsetNotes(StructureAlgorithm):
             for notes in note_map.values():
                 # Determined by an expert process :)
                 # See experiment 5 (onset frequency)
-                exp_output_notes = (4.85 - 6.23 / len(notes)) if notes else 1
+                if not notes:
+                    continue
+                min_duration = float(min(n.duration.quarterLength for n in notes
+                                         if n.duration.quarterLength > 0))
+                exp_output_notes = (4.33 - 3.63 / len(notes) + 0.403 * math.log2(min_duration))
                 pairwise_penalty = exp_output_notes ** -2
                 for u in notes:
                     for v in notes:
