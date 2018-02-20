@@ -22,10 +22,10 @@ ALGORITHMS_BY_MEASURE = [
 ]
 
 ALGORITHMS_BY_OFFSET_GROUPED_NOTES = [
-    (PostProcessorAlgorithms.detect_triad,
-     PostProcessorAlgorithms.fix_triad),
-    (PostProcessorAlgorithms.detect_too_many_concurrent_notes,
-     PostProcessorAlgorithms.fix_too_many_concurrent_notes)
+    # (PostProcessorAlgorithms.detect_triad,
+    #  PostProcessorAlgorithms.fix_triad),
+    # (PostProcessorAlgorithms.detect_too_many_concurrent_notes,
+    #  PostProcessorAlgorithms.fix_too_many_concurrent_notes)
 ]
 
 RIGHT_HAND = 1
