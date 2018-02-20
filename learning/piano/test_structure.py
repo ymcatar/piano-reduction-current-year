@@ -1,5 +1,5 @@
 from .score import ScoreObject
-from .structure import SimultaneousNotes
+from .structure import SimultaneousNotes, OnsetNotes
 
 
 def test_simulateneous_notes():
@@ -30,3 +30,23 @@ def test_simulateneous_notes():
         (8, 17),
         (14, 17),
         }
+
+
+def test_onset_notes():
+    s = ScoreObject.from_file('learning/piano/test_sample/algorithm_input_small.xml')
+    structure = dict(OnsetNotes().run(s))
+    assert set(tuple(sorted(i)) for i in structure.keys()) == {
+        (0, 9),
+        (0, 15),
+        (9, 15),
+
+        (4, 10),
+        (5, 11),
+        (6, 12),
+        (7, 13),
+
+        (8, 14),
+        (8, 16),
+        (14, 16),
+        }
+

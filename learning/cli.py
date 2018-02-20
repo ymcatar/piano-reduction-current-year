@@ -4,17 +4,18 @@ import copy
 import datetime
 import functools
 import importlib
-from itertools import chain
 import json
 import logging
 import os.path
 import sys
 import textwrap
 import time
-from music21 import expressions, layout
+from music21 import expressions
 from pprint import pformat, pprint
 import numpy as np
+from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
+from .piano.contraction import IndexMapping
 from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
@@ -43,26 +44,6 @@ def add_description_to_score(score, description):
     te.style.absoluteY = -60
     te.style.fontSize = 8
     score.parts[-1].measure(-1).insert(0, te)
-
-
-def merge_to_score(target, source, labels=('1st', '2nd')):
-    for part in target.parts:
-        for inst in part.getInstruments():
-            inst.partName = labels[0]
-    # Add braces for clarity
-    target.removeByClass(layout.StaffGroup)
-    group = layout.StaffGroup(list(target.parts), name=labels[0], symbol='brace')
-    target.insert(0, group)
-
-    # Merge source parts
-    target.mergeElements(source.parts)
-
-    for part in source.parts:
-        for inst in part.getInstruments():
-            inst.partName = labels[1]
-    # More braces
-    group = layout.StaffGroup(list(source.parts), name=labels[1], symbol='brace')
-    target.insert(0, group)
 
 
 def create_reducer_and_model(module):
@@ -171,13 +152,20 @@ def command_reduce(args, **kwargs):
     logging.info('Predicting')
 
     y_proba = reducer.predict_from(model, target, X=X_test,
-                                   mapping=target_entry.C, structured=True)
+                                   mapping=target_entry.mapping, structured=True)
+    y_pred = np.argmax(y_proba, axis=1)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
         target, reduced=True, playable=True, label_type=reducer.label_type)
 
     writer_features = []
+
+    target.annotate(
+        target_entry.mapping.parents != np.arange(len(target_entry.mapping.parents)),
+        'contracted')
+    writer_features.append(writerlib.BoolFeature(
+        'contracted', help='Whether the note is contracted to some other note', group='input'))
 
     if y_test is not None:
         metrics = ModelMetrics(reducer, y_proba, y_test)
@@ -187,9 +175,8 @@ def command_reduce(args, **kwargs):
         logging.info('Score metrics\n' + metrics.format())
 
         # Wrongness marking
-        y_pred = np.argmax(y_proba, axis=1)
         correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
-        target.annotate(correction, 'correction', mapping=target_entry.C)
+        target.annotate(target_entry.mapping.unmap_matrix(correction), 'correction')
         writer_features.append(writerlib.TextFeature(
             'correction', help='The correct label, if wrong', group='output'))
 
@@ -212,9 +199,6 @@ def command_reduce(args, **kwargs):
         logging.info('Displaying output')
         result.show('musicxml')
 
-    target.score.toWrittenPitch(inPlace=True)
-    merge_to_score(target.score, result, labels=('Orig', 'Gen'))
-
     writer = LogWriter(config.LOG_DIR)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
@@ -222,21 +206,58 @@ def command_reduce(args, **kwargs):
     writer.add_features(reducer.output_features)
     writer.add_features(writer_features)
 
-    writer.add_score('combined', target.score,
-                     structure_data={**target_entry.contractions, **target_entry.structures},
-                     title='Orig. + Gen. Reduction', help=description)
+    result_obj = ScoreObject(result)
+    result = result_obj.score
 
     if target_out:
         differ = AlignDifference()
         writer.add_features(differ.features)
+        differ.run(target_out, result_obj, extra=True)
 
-        comparison = copy.deepcopy(target_out)
-        comparison_result = ScoreObject(result)
-        differ.run(comparison, comparison_result, extra=True)
-        merge_to_score(comparison.score, comparison_result.score,
-                       labels=('Ex', 'Gen'))
-        writer.add_score('comparison', comparison.score,
-                         title='Ex. + Gen. Reduction', help=description)
+    writer.add_score('orig', target.score, title='Orig.',
+                     structure_data={**target_entry.contractions, **target_entry.structures},
+                     flavour=False)
+    writer.add_score('gen', result, title='Gen. Red.', flavour=False)
+    writer.add_flavour(['orig', 'gen'], help=description)
+
+    # Generate a contracted score
+    target2 = ScoreObject(copy.deepcopy(target.score))
+    for n in target2.notes:
+        if target_entry.mapping.is_contracted(target2.index(n)):
+            n.editorial.misc['hand'] = 0
+        else:
+            n.editorial.misc['hand'] = 1 if n.pitch.ps >= 60 else 2
+    contracted = post_processor.generate_piano_score(target2, playable=False, label_type='hand')
+    contracted_obj = ScoreObject(contracted)
+    contracted = contracted_obj.score
+
+    # Attach markings
+    def key_func(n, offset, precision):
+        return (int(offset * precision), n.pitch.ps)
+    alignment = align_all_notes(contracted, target.score, ignore_parts=True, key_func=key_func)
+
+    mapping = [None] * len(target_entry.X)  # From contracted index to contracted score index
+    for i, n in enumerate(contracted_obj.notes):
+        for m in alignment[n]:  # We hope the alignment is one-to-one
+            mapping[target_entry.mapping[target.index(m)]] = i
+    mapping = IndexMapping(mapping, output_size=len(contracted_obj), aggregator=lambda i: i[0])
+    for i, key in enumerate(reducer.all_keys):
+        contracted_obj.annotate(mapping.map_matrix(target_entry.X[:, i], default=None), key)
+    contracted_obj.annotate(mapping.map_matrix(y_pred.flatten(), default=None),
+                            reducer.alignment.key)
+    if y_test is not None:
+        contracted_obj.annotate(mapping.map_matrix(correction, default=None),
+                                'correction')
+
+    structure_data = {k: list(mapping.map_structure(target_entry.mapping.map_structure(dict(v))).items())
+                      for k, v in target_entry.structures.items()}
+    writer.add_score('contr', contracted, structure_data=structure_data, flavour=False,
+                     title='Contr.')
+
+    if target_out:
+        writer.add_flavour(['contr', 'gen'], help=description)
+        writer.add_score('ex', target_out.score, title='Ex. Red.', flavour=False)
+        writer.add_flavour(['ex', 'gen'], help=description)
 
     writer.finalize()
 
@@ -258,17 +279,16 @@ def command_show(args, module, **kwargs):
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)
+
+    writer.add_score('orig', sample_in.score,
+                     structure_data={**target_entry.contractions, **target_entry.structures},
+                     title='Orig.', flavour=not out_path)
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
-        merge_to_score(sample_in.score, sample_out.score, labels=('Orig', 'Ex'))
-        writer.add_score('combined', sample_in.score,
-                         structure_data={**target_entry.contractions, **target_entry.structures},
-                         title='Orig. + Ex. Reduction')
-    else:
-        writer.add_score('input', sample_in.score,
-                         structure_data={**target_entry.contractions, **target_entry.structures},
-                         title='Orig.')
+        writer.add_score('ex', sample_out.score, title='Ex. Red.', flavour=False)
+        writer.add_flavour(['orig', 'ex'])
+
     writer.finalize()
 
     logging.info('Done')

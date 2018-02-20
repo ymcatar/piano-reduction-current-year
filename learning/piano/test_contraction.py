@@ -1,5 +1,5 @@
 import numpy as np
-from .contraction import contract_by, compute_contraction_mapping, flatten_contractions
+from .contraction import compute_contraction_mapping, flatten_contractions, IndexMapping
 
 
 def test_flatten_contractions():
@@ -36,10 +36,10 @@ def test_compute_contraction_mapping():
 def test_contract_by():
     data = [1, 2, 3, 4, 5]
     C = [0, 0, 0, 1, 1]
-    assert np.all(contract_by(data, C) == [3, 5])
+    assert np.all(IndexMapping(C).map_matrix(data) == [3, 5])
 
     C = [0, 1, 0, 1, 0]
-    assert np.all(contract_by(data, C) == [5, 4])
+    assert np.all(IndexMapping(C).map_matrix(data) == [5, 4])
 
     C = list(range(5))
-    assert np.all(contract_by(data, C) == data)
+    assert np.all(IndexMapping(C).map_matrix(data) == data)

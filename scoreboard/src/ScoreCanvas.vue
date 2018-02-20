@@ -133,7 +133,9 @@ export default {
       }
 
       const scaledMargin = this.pageMargin * this.ratio;
-      const pageWidth = this.bitmaps[0].width;
+      const pageWidth = this.bitmaps.map(b => b ? b.width : 0).slice(0, -1)
+          .reduce((a, b) => Math.max(a, b), 0);
+      console.log(pageWidth);
       this.visiblePages = [];
       let pageIndex, x;
       for (pageIndex = Math.floor(this.pageOffset),
@@ -248,6 +250,7 @@ export default {
     },
 
     resize() {
+      if (!this.$refs.canvas) return; // Not sure why this happens
       console.info('Resizing');
       let ratio = window.devicePixelRatio;
       // This avoids ugly aliasing

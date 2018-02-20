@@ -12,3 +12,4 @@ from .sustained_rhythm import SustainedRhythm
 from .vertical_doubling import VerticalDoubling
 from .motif import Motif
 from .harmony import Harmony
+from .pitch_distance import PitchDistance

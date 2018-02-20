@@ -1,5 +1,4 @@
-from ..piano import algorithm, contraction, structure
-from ..piano.alignment.min_octave_hand import AlignMinOctaveHand
+from ..piano import algorithm, alignment, contraction, structure
 from .pystruct_crf import PyStructCRF
 
 
@@ -10,21 +9,22 @@ reducer_args = {
         algorithm.EntranceEffect(),
         algorithm.Occurrence(),
         algorithm.OnsetAfterRest(),
-        algorithm.PitchClassStatistics(),
         algorithm.RhythmVariety(),
-        algorithm.StrongBeats(division=0.5),
+        algorithm.StrongBeats(division=1.0),
         algorithm.SustainedRhythm(),
         algorithm.VerticalDoubling(),
         algorithm.Motif(),
         algorithm.Harmony(),
         ],
-    'alignment': AlignMinOctaveHand(),
+    'alignment': alignment.AlignMinOctaveMatching(),
     'contractions': [
         contraction.ContractTies(),
         contraction.ContractByPitchOnset(),
         ],
     'structures': [
-        structure.SimultaneousNotes(),
+        structure.OnsetNotes(),
+        structure.OnsetBadIntervalNotes(),
+        structure.AdjacentNotes(),
         ],
     }
 

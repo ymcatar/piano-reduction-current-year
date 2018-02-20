@@ -97,30 +97,71 @@ def compute_contraction_mapping(P):
     return C, len(mapping)
 
 
-def contract_by(matrix, C):
-    '''
-    Contract matrix by the mapping C.
-    '''
-    matrix = np.asarray(matrix)
+class IndexMapping:
+    '''A many-to-one/zero mapping.'''
+    def __init__(self, mapping, output_size=None, aggregator=None):
+        self.mapping = [m if m != -1 else None for m in mapping]
 
-    groups = defaultdict(list)
-    for i, g in enumerate(C):
-        groups[g].append(matrix[i])
+        self.input_size = len(mapping)
+        if output_size is None:
+            self.output_size = max((m + 1 for m in self.mapping if m is not None), default=0)
+        else:
+            self.output_size = output_size
 
-    result = np.empty((len(groups), *matrix.shape[1:]), dtype=matrix.dtype)
-    for g, entries in groups.items():
-        # Contract entries using the max operator
-        result[g, ...] = np.max(entries, axis=0)
+        self.aggregator = aggregator or (lambda x: np.max(x, axis=0))
 
-    return result
+        self.groups = [[] for _ in range(self.output_size)]
+        for i, o in enumerate(self.mapping):
+            if o is not None:
+                self.groups[o].append(i)
+
+    def map_matrix(self, matrix, default=None):
+        assert len(matrix) == self.input_size
+
+        if isinstance(matrix, list):
+            result = [None] * len(matrix)
+        else:
+            result = np.empty((self.output_size, *matrix.shape[1:]), dtype=matrix.dtype)
+        for g, indices in enumerate(self.groups):
+            if indices:
+                result[g] = self.aggregator([matrix[i] for i in indices])
+            else:
+                result[g] = default
+
+        return result
+
+    def map_structure(self, structure):
+        groups = defaultdict(list)
+        for edge, feature in structure.items():
+            new_edge = self.mapping[edge[0]], self.mapping[edge[1]]
+            if new_edge[0] is None or new_edge[1] is None:  # Vertex does not exist in output
+                continue
+            new_edge = tuple(sorted(new_edge))
+            if new_edge[0] == new_edge[1]:  # Prohibit self-loops
+                continue
+            groups[new_edge].append(feature)
+
+        return {k: self.aggregator(v) for k, v in groups.items()}
+
+    def unmap_matrix(self, matrix, default=None):
+        assert len(matrix) == self.output_size
+        matrix = np.asarray(matrix)
+
+        result = np.empty((self.input_size, *matrix.shape[1:]), dtype=matrix.dtype)
+        for i, o in enumerate(self.mapping):
+            result[i, ...] = matrix[o] if o is not None else default
+
+        return result
+
+    def __getitem__(self, i):
+        return self.mapping[i]
 
 
-def contract_structure_by(structure, C):
-    groups = defaultdict(list)
-    for edge, feature in structure.items():
-        new_edge = tuple(sorted([C[edge[0]], C[edge[1]]]))
-        if new_edge[0] == new_edge[1]:  # Prohibit self-loops
-            continue
-        groups[new_edge].append(feature)
+class ContractionMapping(IndexMapping):
+    def __init__(self, contractions, input_size, **kwargs):
+        self.parents = flatten_contractions(contractions, input_size)
+        mapping, _ = compute_contraction_mapping(self.parents)
+        super().__init__(mapping, **kwargs)
 
-    return {k: np.max(v, axis=0) for k, v in groups.items()}
+    def is_contracted(self, i):
+        return i != self.parents[i]

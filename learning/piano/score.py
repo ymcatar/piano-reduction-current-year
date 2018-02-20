@@ -70,6 +70,7 @@ class ScoreObject(object):
         for i, measures in enumerate(zip_longest(*iters)):
             assert all(measures), 'Measures missing at index {}'.format(i)
             bar = result.cloneEmpty(derivationMethod='by_bar')
+            bar.offset = measures[0].offset
             for part, m in zip(result.parts, measures):
                 p = part.cloneEmpty(derivationMethod='by_bar')
                 p.insert(0, m)
@@ -141,15 +142,12 @@ class ScoreObject(object):
 
         return out
 
-    def annotate(self, vector, key, mapping=None):
+    def annotate(self, vector, key):
         '''
         Annotate the given vector to the score.
         '''
-        if mapping is None:
-            assert len(vector) == len(self)
-            mapping = range(len(vector))
-        for i, n in zip(mapping, self.notes):
-            n.editorial.misc[key] = vector[i]
+        for v, n in zip(vector, self.notes):
+            n.editorial.misc[key] = v
 
     def index(self, n):
         '''

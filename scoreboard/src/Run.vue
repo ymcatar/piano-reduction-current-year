@@ -320,7 +320,7 @@ export default {
   },
 
   mounted() {
-    if (this.run.scores.length)
+    if (this.run.scores.length === 1)
       this.selectedScoreName = this.run.scores[0].name;
   },
 };
