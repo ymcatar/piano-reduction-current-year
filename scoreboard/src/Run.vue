@@ -30,6 +30,12 @@
               step="0.1" v-model.number="pageOffset">
             <span class="page-disp">{{Math.round(pageOffset*10)/10}}</span>
           </div>
+          <md-button class="md-icon-button md-dense" @click="onChangePage(-1)">
+            <md-icon>keyboard_arrow_left</md-icon>
+          </md-button>
+          <md-button class="md-icon-button md-dense" @click="onChangePage(1)">
+            <md-icon>keyboard_arrow_right</md-icon>
+          </md-button>
         </md-list-item>
 
         <md-subheader>Features</md-subheader>
@@ -311,6 +317,11 @@ export default {
         this.loading -= 1;
       }
     },
+
+    onChangePage(offset) {
+      const maxPage = (this.pages ? this.pages.length : 0) - 1;
+      this.pageOffset = Math.max(0, Math.min(maxPage, this.pageOffset + offset));
+    },
   },
 
   watch: {
@@ -349,7 +360,7 @@ export default {
   display: flex; align-items: center;
   width: 100%;
   input { flex: 1; margin-left: 8px; margin-right: 8px; }
-  .page-disp { width: 32px; }
+  .page-disp { width: 20px; }
 }
 
 .container {
