@@ -217,7 +217,7 @@ def command_reduce(args, **kwargs):
     writer.add_score('orig', target.score, title='Orig.',
                      structure_data={**target_entry.contractions, **target_entry.structures},
                      flavour=False)
-    writer.add_score('gen', result, title='Gen. Red.', flavour=False)
+    writer.add_score('gen', result, title='Gen. Red.')
     writer.add_flavour(['orig', 'gen'], help=description)
 
     # Generate a contracted score

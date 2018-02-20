@@ -9,6 +9,9 @@
           <span class="md-list-item-text">
             {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
+          <md-button class="md-icon-button md-dense" @click="onDownload(score)">
+            <md-icon>file_download</md-icon>
+          </md-button>
         </md-list-item>
 
         <md-subheader>
@@ -30,9 +33,49 @@
               step="0.1" v-model.number="pageOffset">
             <span class="page-disp">{{Math.round(pageOffset*10)/10}}</span>
           </div>
+          <md-button class="md-icon-button md-dense" @click="onChangePage(-1)">
+            <md-icon>keyboard_arrow_left</md-icon>
+          </md-button>
+          <md-button class="md-icon-button md-dense" @click="onChangePage(1)">
+            <md-icon>keyboard_arrow_right</md-icon>
+          </md-button>
         </md-list-item>
 
-        <md-subheader>Features</md-subheader>
+        <md-list-item>
+          <md-field>
+            <label for="playback">Playback</label>
+            <md-select v-model="selectedPlaybackScoreName" id="playback" md-dense>
+              <md-option key="null" value="none"></md-option>
+                <md-option v-for="score of run.scores" :key="score.name" :value="score.name">
+                  {{score.title ? `${score.title} (${score.name})` : score.name}}
+                </md-option>
+            </md-select>
+          </md-field>
+        </md-list-item>
+
+        <audio v-if="selectedPlaybackScore" controls>
+          <source :src="apiPrefix + dropExt(selectedPlaybackScore.xml) + '.mp3'"
+              type="audio/mpeg">
+        </audio>
+
+        <md-subheader>
+          <span style="flex: 1">Features</span>
+          <md-menu>
+            <md-button md-menu-trigger class="md-icon-button">
+              <md-icon>more_horiz</md-icon>
+            </md-button>
+
+            <md-menu-content>
+              <md-menu-item v-for="config, name in savedConfigs" :key="name"
+                  @click="onLoadConfig(config)">
+                  {{name}}
+              </md-menu-item>
+              <md-menu-item @click="onSaveConfig()">
+                  <strong>Save Current</strong>
+              </md-menu-item>
+            </md-menu-content>
+          </md-menu>
+        </md-subheader>
         <template v-for="key of annotationKeys">
           <md-list-item :key="key">
             <md-field>
@@ -133,6 +176,7 @@ export default {
   },
   data: () => ({
     selectedScoreName: null,
+    selectedPlaybackScoreName: null,
 
     loading: 0,
     pages: null,
@@ -171,11 +215,17 @@ export default {
         colour: '#33DDDD',
       },
     }),
+
+    savedConfigs: {},
   }),
 
   computed: {
     selectedScore() {
       return this.run.scores.find(s => s.name === this.selectedScoreName);
+    },
+
+    selectedPlaybackScore() {
+      return this.run.scores.find(s => s.name === this.selectedPlaybackScoreName);
     },
 
     apiPrefix() {
@@ -286,6 +336,10 @@ export default {
       return feature;
     },
 
+    dropExt(path) {
+      return path.substr(0, path.lastIndexOf('.'));
+    },
+
     async loadFeatureData() {
       const score = this.selectedScore;
       this.pages = null;
@@ -294,7 +348,7 @@ export default {
       try {
         this.loading += 1;
         const [{pages}, featureData] = await Promise.all([
-          fetchJSON(this.apiPrefix + score.xml.substr(0, score.xml.length - 4) + '-index.json'),
+          fetchJSON(this.apiPrefix + this.dropExt(score.xml) + '-index.json'),
           fetchJSON(this.apiPrefix + score.featureData)
         ]);
         if (score !== this.selectedScore) return;
@@ -311,6 +365,30 @@ export default {
         this.loading -= 1;
       }
     },
+
+    onChangePage(offset) {
+      const maxPage = (this.pages ? this.pages.length : 0) - 1;
+      this.pageOffset = Math.max(0, Math.min(maxPage, this.pageOffset + offset));
+    },
+
+    onDownload(score) {
+      window.open(this.apiPrefix + score.xml, '_blank');
+    },
+
+    onLoadConfig(config) {
+      if (config.annotationMap)
+        this.annotationMap = Object.assign({}, this.annotationMap, config.annotationMap);
+    },
+
+    onSaveConfig() {
+      const name = window.prompt('Name of config:');
+      if (!name) return;
+      this.savedConfigs[name] = {
+        annotationMap: Object.assign({}, this.annotationMap),
+      };
+      this.savedConfigs = Object.assign({}, this.savedConfigs);
+      localStorage['scoreboard:savedConfigs'] = JSON.stringify(this.savedConfigs, null, 4);
+    }
   },
 
   watch: {
@@ -322,6 +400,12 @@ export default {
   mounted() {
     if (this.run.scores.length === 1)
       this.selectedScoreName = this.run.scores[0].name;
+
+    try {
+      this.savedConfigs = JSON.parse(localStorage['scoreboard:savedConfigs']);
+    } catch (err) {
+      this.savedConfigs = {};
+    }
   },
 };
 </script>
@@ -349,7 +433,12 @@ export default {
   display: flex; align-items: center;
   width: 100%;
   input { flex: 1; margin-left: 8px; margin-right: 8px; }
-  .page-disp { width: 32px; }
+  .page-disp { width: 20px; }
+}
+
+audio {
+  height: 32px;
+  background-color: white;
 }
 
 .container {
