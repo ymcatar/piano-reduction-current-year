@@ -7,3 +7,9 @@ class HandAssignmentAlgorithm(object):
         print(measures)
         return []
 
+    @staticmethod
+    def cost(assignment):
+        print(assignment)
+        return 0
+
+

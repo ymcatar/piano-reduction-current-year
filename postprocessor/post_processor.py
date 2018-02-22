@@ -63,12 +63,11 @@ class PostProcessor(object):
                     offset = measure.offset + item.offset
                     if isChord(item.element):
                         for note in item.element._notes:
-                            wappedNote = NoteWrapper(
-                                note, offset, self.score, item.element)
+                            wappedNote = NoteWrapper(note, offset, item.element)
                             self.grouped_onsets[offset].append(
                                 wappedNote)
                     elif isNote(item.element):  # note or rest
-                        note = NoteWrapper(item.element, offset, self.score)
+                        note = NoteWrapper(item.element, offset)
                         self.grouped_onsets[offset].append(note)
 
         # dictionary to store all the problematic sites

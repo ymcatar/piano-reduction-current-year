@@ -24,8 +24,7 @@ class MultipartReducer(object):
         for i in count(0):
 
             bar = self.score.measure(i, collect=(), gatherSpanners=False)
-            measures = bar.recurse(
-                skipSelf=False).getElementsByClass('Measure')
+            measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
             if not measures:
                 # Measures is the pickup (partial) measure and may not exist
                 if i == 0:
@@ -43,6 +42,10 @@ class MultipartReducer(object):
                     rests = []
 
                     for elem in p.recurse(skipSelf=False):
+
+                        # ignore the note if it is marked as deleted
+                        if elem.editorial.misc.get('deleted'):
+                            continue
 
                         # record tie among notes
                         if isinstance(elem, music21.note.Note) or \
