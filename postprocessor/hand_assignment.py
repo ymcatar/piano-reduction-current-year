@@ -4,12 +4,12 @@ class HandAssignmentAlgorithm(object):
 
     @staticmethod
     def start(measures):
-        print(measures)
+        # print(measures)
         return []
 
     @staticmethod
     def cost(assignment):
-        print(assignment)
+        # print(assignment)
         return 0
 
 

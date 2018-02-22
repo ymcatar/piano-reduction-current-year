@@ -5,6 +5,7 @@ import music21
 
 # relative import
 from post_processor import PostProcessor
+from visualizer import Visualizer
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input", help="path of the input MusicXML file")
@@ -18,5 +19,8 @@ post_processor.apply()
 post_processor.assign_hands()
 
 if not args.no_output:
-    results = post_processor.generate_piano_score()
-    results.show()
+
+    # results = post_processor.generate_piano_score()
+    # results.show()
+
+    results = Visualizer(score)
