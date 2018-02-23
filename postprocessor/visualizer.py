@@ -98,8 +98,7 @@ class Visualizer(object):
 
         # draw keyboard
 
-        vp.box(pos=vp.vector(span/2 + keybsize, -1., -1), length=span +
-               2, height=1, width=15, texture=vp.textures.wood)
+        vp.box(pos=vp.vector(span/2 + keybsize, -1., -1), length=span + 5, height=1, width=15, texture=vp.textures.wood)
 
         current_step = 12 # 12 = C0
 
@@ -127,7 +126,7 @@ class Visualizer(object):
                     if not nts[ik] in ("E", "B"):
                         tn = vp.box(pos=vp.vector(x + wb / 2, 0.5, -2),
                                     shininess=0.0, length=wb * .6,
-                                    height=1.0, width=6,
+                                    height=1.5, width=6,
                                     up=vp.vector(0, 1, 0),
                                     color=vp.vector(0., 0., 0.))
                         self.keyboards[current_step] = tn
@@ -135,17 +134,25 @@ class Visualizer(object):
 
         # draw hands
         for i in range(1, 6):
-            self.left[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(75, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.red)
-            self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(75, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.blue)
+            self.left[i] = vp.text( font='serif', axis=vp.vector(1, 0, 0),
+                                    up=vp.vector(0, 0, -1), align='center',
+                                    pos=vp.vector(75, 1.1, 0), text=str(i),
+                                    depth=0.01, height=1.5,
+                                    color=vp.color.black)
+            self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0),
+                                    up=vp.vector(0, 0, -1), align='center',
+                                    pos=vp.vector(75, 1.1, 0), text=str(i),
+                                    depth=0.01, height=1.5,
+                                    color=vp.color.black)
             self.left[i].visible = False
             self.right[i].visible = False
 
         # bind next frame click handler
         def keydown(evt):
             s = evt.key
-            if s == 'right':
+            if s in ('right', 'down'):
                 self.next_frame()
-            elif s == 'left':
+            elif s in ('left', 'up'):
                 self.prev_frame()
 
         scene.bind('click', self.next_frame)
@@ -174,32 +181,36 @@ class Visualizer(object):
         active_right = {}
 
         # highlight the active key
-        def highlight_note(note, color):
+        def highlight_note(note, left_color, right_color):
+
             step = math.trunc(note.note.pitch.ps)
             self.active[step] = True
-            self.keyboards[step].color = color
+
             # move finger to the key
             if note.note.editorial.misc.get('hand') and note.note.editorial.misc.get('finger'):
                 hand = note.note.editorial.misc.get('hand')
                 finger = note.note.editorial.misc.get('finger')
+
+                self.keyboards[step].color = left_color if hand == 'L' else right_color
 
                 active_hand = active_left if hand == 'L' else active_right
                 hand = self.left if hand == 'L' else self.right
 
                 active_hand[finger] = True
                 hand[finger].pos.x = self.keyboards[step].pos.x
+
                 if step % 12 in (1, 3, 6, 8, 10):
-                    hand[finger].pos.y = 1.0
+                    hand[finger].pos.y = 1.5
                     hand[finger].pos.z = 0.5
                 else:
                     hand[finger].pos.y = 0.5
                     hand[finger].pos.z = 4.5
 
-        for note in self.grouped_onsets[current_label]:
-            highlight_note(note, vp.vector(1.0, 0.92, 0.23))
-
         for note in self.sustained_onsets[current_label]:
-            highlight_note(note, vp.vector(0.46, 0.46, 0.46))
+            highlight_note(note, vp.vector(0.58, 0.46, 0.8), vp.vector(1.0, 0.8, 0.5))
+
+        for note in self.grouped_onsets[current_label]:
+            highlight_note(note, vp.vector(0.4, 0.12, 1.0), vp.vector(1.0, 0.57, 0.0))
 
         for i in range(1, 6):
             self.left[i].visible = i in active_left

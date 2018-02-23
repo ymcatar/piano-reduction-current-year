@@ -11,48 +11,64 @@ MAX_PITCH_STEP_CHANGE = 8
 class PostProcessorAlgorithms(object):
 
     @staticmethod
-    def detect_triad(group_tuple):
-        offset, group = group_tuple
+    def repeated_note(groups):
+
+        offset, group = groups[0]
         notes = [n for n in group if isNote(n.note)]
-        pitches = list(n + '4' for n in set(n.note.name for n in notes))
+        ps_map = defaultdict(lambda: [])
 
-        chord = music21.chord.Chord(pitches)
+        for n in notes:
+            ps_map[n.note.pitch.ps].append(n)
 
-        if len(pitches) == 3:  # a possible triad
-            if chord.isTriad():
-                for n in group:
-                    n.highlight('#0000ff')
-                return [notes]
+        for ps, notes in ps_map.items():
+            if len(notes) > 1:
+                for note in notes[1:]:
+                    note.deleted = True
 
-        return []
 
-    @ staticmethod
-    def fix_triad(notes):
-        # print('triad:', notes)
-        pass
+    # @staticmethod
+    # def detect_triad(group_tuple):
+    #     offset, group = group_tuple
+    #     notes = [n for n in group if isNote(n.note)]
+    #     pitches = list(n + '4' for n in set(n.note.name for n in notes))
 
-    @staticmethod
-    def detect_too_many_concurrent_notes(group_tuple):
-        offset, group = group_tuple
-        notes = [n for n in group if isNote(n.note)]
+    #     chord = music21.chord.Chord(pitches)
 
-        # highlight all time instance with note playing >= MAX_CONCURRENT_NOTE
-        if len(notes) >= MAX_CONCURRENT_NOTE:
-            return [notes]
+    #     if len(pitches) == 3:  # a possible triad
+    #         if chord.isTriad():
+    #             for n in group:
+    #                 n.highlight('#0000ff')
+    #             return [notes]
 
-        return []
+    #     return []
 
-    @staticmethod
-    # FIXME: probably a bad fix musically, refine later
-    def fix_too_many_concurrent_notes(notes):
-        pitches = defaultdict(lambda: [])
-        for note in notes:
-            pitches[note.note.name].append(note)
+    # @ staticmethod
+    # def fix_triad(notes):
+    #     # print('triad:', notes)
+    #     pass
 
-        # remove notes in unisons by keeping the higher one
-        for name, note_list in pitches.items():
-            note_list = sorted(note_list, key=lambda n: n.note.pitch.ps, reverse=True)
-            if len(note_list) >= 2:
-                # only keep the lowest and the highest
-                for note in note_list[1:-1]:
-                    note.remove()
+    # @staticmethod
+    # def detect_too_many_concurrent_notes(group_tuple):
+    #     offset, group = group_tuple
+    #     notes = [n for n in group if isNote(n.note)]
+
+    #     # highlight all time instance with note playing >= MAX_CONCURRENT_NOTE
+    #     if len(notes) >= MAX_CONCURRENT_NOTE:
+    #         return [notes]
+
+    #     return []
+
+    # @staticmethod
+    # # FIXME: probably a bad fix musically, refine later
+    # def fix_too_many_concurrent_notes(notes):
+    #     pitches = defaultdict(lambda: [])
+    #     for note in notes:
+    #         pitches[note.note.name].append(note)
+
+    #     # remove notes in unisons by keeping the higher one
+    #     for name, note_list in pitches.items():
+    #         note_list = sorted(note_list, key=lambda n: n.note.pitch.ps, reverse=True)
+    #         if len(note_list) >= 2:
+    #             # only keep the lowest and the highest
+    #             for note in note_list[1:-1]:
+    #                 note.remove()
