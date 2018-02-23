@@ -1,8 +1,8 @@
 import math
 import music21
 import pygame
-import vpython as vp
 import threading
+import vpython as vp
 
 from collections import defaultdict
 
@@ -62,6 +62,16 @@ class Visualizer(object):
                     elif isNote(item.element):  # note or rest
                         note = NoteWrapper(item.element, offset)
                         self.grouped_onsets[offset_label].append(note)
+
+        keys = [float(i) for i in self.grouped_onsets.keys()]
+        self.sustained_onsets = defaultdict(lambda: [])
+        for offset in self.grouped_onsets.keys():
+            for note in self.grouped_onsets[offset]:
+                start = float(offset)
+                end = start + note.note.duration.quarterLength
+                sites = ['{0:.2f}'.format(i) for i in keys if i > start and i < end]
+                for item in sites:
+                    self.sustained_onsets[item].append(note)
 
         self.onset_keys = [i for i in self.grouped_onsets.keys()]
 
@@ -164,14 +174,6 @@ class Visualizer(object):
         self.text.visible = False
         del self.text
 
-        helptext = str(current_label) + ' / ' + self.onset_keys[-1]
-
-        self.text = vp.label(pos=vp.vector(75., 15., 0.),
-                             font='monospace',
-                             box=False, border=0,
-                             height=30, text=helptext,
-                             align='center', color=vp.color.black)
-
         # unhiglight the previously active key
         active_keys = [i for i in self.active.keys()]
         for step in active_keys:
@@ -185,7 +187,21 @@ class Visualizer(object):
         for note in self.grouped_onsets[current_label]:
             step = math.trunc(note.note.pitch.ps)
             self.active[step] = True
-            self.keyboards[step].color = vp.color.yellow
+            self.keyboards[step].color = vp.vector(1.0, 0.92, 0.23)
+
+        if current_label in self.sustained_onsets:
+            for note in self.sustained_onsets[current_label]:
+                step = math.trunc(note.note.pitch.ps)
+                self.active[step] = True
+                self.keyboards[step].color = vp.vector(0.46, 0.46, 0.46)
+
+        helptext = str(current_label) + ' / ' + self.onset_keys[-1]
+
+        self.text = vp.label(pos=vp.vector(75., 15., 0.),
+                             font='monospace',
+                             box=False, border=0,
+                             height=25, text=helptext,
+                             align='center', color=vp.color.black)
 
     def next_frame(self):
         self.current_offset += 1
@@ -194,7 +210,7 @@ class Visualizer(object):
 
     def prev_frame(self):
         self.current_offset -= 1
-        if self.current_offset == 0:
+        if self.current_offset == -1:
             self.current_offset = len(self.onset_keys) - 1
         self.draw_frame()
 
