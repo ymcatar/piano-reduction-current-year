@@ -89,7 +89,7 @@ class Visualizer(object):
 
         scene = vp.canvas(x=0, y=0, width=1400.0, height=600.0,
                           userspin=True, center=vp.vector(75., 0., 0.),
-                          fov=math.pi/8.0, background=vp.vector(.95, .95, .95))
+                          fov=math.pi/4.0, background=vp.vector(.95, .95, .95))
 
         scene.camera.rotate(angle=-math.pi/4.0, axis=vp.vector(1., 0., 0.))
 
@@ -135,8 +135,8 @@ class Visualizer(object):
 
         # draw hands
         for i in range(1, 6):
-            self.left[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(0, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.red)
-            self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(0, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.blue)
+            self.left[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(75, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.red)
+            self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(75, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.blue)
             self.left[i].visible = False
             self.right[i].visible = False
 
@@ -207,7 +207,7 @@ class Visualizer(object):
 
         # show the current onset as a text
 
-        helptext = str(current_label) + ' / ' + self.onset_keys[-1] + '\n(left = red, right = blue)'
+        helptext = str(current_label) + ' / ' + self.onset_keys[-1]
 
         self.text = vp.label(pos=vp.vector(75., 15., 0.),
                              font='monospace',
