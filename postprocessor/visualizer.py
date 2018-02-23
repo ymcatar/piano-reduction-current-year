@@ -1,6 +1,6 @@
 import math
 import music21
-import pygame
+import random
 import threading
 import vpython as vp
 
@@ -9,7 +9,6 @@ from collections import defaultdict
 from util import isNote, isChord
 from note_wrapper import NoteWrapper
 
-
 def set_interval(func, sec):
     def func_wrapper():
         set_interval(func, sec)
@@ -17,7 +16,6 @@ def set_interval(func, sec):
     t = threading.Timer(sec, func_wrapper)
     t.start()
     return t
-
 
 class Visualizer(object):
 
@@ -135,25 +133,12 @@ class Visualizer(object):
                         self.keyboards[current_step] = tn
                         current_step += 1
 
-        # draw text
-        self.text = vp.text(pos=vp.vector(75., 10., 0.), height=3, text='Loading ...', align='center', color=vp.color.black, depth=0.0)
-        self.text.rotate(angle=-math.pi/2.0, axis=vp.vector(1., 0., 0.))
-
-        # draw left hand
-
-        self.left[1] = vp.cylinder(pos=vp.vector(-2., 1.5, 4.5), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.left[2] = vp.cylinder(pos=vp.vector(-1., 1.5, 4.1), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.left[3] = vp.cylinder(pos=vp.vector( 0., 1.5, 4),   axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.left[4] = vp.cylinder(pos=vp.vector( 1., 1.5, 4.2), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.left[5] = vp.cylinder(pos=vp.vector( 2., 1.5, 6.2), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-
-        # draw right hand
-
-        self.right[1] = vp.cylinder(pos=vp.vector(5., 1.5, 6.2), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.right[2] = vp.cylinder(pos=vp.vector(6., 1.5, 4.2), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.right[3] = vp.cylinder(pos=vp.vector(7., 1.5, 4),   axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.right[4] = vp.cylinder(pos=vp.vector(8., 1.5, 4.1), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
-        self.right[5] = vp.cylinder(pos=vp.vector(9., 1.5, 4.5), axis=vp.vector(0., 0., 5.), radius=.2, color=vp.color.red)
+        # draw hands
+        for i in range(1, 6):
+            self.left[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(0, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.red)
+            self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0), up=vp.vector(0, 0, -1), align='center', pos=vp.vector(0, 1.1, 0), text=str(i), depth=0.01, height=1.5, color=vp.color.blue)
+            self.left[i].visible = False
+            self.right[i].visible = False
 
         # bind next frame click handler
         def keydown(evt):
@@ -166,36 +151,63 @@ class Visualizer(object):
         scene.bind('click', self.next_frame)
         scene.bind('keydown', keydown)
 
-
     def draw_frame(self):
 
         current_label = self.onset_keys[self.current_offset]
 
-        self.text.visible = False
-        del self.text
+        if self.text:
+            self.text.visible = False
+            del self.text
 
         # unhiglight the previously active key
         active_keys = [i for i in self.active.keys()]
         for step in active_keys:
-            if step % 12 in (1, 3, 6, 8, 10):
-                self.keyboards[step].color = vp.vector(0., 0., 0.)  # black key
-            else:
-                self.keyboards[step].color = vp.vector(1., 1., 1.)  # white key
-            del self.active[step]
+            temp = [math.trunc(n.note.pitch.ps) for n in self.sustained_onsets[current_label]]  # TODO: optimize
+            if step not in temp:
+                if step % 12 in (1, 3, 6, 8, 10):
+                    self.keyboards[step].color = vp.vector(0., 0., 0.)  # black key
+                else:
+                    self.keyboards[step].color = vp.vector(1., 1., 1.)  # white key
+                del self.active[step]
+
+        active_left = {}
+        active_right = {}
 
         # highlight the active key
-        for note in self.grouped_onsets[current_label]:
+        def highlight_note(note, color):
             step = math.trunc(note.note.pitch.ps)
             self.active[step] = True
-            self.keyboards[step].color = vp.vector(1.0, 0.92, 0.23)
+            self.keyboards[step].color = color
+            # move finger to the key
+            if note.note.editorial.misc.get('hand') and note.note.editorial.misc.get('finger'):
+                hand = note.note.editorial.misc.get('hand')
+                finger = note.note.editorial.misc.get('finger')
 
-        if current_label in self.sustained_onsets:
-            for note in self.sustained_onsets[current_label]:
-                step = math.trunc(note.note.pitch.ps)
-                self.active[step] = True
-                self.keyboards[step].color = vp.vector(0.46, 0.46, 0.46)
+                active_hand = active_left if hand == 'L' else active_right
+                hand = self.left if hand == 'L' else self.right
 
-        helptext = str(current_label) + ' / ' + self.onset_keys[-1]
+                active_hand[finger] = True
+                hand[finger].pos.x = self.keyboards[step].pos.x
+                if step % 12 in (1, 3, 6, 8, 10):
+                    hand[finger].pos.y = 1.0
+                    hand[finger].pos.z = 0.5
+                else:
+                    hand[finger].pos.y = 0.5
+                    hand[finger].pos.z = 4.5
+
+        for note in self.grouped_onsets[current_label]:
+            highlight_note(note, vp.vector(1.0, 0.92, 0.23))
+
+        for note in self.sustained_onsets[current_label]:
+            highlight_note(note, vp.vector(0.46, 0.46, 0.46))
+
+        for i in range(1, 6):
+            self.left[i].visible = i in active_left
+            self.right[i].visible = i in active_right
+
+        # show the current onset as a text
+
+        helptext = str(current_label) + ' / ' + self.onset_keys[-1] + '\n(left = red, right = blue)'
 
         self.text = vp.label(pos=vp.vector(75., 15., 0.),
                              font='monospace',

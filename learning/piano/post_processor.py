@@ -6,8 +6,8 @@ from itertools import count
 from collections import defaultdict
 
 
-RIGHT_HAND = 1
-LEFT_HAND = 2
+RIGHT_HAND = 'R'
+LEFT_HAND = 'L'
 
 
 def default_keep_func(n):

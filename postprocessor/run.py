@@ -16,11 +16,10 @@ score = music21.converter.parse(args.input)
 
 post_processor = PostProcessor(score)
 post_processor.apply()
-post_processor.assign_hands()
 
 if not args.no_output:
 
     # results = post_processor.generate_piano_score()
     # results.show()
 
-    results = Visualizer(score)
+    results = Visualizer(post_processor.score)

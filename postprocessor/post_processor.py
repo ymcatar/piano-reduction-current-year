@@ -93,11 +93,6 @@ class PostProcessor(object):
                     for site in self.sites[detect_func.__name__]:
                         fix_func(site)
 
-    def assign_hands(self):
-        for offset, group in self.grouped_onsets.items():
-            for note in group:
-                note.note.editorial.misc['hand'] = LEFT_HAND
-
     def generate_piano_score(self):
         reducer = MultipartReducer(self.score)
         return reducer.reduce()

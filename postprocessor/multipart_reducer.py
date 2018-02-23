@@ -6,8 +6,8 @@ import numpy as np
 from collections import defaultdict
 from itertools import count
 
-RIGHT_HAND = 1
-LEFT_HAND = 2
+RIGHT_HAND = 'R'
+LEFT_HAND = 'L'
 
 
 class MultipartReducer(object):

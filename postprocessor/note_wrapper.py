@@ -38,7 +38,7 @@ class NoteWrapper(object):
     @finger.setter
     def finger(self, value):
         assert value in range(1, 6)
-        self.note.editorial.misc['finger']
+        self.note.editorial.misc['finger'] = value
 
     def highlight(self, color):
         self.note.style.color = color
