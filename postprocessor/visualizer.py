@@ -181,7 +181,7 @@ class Visualizer(object):
         active_right = {}
 
         # highlight the active key
-        def highlight_note(note, left_color, right_color):
+        def highlight_note(note, left_color, right_color, onset=True):
 
             step = math.trunc(note.note.pitch.ps)
             self.active[step] = True
@@ -193,21 +193,22 @@ class Visualizer(object):
 
                 self.keyboards[step].color = left_color if hand == 'L' else right_color
 
-                active_hand = active_left if hand == 'L' else active_right
-                hand = self.left if hand == 'L' else self.right
+                if onset:
+                    active_hand = active_left if hand == 'L' else active_right
+                    hand = self.left if hand == 'L' else self.right
 
-                active_hand[finger] = True
-                hand[finger].pos.x = self.keyboards[step].pos.x
+                    active_hand[finger] = True
+                    hand[finger].pos.x = self.keyboards[step].pos.x
 
-                if step % 12 in (1, 3, 6, 8, 10):
-                    hand[finger].pos.y = 1.5
-                    hand[finger].pos.z = 0.5
-                else:
-                    hand[finger].pos.y = 0.5
-                    hand[finger].pos.z = 4.5
+                    if step % 12 in (1, 3, 6, 8, 10):
+                        hand[finger].pos.y = 1.5
+                        hand[finger].pos.z = 0.5
+                    else:
+                        hand[finger].pos.y = 0.5
+                        hand[finger].pos.z = 4.5
 
         for note in self.sustained_onsets[current_label]:
-            highlight_note(note, vp.vector(0.58, 0.46, 0.8), vp.vector(1.0, 0.8, 0.5))
+            highlight_note(note, vp.vector(0.58, 0.46, 0.8), vp.vector(1.0, 0.8, 0.5), onset=False)
 
         for note in self.grouped_onsets[current_label]:
             highlight_note(note, vp.vector(0.4, 0.12, 1.0), vp.vector(1.0, 0.57, 0.0))
