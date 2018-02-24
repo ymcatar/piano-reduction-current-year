@@ -5,10 +5,14 @@ import music21
 class NoteWrapper(object):
 
     def __init__(self, note, offset, chord=None):
+
         self.note = note
         self.offset = offset
         self.chord = chord      # set to a chord if the note belongs to a chord
+
         self.deleted = False
+        self.hand = None
+        self.finger = None
 
     @property
     def is_from_chord(self):
@@ -28,7 +32,7 @@ class NoteWrapper(object):
 
     @hand.setter
     def hand(self, value):
-        assert value in ('L', 'R')
+        assert value in ('L', 'R', None)
         self.note.editorial.misc['hand'] = value
 
     @property
@@ -37,11 +41,13 @@ class NoteWrapper(object):
 
     @finger.setter
     def finger(self, value):
-        assert value in range(1, 6)
+        assert value in (1, 2, 3, 4, 5, None)
         self.note.editorial.misc['finger'] = value
 
     def highlight(self, color):
         self.note.style.color = color
 
     def __repr__(self):
-        return str(self.note)
+        state = 'DeletedNoteWrapper' if self.deleted else 'NoteWrapper'
+        assignment = ' {:s}{:d}'.format(self.hand, self.finger) if self.hand and self.finger else ''
+        return '<{:s} {:s}{:s}>'.format(state, self.note.nameWithOctave, assignment)

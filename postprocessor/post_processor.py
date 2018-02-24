@@ -16,10 +16,6 @@ from multipart_reducer import MultipartReducer
 
 # algorithm set
 
-ALGORITHMS_HAND_ASSIGNMENT = [
-    HandAssignmentAlgorithm.start
-]
-
 # ALGORITHMS_BY_MEASURE_GROUP = [
 # ]
 
@@ -37,6 +33,10 @@ class PostProcessor(object):
 
     def __init__(self, score):
 
+        # prepare hand assignment object
+        self.hand_assignment = HandAssignmentAlgorithm()
+
+        # prepare score
         self.score = deepcopy(score)
         self.score = self.score.toSoundingPitch()
         self.score = self.score.voicesToParts()
@@ -75,7 +75,7 @@ class PostProcessor(object):
         self.apply_each(ALGORITHMS_BY_ONSET, self.grouped_onsets)
 
         # hand assignment
-        self.apply_each(ALGORITHMS_HAND_ASSIGNMENT, self.grouped_onsets, partition_size=8)
+        self.apply_each([self.hand_assignment.start], self.grouped_onsets, partition_size=8)
 
 
     def apply_each(self, algorithms, source, partition_size=1):

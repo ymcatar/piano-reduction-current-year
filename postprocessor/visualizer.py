@@ -8,6 +8,8 @@ from collections import defaultdict
 
 from util import isNote, isChord
 from note_wrapper import NoteWrapper
+from algorithms import PostProcessorAlgorithms
+from hand_assignment import HandAssignmentAlgorithm
 
 def set_interval(func, sec):
     def func_wrapper():
@@ -17,9 +19,23 @@ def set_interval(func, sec):
     t.start()
     return t
 
+colors = {
+    'white': vp.vector(1.0, 1.0, 1.0),
+    'black': vp.vector(0.0, 0.0, 0.0),
+    'left_primary': vp.vector(0.4, 0.12, 1.0),
+    'left_secondary': vp.vector(0.58, 0.46, 0.8),
+    'right_primary': vp.vector(1.0, 0.57, 0.0),
+    'right_secondary': vp.vector(1.0, 0.8, 0.5),
+    'unassigned': vp.vector(1.0, 0.0, 0.0)
+}
+
+print(colors)
+
 class Visualizer(object):
 
     def __init__(self, score):
+
+        self.hand_assignment = HandAssignmentAlgorithm()
 
         self.score = score
         self.current_offset = 0
@@ -61,15 +77,21 @@ class Visualizer(object):
                         note = NoteWrapper(item.element, offset)
                         self.grouped_onsets[offset_label].append(note)
 
+        for item in self.grouped_onsets.items():
+            offset, notes = item
+            PostProcessorAlgorithms.repeated_note([item]) # remove repeated notes
+            self.grouped_onsets[offset] = [n for n in notes if not n.deleted]
+
         keys = [float(i) for i in self.grouped_onsets.keys()]
         self.sustained_onsets = defaultdict(lambda: [])
-        for offset in self.grouped_onsets.keys():
-            for note in self.grouped_onsets[offset]:
-                start = float(offset)
-                end = start + note.note.duration.quarterLength
-                sites = ['{0:.2f}'.format(i) for i in keys if i > start and i < end]
-                for item in sites:
-                    self.sustained_onsets[item].append(note)
+        for offset, notes in self.grouped_onsets.items():
+            for note in notes:
+                if not note.deleted:
+                    start = float(offset)
+                    end = start + note.note.duration.quarterLength
+                    sites = ['{0:.2f}'.format(i) for i in keys if i > start and i < end]
+                    for item in sites:
+                        self.sustained_onsets[item].append(note)
 
         self.onset_keys = [i for i in self.grouped_onsets.keys()]
 
@@ -110,7 +132,7 @@ class Visualizer(object):
                             length=wb-tol, shininess=0.0,
                             height=1.0, width=10,
                             up=vp.vector(0, 1, 0),
-                            color=vp.vector(1., 1., 1.))
+                            color=colors['white'])
                 self.keyboards[current_step] = tb
             else:
                 for ik in range(7):
@@ -119,7 +141,7 @@ class Visualizer(object):
                                 length=wb-tol, shininess=0.0,
                                 height=1.0, width=10,
                                 up=vp.vector(0, 1, 0),
-                                color=vp.vector(1., 1., 1.))
+                                color=colors['white'])
                     self.keyboards[current_step] = tb
                     current_step += 1
                     # black keys
@@ -128,7 +150,7 @@ class Visualizer(object):
                                     shininess=0.0, length=wb * .6,
                                     height=1.5, width=6,
                                     up=vp.vector(0, 1, 0),
-                                    color=vp.vector(0., 0., 0.))
+                                    color=colors['black'])
                         self.keyboards[current_step] = tn
                         current_step += 1
 
@@ -138,12 +160,12 @@ class Visualizer(object):
                                     up=vp.vector(0, 0, -1), align='center',
                                     pos=vp.vector(75, 1.1, 0), text=str(i),
                                     depth=0.01, height=1.5,
-                                    color=vp.color.black)
+                                    color=colors['black'])
             self.right[i] = vp.text(font='serif', axis=vp.vector(1, 0, 0),
                                     up=vp.vector(0, 0, -1), align='center',
                                     pos=vp.vector(75, 1.1, 0), text=str(i),
                                     depth=0.01, height=1.5,
-                                    color=vp.color.black)
+                                    color=colors['black'])
             self.left[i].visible = False
             self.right[i].visible = False
 
@@ -172,28 +194,28 @@ class Visualizer(object):
             temp = [math.trunc(n.note.pitch.ps) for n in self.sustained_onsets[current_label]]  # TODO: optimize
             if step not in temp:
                 if step % 12 in (1, 3, 6, 8, 10):
-                    self.keyboards[step].color = vp.vector(0., 0., 0.)  # black key
+                    self.keyboards[step].color = colors['black']  # black key
                 else:
-                    self.keyboards[step].color = vp.vector(1., 1., 1.)  # white key
+                    self.keyboards[step].color = colors['white']  # white key
                 del self.active[step]
 
         active_left = {}
         active_right = {}
 
         # highlight the active key
-        def highlight_note(note, left_color, right_color, onset=True):
+        def highlight_note(note, onset=True):
 
             step = math.trunc(note.note.pitch.ps)
             self.active[step] = True
 
             # move finger to the key
             if note.note.editorial.misc.get('hand') and note.note.editorial.misc.get('finger'):
+
                 hand = note.note.editorial.misc.get('hand')
                 finger = note.note.editorial.misc.get('finger')
 
-                self.keyboards[step].color = left_color if hand == 'L' else right_color
-
                 if onset:
+                    self.keyboards[step].color = colors.left_primary if hand == 'L' else colors.right_primary
                     active_hand = active_left if hand == 'L' else active_right
                     hand = self.left if hand == 'L' else self.right
 
@@ -206,12 +228,17 @@ class Visualizer(object):
                     else:
                         hand[finger].pos.y = 0.5
                         hand[finger].pos.z = 4.5
+                else:
+                    self.keyboards[step].color = colors['left_secondary'] if hand == 'L' else colors['right_secondary']
+
+            else:
+                self.keyboards[step].color = colors['unassigned']
 
         for note in self.sustained_onsets[current_label]:
-            highlight_note(note, vp.vector(0.58, 0.46, 0.8), vp.vector(1.0, 0.8, 0.5), onset=False)
+            highlight_note(note, onset=False)
 
         for note in self.grouped_onsets[current_label]:
-            highlight_note(note, vp.vector(0.4, 0.12, 1.0), vp.vector(1.0, 0.57, 0.0))
+            highlight_note(note)
 
         for i in range(1, 6):
             self.left[i].visible = i in active_left
@@ -219,13 +246,19 @@ class Visualizer(object):
 
         # show the current onset as a text
 
-        helptext = str(current_label) + ' / ' + self.onset_keys[-1]
+        combined = list(set(self.grouped_onsets[current_label] + self.sustained_onsets[current_label]))
+
+        helptext = '{:s} / {:s} ({:d})'.format(
+            current_label,
+            self.onset_keys[-1],
+            self.hand_assignment.get_number_of_cluster(combined, verbose=True)
+        )
 
         self.text = vp.label(pos=vp.vector(75., 15., 0.),
                              font='monospace',
                              box=False, border=0,
                              height=25, text=helptext,
-                             align='center', color=vp.color.black)
+                             align='center', color=colors['black'])
 
     def next_frame(self):
         self.current_offset += 1
