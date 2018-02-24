@@ -1,5 +1,6 @@
 import music21
 
+from collections import defaultdict
 class HandAssignmentAlgorithm(object):
 
     def __init__(self, max_hand_span=7):
@@ -7,21 +8,59 @@ class HandAssignmentAlgorithm(object):
         self.config = {}
         self.config['max_hand_span'] = max_hand_span
 
-    def start(self, measures):
+    def preassign(self, measures):
 
+        # concerning octaves ---------------------------------------------------
+
+        problematic = {}
+
+        # mark all problematic frames
         for i, item in enumerate(measures):
             offset, notes = item
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-            # for i, note in enumerate(notes):
-            #     if i < 5:
-            #         note.hand = 'L'
-            #         note.finger = i + 1
-            #     elif i < 10:
-            #         note.hand = 'R'
-            #         note.finger = i - 5 + 1
-            self.get_number_of_cluster(notes)
-        return []
+            num_cluster = self.get_number_of_cluster(notes)
+            problematic[i] = (num_cluster > 2)
+
+        # resolve a frame if the frames before and after that frame are both okay
+        changed = True
+        while changed: # repeat until converge
+            changed = False
+            for i, item in enumerate(measures):
+                if not problematic[i]:
+                    continue
+
+                reference = []
+                if i != 0: reference += measures[i - 1][1]
+                if i != len(measures) - 1: reference += measures[i + 1][1]
+
+                offset, curr_frame = item
+
+                # count = 0
+                # while count < len(curr_frame) and self.get_number_of_cluster(curr_frame) > 2:
+
+                #     # min distance from each note in current frame to any notes in either prev/next frame
+                #     distances = defaultdict(lambda: [])
+                #     for a in curr_frame:
+                #         for b in reference:
+                #             distances[a].append(b.note.pitch.ps - a.note.pitch.ps)
+
+                #     # move the outlier up/down to the larger cluster
+                #     outlier = max(distances, key=lambda n: min(abs(i) for i in distances[n]))
+                #     left = [abs(n) for n in distances[outlier] if n < 0]
+                #     right = [abs(n) for n in distances[outlier] if n > 0]
+                #     movement = 12 if sum(left, 0) / len(left) < sum(right, 0) / len(right) else -12
+                #     outlier.note.transpose(movement, inPlace=True)
+                #     print(offset, 'loop')
+                #     count += 1
+
+    def assign(self, measures):
+
+        pass
+
+    def postassign(self, measures):
+
+        pass
 
     def get_number_of_cluster(self, notes, verbose=False):
 

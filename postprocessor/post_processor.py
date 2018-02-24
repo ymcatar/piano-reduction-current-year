@@ -75,7 +75,13 @@ class PostProcessor(object):
         self.apply_each(ALGORITHMS_BY_ONSET, self.grouped_onsets)
 
         # hand assignment
-        self.apply_each([self.hand_assignment.start], self.grouped_onsets, partition_size=8)
+        pipeline = [
+            self.hand_assignment.preassign,
+            self.hand_assignment.assign,
+            self.hand_assignment.postassign
+        ]
+
+        self.apply_each(pipeline, self.grouped_onsets, partition_size=8)
 
 
     def apply_each(self, algorithms, source, partition_size=1):

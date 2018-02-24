@@ -26,7 +26,8 @@ colors = {
     'left_secondary': vp.vector(0.58, 0.46, 0.8),
     'right_primary': vp.vector(1.0, 0.57, 0.0),
     'right_secondary': vp.vector(1.0, 0.8, 0.5),
-    'unassigned': vp.vector(1.0, 0.0, 0.0)
+    'unassigned_primary': vp.vector(1.0, 0.0, 0.0),
+    'unassigned_secondary': vp.vector(0.5, 0.5, 0.5)
 }
 
 print(colors)
@@ -232,7 +233,10 @@ class Visualizer(object):
                     self.keyboards[step].color = colors['left_secondary'] if hand == 'L' else colors['right_secondary']
 
             else:
-                self.keyboards[step].color = colors['unassigned']
+                if onset:
+                    self.keyboards[step].color = colors['unassigned_primary']
+                else:
+                    self.keyboards[step].color = colors['unassigned_secondary']
 
         for note in self.sustained_onsets[current_label]:
             highlight_note(note, onset=False)
@@ -246,12 +250,10 @@ class Visualizer(object):
 
         # show the current onset as a text
 
-        combined = list(set(self.grouped_onsets[current_label] + self.sustained_onsets[current_label]))
-
         helptext = '{:s} / {:s} ({:d})'.format(
             current_label,
             self.onset_keys[-1],
-            self.hand_assignment.get_number_of_cluster(combined, verbose=True)
+            self.hand_assignment.get_number_of_cluster(self.grouped_onsets[current_label], verbose=False)
         )
 
         self.text = vp.label(pos=vp.vector(75., 15., 0.),
