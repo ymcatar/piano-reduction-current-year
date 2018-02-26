@@ -1,4 +1,5 @@
 import music21
+import numpy as np
 
 from collections import defaultdict
 class HandAssignmentAlgorithm(object):
@@ -56,7 +57,29 @@ class HandAssignmentAlgorithm(object):
 
     def assign(self, measures):
 
-        pass
+        # Cherry's algorithm, placeholder for now
+        for offset, notes in measures:
+
+            notes = [n for n in notes if not n.deleted]
+            notes = sorted(notes, key=lambda n: n.note.pitch.ps)
+            ps_median = np.median(list(n.note.pitch.ps for n in notes))
+
+            left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
+            right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
+
+            if len(left_hand_notes) > 5:
+                left_hand_notes = left_hand_notes[:5]
+
+            if len(right_hand_notes) > 5:
+                right_hand_notes = right_hand_notes[:5]
+
+            for i, note in enumerate(left_hand_notes):
+                note.hand = 'L'
+                note.finger = 5 - i
+
+            for i, note in enumerate(right_hand_notes):
+                note.hand = 'R'
+                note.finger = i + 1
 
     def postassign(self, measures):
 

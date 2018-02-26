@@ -30,8 +30,6 @@ colors = {
     'unassigned_secondary': vp.vector(0.5, 0.5, 0.5)
 }
 
-print(colors)
-
 class Visualizer(object):
 
     def __init__(self, score):
@@ -216,7 +214,7 @@ class Visualizer(object):
                 finger = note.note.editorial.misc.get('finger')
 
                 if onset:
-                    self.keyboards[step].color = colors.left_primary if hand == 'L' else colors.right_primary
+                    self.keyboards[step].color = colors['left_primary'] if hand == 'L' else colors['right_primary']
                     active_hand = active_left if hand == 'L' else active_right
                     hand = self.left if hand == 'L' else self.right
 
