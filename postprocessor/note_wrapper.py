@@ -10,9 +10,14 @@ class NoteWrapper(object):
         self.offset = offset
         self.chord = chord      # set to a chord if the note belongs to a chord
 
-        self.deleted = False
-        self.hand = None
-        self.finger = None
+        if 'deleted' not in self.note.editorial.misc:
+            self.deleted = False
+
+        if 'hand' not in self.note.editorial.misc:
+            self.hand = None
+
+        if 'finger' not in self.note.editorial.misc:
+            self.finger = None
 
     @property
     def is_from_chord(self):
