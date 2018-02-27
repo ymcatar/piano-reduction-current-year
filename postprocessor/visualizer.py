@@ -43,7 +43,7 @@ class Visualizer(object):
         self.keyboards = {}
         self.left = {}
         self.right = {}
-        self.text = {}
+        self.text = None
 
         self.read_from_score()
         self.render()
@@ -185,7 +185,7 @@ class Visualizer(object):
 
         if self.text:
             self.text.visible = False
-            del self.text
+            self.text = None
 
         # unhiglight the previously active key
         active_keys = [i for i in self.active.keys()]
@@ -205,6 +205,11 @@ class Visualizer(object):
         def highlight_note(note, onset=True):
 
             step = math.trunc(note.note.pitch.ps)
+
+            if step not in self.keyboards:
+                print("Error: pitch to be highlighted not on piano keyboard (" + str(step) + ")")
+                return
+
             self.active[step] = True
 
             # move finger to the key
