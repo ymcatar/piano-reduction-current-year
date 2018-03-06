@@ -1,66 +1,83 @@
-from music21 import (chord, clef, duration as duration, instrument, key,
-                     layout, note, meter, stream)
-from .algorithm.base import iter_notes
-import numpy as np
-from itertools import count
-from collections import defaultdict
+#!/usr/bin/env python3
 
+import music21
+import numpy as np
+
+from collections import defaultdict
+from itertools import count
 
 RIGHT_HAND = 'R'
 LEFT_HAND = 'L'
 
 
-def default_keep_func(n):
-    return n.editorial.misc['align'] >= 0.5
+class MultipartReducer(object):
 
+    def __init__(self, score):
+        self.score = score
 
-class PostProcessor(object):
-    def generate_piano_score(self, score_obj, reduced=True, playable=True,
-                             label_type='align', keep_func=None):
-        if label_type == 'align':
-            if not keep_func:
-                keep_func = default_keep_func if reduced else lambda n: True
-            self.assign_hands(score_obj, keep_func=keep_func)
+    def reduce(self):
 
         HANDS = [LEFT_HAND, RIGHT_HAND]
-        parts = [stream.Part(), stream.Part()]
+        parts = [music21.stream.Part(), music21.stream.Part()]
 
         measure_offset = 0
         for i in count(0):
-            bar = score_obj.score.measure(i, collect=(), gatherSpanners=False)
+
+            bar = self.score.measure(i, collect=(), gatherSpanners=False)
             measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
             if not measures:
-                # Measure 0 is the pickup (partial) measure and may not exist
-                if i == 0: continue
-                else: break
+                # Measures is the pickup (partial) measure and may not exist
+                if i == 0:
+                    continue
+                else:
+                    break
 
             bar_length = measures[0].barDuration.quarterLength
-
             for hand, part in zip(HANDS, parts):
+
                 key_signature, time_signature = None, None
-                notes, rest_sets = [], []
+                notes, rest_sets, tie_sets = [], [], []
 
                 for p in bar.parts:
                     rests = []
+
                     for elem in p.recurse(skipSelf=False):
-                        if isinstance(elem, key.KeySignature):
+
+                        # ignore the note if it is marked as deleted
+                        if elem.editorial.misc.get('deleted'):
+                            continue
+
+                        # record tie among notes
+                        if isinstance(elem, music21.note.Note) or \
+                                isinstance(elem, music21.chord.Chord):
+                            if elem.tie is not None:
+                                tie_sets.append((
+                                    elem.offset,
+                                    elem,
+                                    elem.tie))
+
+                        if isinstance(elem, music21.key.KeySignature):
                             key_signature = elem
 
-                        elif isinstance(elem, meter.TimeSignature):
+                        elif isinstance(elem, music21.meter.TimeSignature):
                             time_signature = elem
 
-                        elif isinstance(elem, note.Note):
+                        elif isinstance(elem, music21.note.Note):
                             if elem.editorial.misc.get('hand') == hand:
                                 notes.append((
-                                    elem.offset, elem.pitch, elem.tie))
+                                    elem.offset,
+                                    elem.pitch,
+                                    elem.tie))
 
-                        elif isinstance(elem, chord.Chord):
+                        elif isinstance(elem, music21.chord.Chord):
                             for n in elem:
-                                if n.editorial.misc.get('hand') == hand:
+                                if elem.editorial.misc.get('hand') == hand:
                                     notes.append((
-                                        elem.offset, n.pitch, n.tie))
+                                        elem.offset,
+                                        n.pitch,
+                                        n.tie))
 
-                        elif isinstance(elem, note.Rest):
+                        elif isinstance(elem, music21.note.Rest):
                             rests.append((
                                 elem.offset,
                                 elem.offset + elem.duration.quarterLength))
@@ -72,10 +89,14 @@ class PostProcessor(object):
                     rest_sets.append(rests)
 
                 out_measure = self._create_measure(
-                    notes=notes, rest_sets=rest_sets, measure_length=bar_length, playable=playable)
+                    notes=notes,
+                    rest_sets=rest_sets,
+                    tie_sets=tie_sets,
+                    measure_length=bar_length)
 
                 if key_signature:
                     out_measure.insert(key_signature)
+
                 if time_signature:
                     out_measure.insert(time_signature)
 
@@ -83,18 +104,18 @@ class PostProcessor(object):
 
             measure_offset += bar_length
 
-        clefs = [clef.BassClef(), clef.TrebleClef()]
+        clefs = [music21.clef.BassClef(), music21.clef.TrebleClef()]
         for part, clef_ in zip(parts, clefs):
             # Set the instrument to piano
-            piano = instrument.fromString('Piano')
+            piano = music21.instrument.fromString('Piano')
             part.insert(0, piano)
             part.insert(0, clef_)
 
-        result = stream.Score()
+        result = music21.stream.Score()
         result.insert(0, parts[1])  # Right hand
         result.insert(0, parts[0])  # Left hand
 
-        staff_group = layout.StaffGroup(
+        staff_group = music21.layout.StaffGroup(
             [parts[1], parts[0]], name='Piano', abbreviation='Pno.',
             symbol='brace')
         staff_group.barTogether = 'yes'
@@ -103,25 +124,7 @@ class PostProcessor(object):
 
         return result
 
-    def assign_hands(self, score_obj, keep_func=default_keep_func,
-                     threshold=60):
-        for bar in score_obj.by_bar:
-            for measure in bar.recurse(
-                    skipSelf=False).getElementsByClass(stream.Measure):
-                for voice in measure.voices:
-                    pss = [n.pitch.ps for n in iter_notes(measure, recurse=True)
-                           if keep_func(n)]
-
-                    if pss:
-                        median = np.median(pss)
-                        hand = RIGHT_HAND if median >= 60 else LEFT_HAND
-
-                        for n in iter_notes(measure, recurse=True):
-                            if keep_func(n):
-                                n.editorial.misc['hand'] = hand
-
-    def _create_measure(self, notes=[], rest_sets=[], tieRef=dict(),
-                        measure_length=0, playable=True):
+    def _create_measure(self, notes=[], rest_sets=[], tie_sets=[], measure_length=0):
         # list of [offset, quarter length, list of (ps, tie)]
         out_notes = []
 
@@ -182,7 +185,7 @@ class PostProcessor(object):
             ans = '{}{}'.format(enharmonic_map[ps % 12.0], int(ps / 12) - 1)
             return ans
 
-        result = stream.Measure()
+        result = music21.stream.Measure()
         for offset, length, notes in out_notes:
             pss = set()
             for pitch, tie in notes:
@@ -193,40 +196,30 @@ class PostProcessor(object):
             note_to_insert = None
 
             if len(pss) > 1:
-                if playable:
-                    # Transform chords to playable ones
-                    max_ps, min_ps = max(pss), min(pss)
-                    while max(pss) - min(pss) > 12:
-                        if median > 60:
-                            pss.add(min_ps + 12)
-                            pss.remove(min_ps)
-                        else:
-                            pss.add(max_ps - 12)
-                            pss.remove(max_ps)
-                        max_ps, min_ps = max(pss), min(pss)
 
                 chord_notes = []
                 for ps in pss:
-                    n = note.Note(find_enharmonic(ps),
-                                  duration=duration.Duration(length))
+                    n = music21.note.Note(find_enharmonic(ps),
+                                          duration=music21.duration.Duration(length))
                     chord_notes.append(n)
 
-                note_to_insert = chord.Chord(
-                    chord_notes, duration=duration.Duration(length))
+                note_to_insert = music21.chord.Chord(
+                    chord_notes, duration=music21.duration.Duration(length))
 
             elif len(pss) == 1:
-                note_to_insert = note.Note(
+                note_to_insert = music21.note.Note(
                     find_enharmonic(list(pss)[0]),
-                    duration=duration.Duration(length))
+                    duration=music21.duration.Duration(length))
 
             else:
-                note_to_insert = note.Rest(duration=duration.Duration(length))
+                note_to_insert = music21.note.Rest(
+                    duration=music21.duration.Duration(length))
 
             if length > 1e-2:
                 result.insert(offset, note_to_insert)
 
         if not result.notesAndRests:
-            result.insert(0, note.Rest(
-                duration=duration.Duration(measure_length)))
+            result.insert(0, music21.note.Rest(
+                duration=music21.duration.Duration(measure_length)))
 
         return result
