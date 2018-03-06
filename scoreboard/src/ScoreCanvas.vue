@@ -63,7 +63,8 @@ export default {
       try {
         console.info('Loading', this.pages[pageIndex]);
         this.pageLoadings[pageIndex] = true;
-        const res = await fetch(this.apiPrefix + this.pages[pageIndex]);
+        const src = this.apiPrefix + this.pages[pageIndex];
+        const res = await fetch(src);
         if (!res.ok) throw new Error('Response not ok');
         const text = await res.text();
         const div = document.createElement('div');
@@ -102,7 +103,9 @@ export default {
             error.error = e;
             reject(error);
           };
-          img.src = 'data:image/svg+xml;utf8,' + text;
+          // This loads the image again, but seems to be much more reliable
+          // across browsers
+          img.src = src;
         });
         // Vue.js sucks? Change detection issue
         this.bitmaps = this.bitmaps.slice();

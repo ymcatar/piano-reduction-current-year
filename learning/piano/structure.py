@@ -169,23 +169,24 @@ class AdjacentNotes(StructureAlgorithm):
 
     def run(self, score_obj):
         for voices in score_obj.voices_by_part:
-                last_notes = None
-                for voice in voices:
-                    for measure in voice.getElementsByClass(stream.Measure):
-                        for n in measure.notesAndRests:
-                            if isinstance(n, note.Rest):
-                                last_notes = None
-                            elif isinstance(n, note.NotRest):
-                                if isinstance(n, chord.Chord):
-                                    notes = list(score_obj.index(i) for i in n)
-                                else:
-                                    notes = [score_obj.index(n)]
+            last_notes = []
+            for voice in voices:
+                for measure in voice.getElementsByClass(stream.Measure):
+                    for n in measure.notesAndRests:
+                        if isinstance(n, note.Rest):
+                            last_notes = []
+                        elif isinstance(n, note.NotRest):
+                            if isinstance(n, chord.Chord):
+                                notes = list(n)
+                                notes.sort(key=lambda n: -n.pitch.ps)
+                            else:
+                                notes = [n]
 
-                                if last_notes:
-                                    for u in notes:
-                                        for v in last_notes:
-                                            yield (u, v), (1,)
+                            # Heuristic: Top-pitch note is linked to
+                            # top-pitch note, etc.
+                            for u, v in zip(notes, last_notes):
+                                yield (score_obj.index(u), score_obj.index(v)), (1,)
 
-                                last_notes = notes
+                            last_notes = notes
 
     get_weights = get_hand_only_repelling_weights
