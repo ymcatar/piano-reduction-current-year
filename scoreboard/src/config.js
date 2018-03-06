@@ -1,3 +1,1 @@
-const PORT = process.env.NODE_ENV === 'production' ? 8080 : 8081;
-
-export const apiRoot = `http://localhost:${PORT}/`;
+export const apiRoot = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8081/';

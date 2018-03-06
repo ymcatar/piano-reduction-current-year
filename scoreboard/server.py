@@ -70,7 +70,7 @@ async def update_run_map():
     runs = sorted(run_map.values(), key=lambda d: -d['timestamp'])
 
 
-async def list_runs(request):
+async def list_runs(request=None):
     await update_run_map()
     return json_response({'runs': runs})
 
@@ -160,7 +160,7 @@ async def static_xml(request):
                             headers={'Content-Disposition': 'attachment'})
 
 
-def main(dev=False):
+def run_server(dev=False):
     if not dev:
         if not os.path.exists('scoreboard/dist/build.js'):
             print(
@@ -195,11 +195,42 @@ def main(dev=False):
         web.run_app(app, port=PORT)
 
 
+async def make_static():
+    logging.info('Collecting index')
+    await update_run_map()
+    index = {'runs': runs}
+    with open(os.path.join(LOG_DIR, 'index.json'), 'w') as f:
+        f.write(json_response(index).text)
+
+    for run in index['runs']:
+        logging.info('Rendering for run {}'.format(run['name']))
+        await asyncio.wait([
+            ensure_xml_render(os.path.join(LOG_DIR, run['path'], score['xml']))
+            for score in run['scores']])
+
+        logging.info('Converting MP3 for run {}'.format(run))
+        await asyncio.wait([
+            ensure_mp3_conversion(os.path.join(LOG_DIR, run['path'], score['xml']))
+            for score in run['scores']])
+
+    logging.info('Done.')
+
+
+def main(dev=False, static=None):
+    if args.static:
+        global LOG_DIR
+        LOG_DIR = args.static
+        asyncio.get_event_loop().run_until_complete(make_static())
+    else:
+        run_server(dev=dev)
+
+
 if __name__ == '__main__':
     configure_logger()
 
     parser = argparse.ArgumentParser(description='Scoreboard Server')
     parser.add_argument('--dev', action='store_true', help='Run webpack dev server')
+    parser.add_argument('--static', help='Make the given log directory static')
 
     args = parser.parse_args()
 
