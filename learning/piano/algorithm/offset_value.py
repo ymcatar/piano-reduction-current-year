@@ -1,7 +1,7 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes_with_offset
+from .base import FeatureAlgorithm, get_markings, iter_notes_with_offset
 
 
-class OffsetValue(ReductionAlgorithm):
+class OffsetValue(FeatureAlgorithm):
     dtype = 'float'
     range = (0.0, None)
 

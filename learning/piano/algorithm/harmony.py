@@ -1,4 +1,4 @@
-from .base import ReductionAlgorithm, get_markings
+from .base import FeatureAlgorithm, get_markings
 from ...tonalanalysis.eventanalysis.chord_flow import FlowState
 from ...tonalanalysis.eventanalysis.event_analyzer import EventAnalyzer
 
@@ -16,7 +16,7 @@ def get_flow_state():
     ...
 
 
-class Harmony(ReductionAlgorithm):
+class Harmony(FeatureAlgorithm):
     dtype = 'bool'
 
     def run(self, score_obj):

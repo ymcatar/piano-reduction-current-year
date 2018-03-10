@@ -1,20 +1,20 @@
 import numpy as np
 import os
 from unittest.mock import Mock
-from .algorithm.base import ReductionAlgorithm, get_markings
+from .algorithm.base import FeatureAlgorithm, get_markings
 from .alignment.base import AlignmentMethod
 from .dataset import DatasetEntry
 from .reducer import Reducer
 from .score import ScoreObject
 
 
-class PitchSpace(ReductionAlgorithm):
+class PitchSpace(FeatureAlgorithm):
     def run(self, input_score_obj):
         for n in input_score_obj:
             get_markings(n)[self.key] = n.pitch.ps
 
 
-class DummySequences(ReductionAlgorithm):
+class DummySequences(FeatureAlgorithm):
     @property
     def all_keys(self):
         return [self.key + '_ascending', self.key + 'descending']

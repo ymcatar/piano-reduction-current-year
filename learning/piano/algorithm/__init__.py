@@ -1,4 +1,4 @@
-from .base import ReductionAlgorithm
+from .base import FeatureAlgorithm
 from .active_rhythm import ActiveRhythm
 from .bass_line import BassLine
 from .entrance_effect import EntranceEffect

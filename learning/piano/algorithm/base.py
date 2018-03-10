@@ -1,7 +1,7 @@
 from music21 import chord
 
 
-class ReductionAlgorithm(object):
+class FeatureAlgorithm(object):
     '''
     Base class for a feature constructor involving a single note. Each feature
     constructor can create mulitple markings.

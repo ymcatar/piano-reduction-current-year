@@ -1,7 +1,7 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import FeatureAlgorithm, get_markings, iter_notes
 
 
-class PitchDistance(ReductionAlgorithm):
+class PitchDistance(FeatureAlgorithm):
     dtype = 'float'
     range = (0.0, None)
 
