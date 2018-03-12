@@ -3,6 +3,7 @@ import music21
 import numpy as np
 
 from collections import defaultdict
+from termcolor import colored
 class HandAssignmentAlgorithm(object):
 
     def __init__(self, max_hand_span=7, verbose=False):
@@ -27,36 +28,50 @@ class HandAssignmentAlgorithm(object):
             problematic[i] = (num_cluster > 2)
 
         # resolve a frame if the frames before and after that frame are both okay
-        # changed = True
-        # while changed: # repeat until converge
-        #     changed = False
-        #     for i, item in enumerate(measures):
-        #         if not problematic[i]:
-        #             continue
+        for i, measure in enumerate(measures):
 
-        #         reference = []
-        #         if i != 0: reference += measures[i - 1][1]
-        #         if i != len(measures) - 1: reference += measures[i + 1][1]
+            if not problematic[i]:
+                continue
 
-        #         offset, curr_frame = item
+            offset, notes = measure
+
+            # perform pitch class statistics
+            pitches = defaultdict(lambda: [])
+            for n in notes:
+                if not n.deleted:
+                    pitches[n.note.pitch.pitchClass].append(n)
+
+            pitches = sorted(pitches.items(), key=lambda n: len(n[1]), reverse=True)
+            print(pitches)
+
+
 
     def assign(self, measures):
 
         # util functions
-        def print_vector(notes, vector):
-            print('{:s} ({:d})'.format(
-                ''.join('█' if i == 1 else '▒' for i in vector),
-                self.get_number_of_cluster(notes)
-            ))
+        def print_vector(offset, notes, vector):
+            cluster_count = self.get_number_of_cluster(notes)
+            message = '{:s} {:s} ({:d}) {:s}'.format(
+                '{:.2f}'.format(offset).zfill(6), # leftpad literally cures cancer
+                ''.join('█' if i == 1 else '▒' for i in vector[12:]),
+                cluster_count,
+                ', '.join(n.note.pitch.name for n in notes)
+            )
+            if cluster_count > 2:
+                print(colored(message, 'red'))
+            else:
+                print(message)
 
-        for measure in measures:
+        for i, measure in enumerate(measures):
             offset, notes = measure
+            notes = sorted((n for n in notes if not n.deleted), key=lambda n: n.note.pitch.ps)
             pitches = sorted(math.trunc(i.note.pitch.ps) for i in notes)
-            vector = [0] * 96
+            vector = [0] * 97
             for item in pitches:
-                vector[item] = 1
+                if item in range(12, 97):
+                    vector[item] = 1
             if self.verbose:
-                print_vector(notes, vector)
+                print_vector(offset, notes, vector)
 
         # # Cherry's algorithm, placeholder for now
         # for offset, notes in measures:

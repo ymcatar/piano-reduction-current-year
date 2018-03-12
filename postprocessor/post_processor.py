@@ -62,7 +62,7 @@ class PostProcessor(object):
 
     def apply_each(self, algorithm, source, partition_size=1):
         source = list(source.items()) if isinstance(source, dict) else source
-        source = chunks(source, partition_size)
+        source = [source] if partition_size == -1 else chunks(source, partition_size)
         for item in source:
             algorithm(item)
 
