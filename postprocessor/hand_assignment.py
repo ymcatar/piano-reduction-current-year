@@ -24,32 +24,53 @@ class HandAssignmentAlgorithm(object):
             offset, notes = item
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
+            measures[i] = (offset, notes) # put back the sorted list to measures
             num_cluster = self.get_number_of_cluster(notes)
             problematic[i] = (num_cluster > 2)
 
-        # resolve a frame if the frames before and after that frame are both okay
+        # try to resolve all problematic frame
         for i, measure in enumerate(measures):
-
             if not problematic[i]:
                 continue
 
+            fixed = False
             offset, notes = measure
 
-            # perform pitch class statistics
-            pitches = defaultdict(lambda: [])
-            for n in notes:
-                if not n.deleted:
-                    pitches[n.note.pitch.pitchClass].append(n)
+            # if the lowest notes all have the same pitch class,
+            # keep removing the lowest until two clusters remain
+            target_class = notes[0].note.pitch.pitchClass
+            for i, n in enumerate(notes[1:]):
+                if n.note.pitch.pitchClass == target_class:
+                    n.deleted = True
+                    if self.get_number_of_cluster(notes) <= 2:
+                        break
 
-            pitches = sorted(pitches.items(), key=lambda n: len(n[1]), reverse=True)
-            print(pitches)
+            # move on if attempt to fix succeeded
+            if self.get_number_of_cluster(notes) <= 2:
+                continue
 
+            # attempts to move the lowest note up
+            # (if the lowest and second lowest notes are > an octave apart)
+            notes = [n for n in notes if not n.deleted]
+            if notes[1].note.pitch.ps - notes[0].note.pitch.ps > 12:
+                notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
+
+            # move on if attempt to fix succeeded
+            if self.get_number_of_cluster(notes) <= 2:
+                continue
 
 
     def assign(self, measures):
 
         # util functions
-        def print_vector(offset, notes, vector):
+        def print_vector(offset, notes):
+            # construct the vector
+            pitches = sorted(math.trunc(n.note.pitch.ps) for n in notes if not n.deleted)
+            vector = [0] * 97
+            for item in pitches:
+                if item in range(12, 97):
+                    vector[item] = 1
+            # print it out
             cluster_count = self.get_number_of_cluster(notes)
             message = '{:s} {:s} ({:d}) {:s}'.format(
                 '{:.2f}'.format(offset).zfill(6), # leftpad literally cures cancer
@@ -65,37 +86,34 @@ class HandAssignmentAlgorithm(object):
         for i, measure in enumerate(measures):
             offset, notes = measure
             notes = sorted((n for n in notes if not n.deleted), key=lambda n: n.note.pitch.ps)
-            pitches = sorted(math.trunc(i.note.pitch.ps) for i in notes)
-            vector = [0] * 97
-            for item in pitches:
-                if item in range(12, 97):
-                    vector[item] = 1
             if self.verbose:
-                print_vector(offset, notes, vector)
+                print_vector(offset, notes)
 
-        # # Cherry's algorithm, placeholder for now
-        # for offset, notes in measures:
+        # Cherry's algorithm, placeholder for now
+        for offset, notes in measures:
 
-        #     notes = [n for n in notes if not n.deleted]
-        #     notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-        #     ps_median = np.median(list(n.note.pitch.ps for n in notes))
+            notes = [n for n in notes if not n.deleted]
+            notes = sorted(notes, key=lambda n: n.note.pitch.ps)
+            ps_median = np.median(list(n.note.pitch.ps for n in notes))
 
-        #     left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
-        #     right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
+            left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
+            right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
 
-        #     if len(left_hand_notes) > 5:
-        #         left_hand_notes = left_hand_notes[:5]
+            # if len(left_hand_notes) > 5:
+                # print(offset, 'too many left hand notes')
+                # left_hand_notes = left_hand_notes[:5]
 
-        #     if len(right_hand_notes) > 5:
-        #         right_hand_notes = right_hand_notes[:5]
+            # if len(right_hand_notes) > 5:
+                # print(offset, 'too many right hand notes')
+                # right_hand_notes = right_hand_notes[:5]
 
-        #     for i, note in enumerate(left_hand_notes):
-        #         note.hand = 'L'
-        #         note.finger = 5 - i
+            for i, note in enumerate(left_hand_notes):
+                note.hand = 'L'
+                # note.finger = 5 - i
 
-        #     for i, note in enumerate(right_hand_notes):
-        #         note.hand = 'R'
-        #         note.finger = i + 1
+            for i, note in enumerate(right_hand_notes):
+                note.hand = 'R'
+                # note.finger = i + 1
 
     def postassign(self, measures):
 
@@ -104,6 +122,7 @@ class HandAssignmentAlgorithm(object):
     def get_number_of_cluster(self, notes, verbose=False):
 
         max_cluster_size = 2 * self.config['max_hand_span'] - 1
+        notes = [n for n in notes if not n.deleted]
         notes = sorted(notes, key=lambda n: n.note.pitch.ps)
         ps_list = [n.note.pitch.ps for n in notes]
 
