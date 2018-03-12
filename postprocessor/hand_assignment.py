@@ -1,13 +1,16 @@
+import math
 import music21
 import numpy as np
 
 from collections import defaultdict
 class HandAssignmentAlgorithm(object):
 
-    def __init__(self, max_hand_span=7):
+    def __init__(self, max_hand_span=7, verbose=False):
 
         self.config = {}
         self.config['max_hand_span'] = max_hand_span
+
+        self.verbose = verbose
 
     def preassign(self, measures):
 
@@ -24,62 +27,60 @@ class HandAssignmentAlgorithm(object):
             problematic[i] = (num_cluster > 2)
 
         # resolve a frame if the frames before and after that frame are both okay
-        changed = True
-        while changed: # repeat until converge
-            changed = False
-            for i, item in enumerate(measures):
-                if not problematic[i]:
-                    continue
+        # changed = True
+        # while changed: # repeat until converge
+        #     changed = False
+        #     for i, item in enumerate(measures):
+        #         if not problematic[i]:
+        #             continue
 
-                reference = []
-                if i != 0: reference += measures[i - 1][1]
-                if i != len(measures) - 1: reference += measures[i + 1][1]
+        #         reference = []
+        #         if i != 0: reference += measures[i - 1][1]
+        #         if i != len(measures) - 1: reference += measures[i + 1][1]
 
-                offset, curr_frame = item
-
-                # count = 0
-                # while count < len(curr_frame) and self.get_number_of_cluster(curr_frame) > 2:
-
-                #     # min distance from each note in current frame to any notes in either prev/next frame
-                #     distances = defaultdict(lambda: [])
-                #     for a in curr_frame:
-                #         for b in reference:
-                #             distances[a].append(b.note.pitch.ps - a.note.pitch.ps)
-
-                #     # move the outlier up/down to the larger cluster
-                #     outlier = max(distances, key=lambda n: min(abs(i) for i in distances[n]))
-                #     left = [abs(n) for n in distances[outlier] if n < 0]
-                #     right = [abs(n) for n in distances[outlier] if n > 0]
-                #     movement = 12 if sum(left, 0) / len(left) < sum(right, 0) / len(right) else -12
-                #     outlier.note.transpose(movement, inPlace=True)
-                #     print(offset, 'loop')
-                #     count += 1
+        #         offset, curr_frame = item
 
     def assign(self, measures):
 
-        # Cherry's algorithm, placeholder for now
-        for offset, notes in measures:
+        # util functions
+        def print_vector(notes, vector):
+            print('{:s} ({:d})'.format(
+                ''.join('█' if i == 1 else '▒' for i in vector),
+                self.get_number_of_cluster(notes)
+            ))
 
-            notes = [n for n in notes if not n.deleted]
-            notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-            ps_median = np.median(list(n.note.pitch.ps for n in notes))
+        for measure in measures:
+            offset, notes = measure
+            pitches = sorted(math.trunc(i.note.pitch.ps) for i in notes)
+            vector = [0] * 96
+            for item in pitches:
+                vector[item] = 1
+            if self.verbose:
+                print_vector(notes, vector)
 
-            left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
-            right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
+        # # Cherry's algorithm, placeholder for now
+        # for offset, notes in measures:
 
-            if len(left_hand_notes) > 5:
-                left_hand_notes = left_hand_notes[:5]
+        #     notes = [n for n in notes if not n.deleted]
+        #     notes = sorted(notes, key=lambda n: n.note.pitch.ps)
+        #     ps_median = np.median(list(n.note.pitch.ps for n in notes))
 
-            if len(right_hand_notes) > 5:
-                right_hand_notes = right_hand_notes[:5]
+        #     left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
+        #     right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
 
-            for i, note in enumerate(left_hand_notes):
-                note.hand = 'L'
-                note.finger = 5 - i
+        #     if len(left_hand_notes) > 5:
+        #         left_hand_notes = left_hand_notes[:5]
 
-            for i, note in enumerate(right_hand_notes):
-                note.hand = 'R'
-                note.finger = i + 1
+        #     if len(right_hand_notes) > 5:
+        #         right_hand_notes = right_hand_notes[:5]
+
+        #     for i, note in enumerate(left_hand_notes):
+        #         note.hand = 'L'
+        #         note.finger = 5 - i
+
+        #     for i, note in enumerate(right_hand_notes):
+        #         note.hand = 'R'
+        #         note.finger = i + 1
 
     def postassign(self, measures):
 

@@ -16,10 +16,12 @@ from multipart_reducer import MultipartReducer
 
 class PostProcessor(object):
 
-    def __init__(self, score):
+    def __init__(self, score, verbose=False):
+
+        self.verbose = verbose
 
         # prepare hand assignment object
-        self.hand_assignment = HandAssignmentAlgorithm()
+        self.hand_assignment = HandAssignmentAlgorithm(verbose=self.verbose)
 
         # prepare score
         self.score = deepcopy(score)
@@ -55,7 +57,7 @@ class PostProcessor(object):
     def apply(self):
         self.apply_each(PostProcessorAlgorithms.repeated_note, self.grouped_onsets)
         self.apply_each(self.hand_assignment.preassign, self.grouped_onsets)
-        self.apply_each(self.hand_assignment.assign, self.grouped_onsets, partition_size=8)
+        self.apply_each(self.hand_assignment.assign, self.grouped_onsets)
         self.apply_each(self.hand_assignment.postassign, self.grouped_onsets)
 
     def apply_each(self, algorithm, source, partition_size=1):
