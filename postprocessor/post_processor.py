@@ -48,8 +48,7 @@ class PostProcessor(object):
                     if isChord(item.element):
                         for note in item.element._notes:
                             wappedNote = NoteWrapper(note, offset, item.element)
-                            self.grouped_onsets[offset].append(
-                                wappedNote)
+                            self.grouped_onsets[offset].append(wappedNote)
                     elif isNote(item.element):  # note or rest
                         note = NoteWrapper(item.element, offset)
                         self.grouped_onsets[offset].append(note)

@@ -16,7 +16,6 @@ class HandAssignmentAlgorithm(object):
     def preassign(self, measures):
 
         # concerning octaves ---------------------------------------------------
-
         problematic = {}
 
         # mark all problematic frames
@@ -80,9 +79,9 @@ class HandAssignmentAlgorithm(object):
                 continue
 
             # FIXME: what else can I do? => remove the frame for now
-            notes = [n for n in notes if not n.deleted]
-            for n in notes:
-                n.deleted = True
+            # notes = [n for n in notes if not n.deleted]
+            # for n in notes:
+                # n.deleted = True
 
     def assign(self, measures):
 
@@ -113,17 +112,25 @@ class HandAssignmentAlgorithm(object):
             if self.verbose:
                 print_vector(offset, notes)
 
-        # Cherry's algorithm, placeholder for now
+        # Cherry's algorithm
         for offset, notes in measures:
 
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
             ps_median = np.median(list(n.note.pitch.ps for n in notes))
-            if len(notes) < 4:
-                ps_median = min(ps_median, 60)
 
-            left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
+            left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
             right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
+
+            # assign the median to whatever closer
+            median_note = [n for n in notes if n.note.pitch.ps == ps_median]
+            if len(median_note) > 0:
+                highest_left_notes = max(n.note.pitch.ps for n in notes)
+                lowest_right_notes = min(n.note.pitch.ps for n in notes)
+                if median_note[0].note.pitch.ps - lowest_right_notes < highest_left_notes - median_note[0].note.pitch.ps:
+                    left_hand_notes += median_note
+                else:
+                    right_hand_notes += median_note
 
             # if len(left_hand_notes) > 5:
                 # print(offset, 'too many left hand notes')

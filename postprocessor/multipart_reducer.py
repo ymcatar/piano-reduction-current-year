@@ -138,12 +138,12 @@ class MultipartReducer(object):
             return result
 
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
-        tie_map = defaultdict(lambda: [])
+        tie_map = {}
 
         for n in notes:
             offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
             if n.tie:
-                tie_map[id(n)].append(n.tie)
+                tie_map[(n.offset, n.duration.quarterLength, n.pitch.ps)] = n.tie
 
         # merge notes with same offset and duration into a single chord
         for offset_item in offset_map.values():
@@ -168,6 +168,7 @@ class MultipartReducer(object):
         voices = defaultdict(lambda: [])
         current_voice = 0
 
+        intervals = sorted(intervals, key=lambda n: (n[0], n[1]))
         while len(intervals) > 0:
             prev_end = None
             temp_intervals = intervals.copy()
@@ -175,10 +176,8 @@ class MultipartReducer(object):
                 start, end, elem = item
                 if prev_end is None or start >= prev_end:
                     if isinstance(elem, music21.pitch.Pitch):
-                        elem = music21.note.Note(elem, quarterLength=(end-start))
-                    elif isinstance(elem, music21.chord.Chord):
-                        elem.quarterLength = end - start
-                    voices[current_voice].append((start, elem))
+                        elem = music21.note.Note(elem)
+                    voices[current_voice].append((start, end, elem))
                     temp_intervals.remove(item)
                     prev_end = end
             intervals = temp_intervals
@@ -186,28 +185,27 @@ class MultipartReducer(object):
 
         for key in voices.keys():
             temp = IntervalTree()
-            for note in voices[0]:
-                start, elem = note
-                temp.addi(start, start + elem.duration.quarterLength, elem)
+            for note in voices[key]:
+                start, end, elem = note
+                temp.addi(start, end, elem)
             rests = find_slient_interval(temp, 0, measure_length)
             for item in rests:
                 start, end = item
-                voices[key].append((start, music21.note.Rest(quarterLength=(end-start))))
+                voices[key].append((start, end, music21.note.Rest(quarterLength=(end-start))))
             voices[key] = sorted(voices[key], key=lambda i: i[0])
 
         if len(voices) <= 4:
             for i, v in enumerate(voices.values()):
                 voice = music21.stream.Voice(id=i)
                 for note in v:
-                    start, elem = note
+                    start, end, elem = note
                     elem.offset = start
-                    if start + elem.quarterLength > measure_length:
-                        elem.quarterLength = measure_length - start
-                    voice.insert(elem)
+                    elem.quarterLength = end - start
+                    voice.insert(start, elem)
                 result.insert(0, voice)
-            return result
-
-        # FIXME
-        print('JESUS CHRIST BE PRIASED, there are too many voices. Ignoring ...', len(voices))
+                break
+        else:
+            # FIXME
+            print('JESUS CHRIST BE PRIASED, there are too many voices. Ignoring ...', len(voices))
 
         return result
