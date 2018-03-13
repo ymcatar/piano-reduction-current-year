@@ -119,6 +119,8 @@ class HandAssignmentAlgorithm(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
             ps_median = np.median(list(n.note.pitch.ps for n in notes))
+            if len(notes) < 4:
+                ps_median = min(ps_median, 60)
 
             left_hand_notes = [n for n in notes if n.note.pitch.ps <= ps_median]
             right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]

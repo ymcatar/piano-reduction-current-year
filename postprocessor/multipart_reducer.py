@@ -164,11 +164,6 @@ class MultipartReducer(object):
                 if duration > 0.0:
                     intervals.addi(start, start + duration, offset_map[start][duration])
 
-        # find out all the time intervals with no active note playing
-        # slient_intervals = find_slient_interval(intervals, 0.0, measure_length)
-        # for start, end in slient_intervals:
-            # intervals.addi(start, end, music21.note.Rest(quarterLength=(end-start)))
-
         # add all the notes to the measure
         voices = defaultdict(lambda: [])
         current_voice = 0
@@ -178,9 +173,11 @@ class MultipartReducer(object):
             temp_intervals = intervals.copy()
             for item in intervals:
                 start, end, elem = item
-                if prev_end is None or end >= prev_end:
+                if prev_end is None or start >= prev_end:
                     if isinstance(elem, music21.pitch.Pitch):
                         elem = music21.note.Note(elem, quarterLength=(end-start))
+                    elif isinstance(elem, music21.chord.Chord):
+                        elem.quarterLength = end - start
                     voices[current_voice].append((start, elem))
                     temp_intervals.remove(item)
                     prev_end = end
@@ -198,13 +195,19 @@ class MultipartReducer(object):
                 voices[key].append((start, music21.note.Rest(quarterLength=(end-start))))
             voices[key] = sorted(voices[key], key=lambda i: i[0])
 
-        for note in voices[0]:
-            start, elem = note
-            elem.offset = start
-            if start + elem.quarterLength > measure_length:
-                elem.quarterLength = measure_length - start
-            result.insert(elem)
+        if len(voices) <= 4:
+            for i, v in enumerate(voices.values()):
+                voice = music21.stream.Voice(id=i)
+                for note in v:
+                    start, elem = note
+                    elem.offset = start
+                    if start + elem.quarterLength > measure_length:
+                        elem.quarterLength = measure_length - start
+                    voice.insert(elem)
+                result.insert(0, voice)
+            return result
 
-        print(list((i[1].offset, i[1].offset + i[1].quarterLength) for i in voices[0]))
+        # FIXME
+        print('JESUS CHRIST BE PRIASED, there are too many voices. Ignoring ...', len(voices))
 
         return result
