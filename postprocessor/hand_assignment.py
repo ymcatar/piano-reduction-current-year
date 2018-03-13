@@ -37,7 +37,7 @@ class HandAssignmentAlgorithm(object):
             offset, notes = measure
 
             # if the lowest notes all have the same pitch class,
-            # keep removing the lowest until two clusters remain
+            # keep removing the lowest until two clusters remain or all related notes except the lowest are deleted
             target_class = notes[0].note.pitch.pitchClass
             for i, n in enumerate(notes[1:]):
                 if n.note.pitch.pitchClass == target_class:
@@ -51,14 +51,38 @@ class HandAssignmentAlgorithm(object):
 
             # attempts to move the lowest note up
             # (if the lowest and second lowest notes are > an octave apart)
+            # notes = [n for n in notes if not n.deleted]
+            # while notes[1].note.pitch.ps - notes[0].note.pitch.ps >= 12:
+                # notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
+                # if self.get_number_of_cluster(notes) <= 2:
+                    # break
+
+            # attempts to move the lowest group of notes up an octave if they are > an octave apart
             notes = [n for n in notes if not n.deleted]
-            if notes[1].note.pitch.ps - notes[0].note.pitch.ps > 12:
-                notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
+            note_distances = []
+            for i, n in enumerate(notes):
+                if n != notes[-1]:
+                    note_distances.append((notes[i + 1].note.pitch.ps - n.note.pitch.ps, i))
+            note_distances = sorted(note_distances, key=lambda i: (-i[0], i[1]))
+
+            for distance, index in note_distances:
+                if distance < 12.0:
+                    break
+                distance = math.trunc(distance)
+                distance = distance - distance % 12
+                for i in range(0, index + 1):
+                    notes[i].note.transpose(music21.interval.Interval(distance), inPlace=True)
+                if self.get_number_of_cluster(notes) <= 2:
+                    continue
 
             # move on if attempt to fix succeeded
             if self.get_number_of_cluster(notes) <= 2:
                 continue
 
+            # FIXME: what else can I do? => remove the frame for now
+            notes = [n for n in notes if not n.deleted]
+            for n in notes:
+                n.deleted = True
 
     def assign(self, measures):
 
@@ -123,6 +147,10 @@ class HandAssignmentAlgorithm(object):
 
         max_cluster_size = 2 * self.config['max_hand_span'] - 1
         notes = [n for n in notes if not n.deleted]
+
+        if len(notes) == 0:
+            return 0
+
         notes = sorted(notes, key=lambda n: n.note.pitch.ps)
         ps_list = [n.note.pitch.ps for n in notes]
 

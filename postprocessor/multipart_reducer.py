@@ -25,6 +25,7 @@ class MultipartReducer(object):
 
             bar = self.score.measure(i, collect=(), gatherSpanners=False)
             measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
+
             if not measures:
                 # Measures is the pickup (partial) measure and may not exist
                 if i == 0:
@@ -47,15 +48,6 @@ class MultipartReducer(object):
                         if elem.editorial.misc.get('deleted'):
                             continue
 
-                        # record tie among notes
-                        if isinstance(elem, music21.note.Note) or \
-                                isinstance(elem, music21.chord.Chord):
-                            if elem.tie is not None:
-                                tie_sets.append((
-                                    elem.offset,
-                                    elem,
-                                    elem.tie))
-
                         if isinstance(elem, music21.key.KeySignature):
                             key_signature = elem
 
@@ -67,6 +59,7 @@ class MultipartReducer(object):
                                 notes.append((
                                     elem.offset,
                                     elem.pitch,
+                                    elem.duration,
                                     elem.tie))
 
                         elif isinstance(elem, music21.chord.Chord):
@@ -75,23 +68,15 @@ class MultipartReducer(object):
                                     notes.append((
                                         elem.offset,
                                         n.pitch,
+                                        n.duration,
                                         n.tie))
-
-                        elif isinstance(elem, music21.note.Rest):
-                            rests.append((
-                                elem.offset,
-                                elem.offset + elem.duration.quarterLength))
 
                         else:
                             # Ignore other stuff by default
                             pass
 
-                    rest_sets.append(rests)
-
                 out_measure = self._create_measure(
                     notes=notes,
-                    rest_sets=rest_sets,
-                    tie_sets=tie_sets,
                     measure_length=bar_length)
 
                 if key_signature:
@@ -124,102 +109,26 @@ class MultipartReducer(object):
 
         return result
 
-    def _create_measure(self, notes=[], rest_sets=[], tie_sets=[], measure_length=0):
-        # list of [offset, quarter length, list of (ps, tie)]
-        out_notes = []
-
-        # Add all notes to output
-        notes_by_offset = defaultdict(lambda: [])
-        for offset, pitch, tie in notes:
-            notes_by_offset[offset].append((pitch, tie))
-
-        for offset, notes in notes_by_offset.items():
-            out_notes.append([offset, 0, notes])
-
-        # Find the change in the number of occurring notes at each offset
-        rest_diffs = defaultdict(lambda: 0)
-        for rests in rest_sets:
-            for start, end in rests:
-                rest_diffs[start] += 1
-                rest_diffs[end] -= 1
-
-        # Find durations where all voices are silent and add them to output
-        rest_count = 0
-        rest_start = None
-        for offset, diff in sorted(rest_diffs.items()):
-            rest_count += diff
-            if rest_start is None and rest_count == len(rests):
-                rest_start = offset
-            elif rest_start is not None and rest_count != len(rests):
-                out_notes.append([rest_start, 0, []])
-                rest_start = None
-
-        out_notes = sorted(out_notes)
-
-        if out_notes:
-            # Add a rest at the measure start if there is a gap
-            offset, length, notes = first_note = out_notes[0]
-            if not notes:
-                first_note[1] = first_note[1] + first_note[0]
-                first_note[0] = 0
-            elif abs(offset) > 1e-4:
-                out_notes.insert(0, [0, offset, []])
-
-            # Change the end of each note to the start of next note
-            for nid in range(0, len(out_notes) - 1):
-                this_note, next_note = out_notes[nid:nid+2]
-                this_note[1] = next_note[0] - this_note[0]
-            out_notes[-1][1] = measure_length - out_notes[-1][0]
-
-        pss = set()
-        enharmonic_map = {}
-        for _, _, notes in out_notes:
-            if len(notes) > 0:
-                for pitch, tie in notes:
-                    if tie is None or tie.type == 'start':
-                        pss.add(pitch.ps)
-                        enharmonic_map[pitch.ps % 12.0] = pitch.name
-        median = np.median(list(pss)) if pss else 60
-
-        def find_enharmonic(ps):
-            ans = '{}{}'.format(enharmonic_map[ps % 12.0], int(ps / 12) - 1)
-            return ans
+    def _create_measure(self, notes=[], measure_length=0):
 
         result = music21.stream.Measure()
-        for offset, length, notes in out_notes:
-            pss = set()
-            for pitch, tie in notes:
-                if tie is None or tie.type == 'start':
-                    pss.add(pitch.ps)
 
-            pss = set(pss)
-            note_to_insert = None
+        offset_map = defaultdict(lambda: defaultdict(lambda: []))
+        tie_map = defaultdict(lambda: [])
 
-            if len(pss) > 1:
+        for offset, pitch, duration, ties in notes:
+            offset_map[offset][duration.quarterLength].append(pitch)
+            if ties:
+                tie_map[note].append(ties)
 
-                chord_notes = []
-                for ps in pss:
-                    n = music21.note.Note(find_enharmonic(ps),
-                                          duration=music21.duration.Duration(length))
-                    chord_notes.append(n)
+        # merge notes with same offset and duration into a single chord
+        for offset_item in offset_map.values():
+            for duration, duration_item in offset_item.items():
+                if len(duration_item) == 1:
+                    offset_item[duration] = duration_item[0]
+                else:
+                    offset_item[duration] = music21.chord.Chord(duration_item)
 
-                note_to_insert = music21.chord.Chord(
-                    chord_notes, duration=music21.duration.Duration(length))
-
-            elif len(pss) == 1:
-                note_to_insert = music21.note.Note(
-                    find_enharmonic(list(pss)[0]),
-                    duration=music21.duration.Duration(length))
-
-            else:
-                note_to_insert = music21.note.Rest(
-                    duration=music21.duration.Duration(length))
-
-            if length > 1e-2:
-                result.insert(offset, note_to_insert)
-
-        if not result.notesAndRests:
-            result.insert(0, music21.note.Rest(
-                duration=music21.duration.Duration(measure_length)))
+        print(offset_map)
 
         return result
