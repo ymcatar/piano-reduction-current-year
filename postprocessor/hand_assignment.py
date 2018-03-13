@@ -112,12 +112,13 @@ class HandAssignmentAlgorithm(object):
             if self.verbose:
                 print_vector(offset, notes)
 
-        # Cherry's algorithm
+        # Cherry's algorithm (revised)
         for offset, notes in measures:
 
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-            ps_median = np.median(list(n.note.pitch.ps for n in notes))
+
+            ps_median = 60 #np.median(list(n.note.pitch.ps for n in notes))
 
             left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
             right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]

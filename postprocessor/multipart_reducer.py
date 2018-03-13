@@ -151,6 +151,7 @@ class MultipartReducer(object):
                 if len(duration_item) == 1:
                     offset_item[duration] = duration_item[0]
                 else:
+                    duration_item = list(set(duration_item))
                     offset_item[duration] = music21.chord.Chord(duration_item)
 
         offset_map = dict(offset_map)
