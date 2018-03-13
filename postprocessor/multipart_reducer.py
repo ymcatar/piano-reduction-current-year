@@ -5,10 +5,38 @@ import numpy as np
 
 from collections import defaultdict
 from itertools import count
+from intervaltree import IntervalTree
 
 RIGHT_HAND = 'R'
 LEFT_HAND = 'L'
 
+# util function to find any gap within a given interval tree
+def find_slient_interval(intervals, start, end):
+    # there is no note within the interval
+    if len(intervals) == 0:
+        return [(start, end)]
+    # base case
+    if start >= end:
+        return []
+    # if the entire interval have no item, return (start, end)
+    items = intervals[start:end]
+    if len(items) == 0:
+        return [(start, end)]
+    # detect if there is gap between start & first item / last item & end
+    results = []
+    min_start = intervals.begin()
+    max_end = intervals.end()
+    if start != min_start and start < min_start:
+        results.append((start, min_start))
+        start = min_start
+    if end != max_end and max_end < end:
+        results.append((max_end, end))
+        end = max_end
+    # catch the remaining gaps recursively
+    for item in items:
+        item_start, _, _ = item
+        results += find_slient_interval(intervals, start, item_start)
+    return results
 
 class MultipartReducer(object):
 
@@ -56,20 +84,12 @@ class MultipartReducer(object):
 
                         elif isinstance(elem, music21.note.Note):
                             if elem.editorial.misc.get('hand') == hand:
-                                notes.append((
-                                    elem.offset,
-                                    elem.pitch,
-                                    elem.duration,
-                                    elem.tie))
+                                notes.append(elem)
 
                         elif isinstance(elem, music21.chord.Chord):
                             for n in elem:
                                 if elem.editorial.misc.get('hand') == hand:
-                                    notes.append((
-                                        elem.offset,
-                                        n.pitch,
-                                        n.duration,
-                                        n.tie))
+                                    notes.append(elem)
 
                         else:
                             # Ignore other stuff by default
@@ -113,13 +133,17 @@ class MultipartReducer(object):
 
         result = music21.stream.Measure()
 
+        # no note within the measure?
+        if len(notes) == 0:
+            return result
+
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
         tie_map = defaultdict(lambda: [])
 
-        for offset, pitch, duration, ties in notes:
-            offset_map[offset][duration.quarterLength].append(pitch)
-            if ties:
-                tie_map[note].append(ties)
+        for n in notes:
+            offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
+            if n.tie:
+                tie_map[id(n)].append(n.tie)
 
         # merge notes with same offset and duration into a single chord
         for offset_item in offset_map.values():
@@ -129,6 +153,58 @@ class MultipartReducer(object):
                 else:
                     offset_item[duration] = music21.chord.Chord(duration_item)
 
-        print(offset_map)
+        offset_map = dict(offset_map)
+        for key in offset_map.keys():
+            offset_map[key] = dict(offset_map[key])
+
+        # construct an interval for all the note intervals
+        intervals = IntervalTree()
+        for start in offset_map.keys():
+            for duration in offset_map[start].keys():
+                if duration > 0.0:
+                    intervals.addi(start, start + duration, offset_map[start][duration])
+
+        # find out all the time intervals with no active note playing
+        # slient_intervals = find_slient_interval(intervals, 0.0, measure_length)
+        # for start, end in slient_intervals:
+            # intervals.addi(start, end, music21.note.Rest(quarterLength=(end-start)))
+
+        # add all the notes to the measure
+        voices = defaultdict(lambda: [])
+        current_voice = 0
+
+        while len(intervals) > 0:
+            prev_end = None
+            temp_intervals = intervals.copy()
+            for item in intervals:
+                start, end, elem = item
+                if prev_end is None or end >= prev_end:
+                    if isinstance(elem, music21.pitch.Pitch):
+                        elem = music21.note.Note(elem, quarterLength=(end-start))
+                    voices[current_voice].append((start, elem))
+                    temp_intervals.remove(item)
+                    prev_end = end
+            intervals = temp_intervals
+            current_voice += 1
+
+        for key in voices.keys():
+            temp = IntervalTree()
+            for note in voices[0]:
+                start, elem = note
+                temp.addi(start, start + elem.duration.quarterLength, elem)
+            rests = find_slient_interval(temp, 0, measure_length)
+            for item in rests:
+                start, end = item
+                voices[key].append((start, music21.note.Rest(quarterLength=(end-start))))
+            voices[key] = sorted(voices[key], key=lambda i: i[0])
+
+        for note in voices[0]:
+            start, elem = note
+            elem.offset = start
+            if start + elem.quarterLength > measure_length:
+                elem.quarterLength = measure_length - start
+            result.insert(elem)
+
+        print(list((i[1].offset, i[1].offset + i[1].quarterLength) for i in voices[0]))
 
         return result
