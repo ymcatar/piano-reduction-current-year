@@ -165,15 +165,17 @@ def main():
 
         # Sequence plot
         scaler = z[:, 2] if PLOT_NOTE_COUNT else 1
-        plt.figure()
-        plt.plot(o, z[:, 0] * scaler, color='C0', label='Original')
-        plt.plot(o, z[:, 1] * scaler, color='C4', label='Base')
-        plt.plot(o, y * scaler, color='C1', label='Reduced')
-        plt.plot(o, ypred * scaler, '--', color='C2', label='Predicted')
+        style = dict(linewidth=0.5, drawstyle='steps-pre')
+        plt.figure(figsize=(12,4))
+        plt.plot(o, z[:, 0] * scaler, label='Original', color='C0', **style)
+        plt.plot(o, z[:, 1] * scaler, label='Base', color='C4', linewidth=0.5)
+        plt.plot(o, y * scaler, label='Reduced', color='C1', **style)
+        plt.plot(o, ypred * scaler, '--', label='Predicted', color='C2', **style)
         plt.title('Note frequency sequences')
         plt.xlabel('Time (QL)')
         plt.ylabel('Note count' if PLOT_NOTE_COUNT else 'Note rate')
         plt.legend()
+        plt.tight_layout()
 
     plt.show()
 
