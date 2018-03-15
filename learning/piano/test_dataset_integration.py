@@ -3,7 +3,7 @@ import os
 from unittest.mock import Mock
 from .algorithm.base import ReductionAlgorithm, get_markings
 from .alignment.base import AlignmentMethod
-from .dataset import CACHE_DIR, DatasetEntry
+from .dataset import DatasetEntry
 from .reducer import Reducer
 from .score import ScoreObject
 
@@ -39,85 +39,43 @@ X = np.array([
 y = np.ones((13, 1))  # AlignDummy
 
 path = 'learning/piano/test_sample/chromatic_scale.xml'
-cache_path = CACHE_DIR + '/chromatic_scale.hdf5'
 
 
 def test_dataset_entry_from_file():
     reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
-    try:
-        os.remove(cache_path)
-    except OSError:
-        pass
 
     # Input only
     for i in range(2):
         d = DatasetEntry(path_pair=(path, None))
-        d.ensure_scores_loaded = Mock(wraps=d.ensure_scores_loaded)
-        d.load(reducer, use_cache=True)
+        d.load(reducer)
         assert np.all(d.X == X)
         assert d.y is None
-        if i == 0:
-            d.ensure_scores_loaded.assert_called()  # since no cache available
-        else:
-            d.ensure_scores_loaded.assert_not_called()  # since cache used
 
     # Input and output
     for i in range(2):
         d = DatasetEntry(path_pair=(path, path))
-        d.ensure_scores_loaded = Mock(wraps=d.ensure_scores_loaded)
-        d.load(reducer, use_cache=True)
+        d.load(reducer)
         assert np.all(d.X == X)
         assert np.all(d.y == y)
-        if i == 0:
-            d.ensure_scores_loaded.assert_called()  # since no cache available
-        else:
-            d.ensure_scores_loaded.assert_not_called()  # since cache used
-
-    # Iput only
-    d = DatasetEntry(path_pair=(path, None))
-    d.ensure_scores_loaded = Mock(wraps=d.ensure_scores_loaded)
-    d.load(reducer, use_cache=True)
-    d.ensure_scores_loaded.assert_not_called()  # since cache used
-    assert np.all(d.X == X)
-    assert d.y is None
-
-    # keep_scores
-    d = DatasetEntry(path_pair=(path, None))
-    d.ensure_scores_loaded = Mock(wraps=d.ensure_scores_loaded)
-    d.load(reducer, use_cache=True, keep_scores=True)
-    d.ensure_scores_loaded.assert_called()
-    assert np.all(d.X == X)
-    assert d.y is None
-    assert d.input_score_obj
-
-    # Ensures the cache was indeed created
-    os.remove(cache_path)
 
 
 def test_dataset_entry_from_object():
     reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
-    try:
-        os.remove(cache_path)
-    except OSError:
-        pass
 
     # Input only
-    for use_cache in (False, True):
-        s = ScoreObject.from_file(path)
-        d = DatasetEntry(score_obj_pair=(s, None))
-        d.load(reducer, use_cache=use_cache)
+    s = ScoreObject.from_file(path)
+    d = DatasetEntry(score_obj_pair=(s, None))
+    d.load(reducer)
 
-        assert np.all(d.X == X)
-        assert d.y is None
-        assert d.input_score_obj
+    assert np.all(d.X == X)
+    assert d.y is None
+    assert d.input_score_obj
 
     # Input and output
-    for use_cache in (False, True):
-        s = ScoreObject.from_file(path)
-        d = DatasetEntry(score_obj_pair=(s, s))
-        d.load(reducer, use_cache=use_cache)
+    s = ScoreObject.from_file(path)
+    d = DatasetEntry(score_obj_pair=(s, s))
+    d.load(reducer)
 
-        assert np.all(d.X == X)
-        assert np.all(d.y == y)
-        assert d.input_score_obj
-        assert not os.path.exists(cache_path)
+    assert np.all(d.X == X)
+    assert np.all(d.y == y)
+    assert d.input_score_obj

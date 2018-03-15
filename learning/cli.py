@@ -16,7 +16,7 @@ import numpy as np
 from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
 from .piano.contraction import IndexMapping
-from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES, clear_cache
+from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.post_processor import PostProcessor
@@ -103,8 +103,7 @@ def train(args, module, save_model=False, **kwargs):
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    dataset = Dataset(reducer, paths=args.sample,
-                      use_cache=getattr(args, 'cache', False))
+    dataset = Dataset(reducer, paths=args.sample)
     if getattr(args, 'validation', False):
         train_dataset, _ = dataset.split_dataset(dataset.find_index(args.file))
         X, y = train_dataset.get_matrices(structured=True)
@@ -143,7 +142,7 @@ def command_reduce(args, **kwargs):
     logging.info('Reading score')
     in_path, _, out_path = args.file.partition(':')
     target_entry = DatasetEntry((in_path, out_path))
-    target_entry.load(reducer, keep_scores=True)
+    target_entry.load(reducer)
     target = target_entry.input_score_obj
     target_out = target_entry.output_score_obj
 
@@ -270,7 +269,7 @@ def command_show(args, module, **kwargs):
     logging.info('Reading score')
     in_path, _, out_path = args.file.partition(':')
     target_entry = DatasetEntry((in_path, out_path))
-    target_entry.load(reducer, keep_scores=True)
+    target_entry.load(reducer)
     sample_in = target_entry.input_score_obj
     sample_out = target_entry.output_score_obj
 
@@ -313,7 +312,7 @@ def command_crossval(args, module, **kwargs):
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    dataset = Dataset(reducer, use_cache=True, keep_scores=True, paths=CROSSVAL_SAMPLES)
+    dataset = Dataset(reducer, paths=CROSSVAL_SAMPLES)
     dataset.get_matrices()
 
     all_metrics = defaultdict(list)
@@ -378,8 +377,6 @@ def main(args, **kwargs):
         command_info(args, **kwargs)
     elif args.command == 'crossval':
         command_crossval(args, **kwargs)
-    elif args.command == 'clear-cache':
-        clear_cache(args.substring)
     else:
         raise NotImplementedError()
 
@@ -398,10 +395,6 @@ def run_model_cli(module):
 
     train_parser = subparsers.add_parser('train', help='Train model')
     reduce_parser = subparsers.add_parser('reduce', help='Reduce score')
-
-    for subparser in [train_parser, reduce_parser]:
-        subparser.add_argument('--cache', '-c', action='store_true',
-                               help='Use preprocessing cache')
 
     train_parser.add_argument('--output', '-o', help='Output to file')
 
@@ -429,10 +422,6 @@ def run_model_cli(module):
         'crossval', help='Evaluate model using cross validation')
     crossval_parser.add_argument('name', help='Description of this run',
                                  nargs='?', default='Model')
-
-    clear_cache_parser = subparsers.add_parser(
-        'clear-cache', help='Clear feature cache')
-    clear_cache_parser.add_argument('substring', nargs='?')
 
     # Merge "a : b" into "a:b" for convenience of bash auto-complete
     argv = sys.argv[:]
