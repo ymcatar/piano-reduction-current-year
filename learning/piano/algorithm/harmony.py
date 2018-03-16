@@ -18,13 +18,17 @@ def get_flow_state():
 
 class Harmony(FeatureAlgorithm):
     dtype = 'bool'
+    @property
+    def all_keys(self):
+        return ['{}_{!s}'.format(self.key, s) for s in self.sub_keys]
+
+    def __init__(self, *, sub_keys=('dissonance',)):
+        assert set(sub_keys) <= {'base', '3rd', '5th', 'dissonance'}
+        self.sub_keys = sub_keys
 
     def run(self, score_obj):
         '''
-        Use the results of tonal analysis to mark dissonance.
-
-        It is called "Harmony" since it should eventually mark all features from
-        harmonic analysis.
+        Use the results of tonal analysis to mark dissonance and chord notes.
         '''
         score = score_obj.score
         event = EventAnalyzer(score, get_flow_state())
@@ -50,10 +54,23 @@ class Harmony(FeatureAlgorithm):
                             i = i + 1
 
                         current_note = current_event_group.events[i]
-                        if isinstance(n, chord.Chord):
-                            for j in n:
-                                get_markings(j)[self.key] = \
+                        notes = iter(n) if isinstance(n, chord.Chord) else [n]
+                        if not current_note.matched_chord:
+                            continue
+                        mc = current_note.matched_chord[0]
+                        # Workaround for bug where tonal analyzer marks
+                        # everything as dissonance
+                        if not any(p in current_note.corrected_pitch_classes for p in mc):
+                            continue
+                        for j in notes:
+                            for pitch, sk in zip(mc, ('base', '3rd', '5th')):
+                                if sk in self.sub_keys:
+                                    get_markings(j)[self.key + '_' + sk] = \
+                                        j.pitch.name == pitch
+                            if 'dissonance' in self.sub_keys:
+                                get_markings(j)[self.key + '_dissonance'] = \
                                     j.pitch.name in current_note.dissonance
-                        else:
-                            get_markings(n)[self.key] = \
-                                n.pitch.name in current_note.dissonance
+
+    @property
+    def args(self):
+        return [], {'sub_keys': self.sub_keys}

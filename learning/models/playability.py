@@ -13,7 +13,7 @@ reducer_args = {
         algorithm.SustainedRhythm(),
         algorithm.VerticalDoubling(),
         algorithm.Motif(),
-        algorithm.Harmony(),
+        algorithm.Harmony(sub_keys=('base', '3rd', '5th', 'dissonance')),
         algorithm.OutputCountEstimate(),
         algorithm.HighestPitch(),
         ],
