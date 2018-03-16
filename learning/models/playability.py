@@ -14,6 +14,7 @@ reducer_args = {
         algorithm.VerticalDoubling(),
         algorithm.Motif(),
         algorithm.Harmony(),
+        algorithm.OutputCountEstimate(),
         ],
     'alignment': alignment.AlignMinOctaveMatching(),
     'contractions': [

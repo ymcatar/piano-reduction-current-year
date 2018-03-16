@@ -13,3 +13,4 @@ from .vertical_doubling import VerticalDoubling
 from .motif import Motif
 from .harmony import Harmony
 from .pitch_distance import PitchDistance
+from .output_count_estimate import OutputCountEstimate
