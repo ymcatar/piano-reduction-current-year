@@ -14,3 +14,4 @@ from .motif import Motif
 from .harmony import Harmony
 from .pitch_distance import PitchDistance
 from .output_count_estimate import OutputCountEstimate
+from .highest_pitch import HighestPitch

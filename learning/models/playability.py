@@ -15,6 +15,7 @@ reducer_args = {
         algorithm.Motif(),
         algorithm.Harmony(),
         algorithm.OutputCountEstimate(),
+        algorithm.HighestPitch(),
         ],
     'alignment': alignment.AlignMinOctaveMatching(),
     'contractions': [
