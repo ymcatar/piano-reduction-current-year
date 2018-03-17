@@ -155,7 +155,8 @@ class ScoreObject(object):
         Annotate the given vector to the score.
         '''
         for v, n in zip(vector, self.notes):
-            n.editorial.misc[key] = v
+            if v is not None:
+                n.editorial.misc[key] = v
 
     def index(self, n):
         '''

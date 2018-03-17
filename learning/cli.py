@@ -241,11 +241,11 @@ def command_reduce(args, **kwargs):
             mapping[target_entry.mapping[target.index(m)]] = i
     mapping = IndexMapping(mapping, output_size=len(contracted_obj), aggregator=lambda i: i[0])
     for i, key in enumerate(reducer.all_keys):
-        contracted_obj.annotate(mapping.map_matrix(target_entry.X[:, i], default=None), key)
-    contracted_obj.annotate(mapping.map_matrix(y_pred.flatten(), default=None),
+        contracted_obj.annotate(mapping.map_matrix(list(target_entry.X[:, i]), default=None), key)
+    contracted_obj.annotate(mapping.map_matrix(list(y_pred.flatten()), default=None),
                             reducer.alignment.key)
     if y_test is not None:
-        contracted_obj.annotate(mapping.map_matrix(correction, default=None),
+        contracted_obj.annotate(mapping.map_matrix(list(correction), default=None),
                                 'correction')
 
     structure_data = {k: list(mapping.map_structure(target_entry.mapping.map_structure(dict(v))).items())
