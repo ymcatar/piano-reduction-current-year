@@ -25,6 +25,7 @@ reducer_args = {
     'structures': [
         structure.OnsetNotes(),
         structure.OnsetBadIntervalNotes(),
+        structure.OnsetDurationVaryingNotes(),
         structure.AdjacentNotes(),
         ],
     }
