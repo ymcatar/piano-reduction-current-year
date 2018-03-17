@@ -15,7 +15,7 @@ reducer_args = {
         algorithm.Motif(),
         algorithm.Harmony(sub_keys=('base', '3rd', '5th', 'dissonance')),
         algorithm.OutputCountEstimate(),
-        algorithm.HighestPitch(),
+        algorithm.HighestPitchInRhythm(),
         ],
     'alignment': alignment.AlignMinOctaveMatching(),
     'contractions': [
