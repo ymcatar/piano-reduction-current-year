@@ -2,16 +2,27 @@ import os
 import sys
 sys.path.insert(0, os.getcwd())
 
-from collections import defaultdict, Counter
-import sys
+from collections import defaultdict
+import warnings
+warnings.filterwarnings(action='ignore', module='scipy', message='^internal gelsd')
 
 import numpy as np
 from matplotlib import pyplot as plt
+import scipy.special
 from sklearn.externals.joblib import Parallel, delayed
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 
 from learning.piano.score import ScoreObject
 from learning.piano.algorithm.base import iter_notes_with_offset
+
+
+USE_PITCH = True
+USE_RATE = True
+PLOT_NOTE_COUNT = False
+
+BLUR_RADIUS = 4.0  # Standard deviation of Gaussian filter
+BLUR_SIZE = 5  # Size of Gaussian filter in sigmas
 
 
 def iter_offsets(obj):
@@ -23,19 +34,100 @@ def iter_offsets(obj):
             yield bar.offset + offset, notes
 
 
-def extract(in_notes, out_notes):
-    count = len(in_notes)
+def extract_onset(in_notes, out_notes, offset):
     # Note: Grace notes have 0 duration
-    min_duration = float(min(n.duration.quarterLength for n in in_notes
-                             if n.duration.quarterLength > 0))
-    if len(in_notes) >= len(out_notes):
-        return xbasis(count, min_duration), len(out_notes)
+    if USE_PITCH:
+        in_count = len(set(n.pitch.ps for n in in_notes))
+        out_count = len(set(n.pitch.ps for n in out_notes))
     else:
-        return None
+        in_count = len(in_notes)
+        out_count = len(out_notes)
+
+    if in_count < out_count:
+        out_count = in_count
+        # return None
+
+    return in_count, offset, out_count
 
 
-def xbasis(count, min_duration):
-    return np.stack([1/count, np.log2(min_duration)], axis=-1)
+def gaussian_pdf(x, sigma):
+    return np.exp(-0.5 * (x/sigma)**2) / np.sqrt(2 * np.pi) / sigma
+
+
+def gaussian_cdf(x, sigma):
+    return 0.5 * (1 + scipy.special.erf(x / sigma / np.sqrt(2)))
+
+
+def gaussian(x1, x2, sigma):
+    return gaussian_cdf(x2, sigma) - gaussian_cdf(x1, sigma)
+    # return 0.5 * (gaussian_pdf(x1, sigma) + gaussian_pdf(x2, sigma)) * (x2-x1)
+
+
+def window_at(seq, offsets, durations, index, radius):
+    '''Get the continuous window centred at the start of seq[i].'''
+    centre = offsets[index]
+    result = []
+    for j in reversed(range(0, index)):
+        if offsets[j] + durations[j] - centre <= -radius:
+            break
+        result.append((seq[j], (max(-radius, offsets[j] - centre), offsets[j] + durations[j] - centre)))
+    result.reverse()
+
+    for j in range(index, len(seq)):
+        if offsets[j] - centre >= radius:
+            break
+        result.append((seq[j], (offsets[j] - centre, min(radius, offsets[j] + durations[j] - centre))))
+
+    return result
+
+
+def gaussian_filter(seq, offsets, durations, *, sigma):
+    result = np.empty_like(seq)
+    for i in range(len(seq)):
+        win = window_at(seq, offsets, durations, i, BLUR_SIZE * sigma)
+        result[i] = sum(x * gaussian(l, r, sigma) for x, (l, r) in win)
+    return result
+
+
+def median_filter(seq, offsets, durations, *, radius):
+    result = np.empty_like(seq)
+    for i in range(len(seq)):
+        total = 0
+        for x, (l, r) in window_at(seq, offsets, durations, i, radius):
+            total += r - l
+            if total >= radius:
+                break
+        result[i] = x
+
+    return result
+
+
+def seq2basis(data):
+    data = np.asarray(data)
+    in_count = data[:, 0]
+    offsets = data[:, 1]
+    out_count = data[:, 2]
+
+    out_count[out_count == 0] = 1  # Must not be 0 sice we will take log
+
+    durations = np.empty_like(in_count)
+    durations[:-1] = offsets[1:] - offsets[:-1]
+    durations[-1] = 4.0  # Assume a value for simplicity
+
+    if USE_RATE:
+        in_count /= durations
+        out_count /= durations
+
+    # Decompose in_count into base * detail
+    base = gaussian_filter(in_count, offsets, durations, sigma=BLUR_RADIUS)
+    assert np.all(base != 0) and np.all(~np.isnan(base))
+    base += 0.01  # Smoothing term
+    detail = in_count / base
+    assert np.all(detail != 0) and np.all(~np.isnan(detail))
+
+    x = np.stack([np.log(base), np.log(detail)], axis=1)  # For learning
+    z = np.stack([in_count, base, durations], axis=1)  # For visualization
+    return x, out_count, offsets, z
 
 
 def compute(paths):
@@ -44,44 +136,46 @@ def compute(paths):
 
     in_map, out_map = [dict(iter_offsets(obj)) for obj in objs]
 
-    data = (extract(in_map[offset], out_map.get(offset, [])) for offset in in_map)
+    data = (extract_onset(in_map[offset], out_map.get(offset, []), offset) for offset in in_map)
     data = [i for i in data if i is not None]
+    data.sort(key=lambda i: i[1])  # sort by offset
+    data = seq2basis(data)
 
-    tally = Counter((1/x[0], y) for x, y in data)
-    xy = np.asarray(list(tally.keys()))
-    x, y = xy[:, 0], xy[:, 1]
-    s = np.asarray(list(tally.values())) * 5
+    x, y, o, z = data
+    try:
+        model = LinearRegression()
+        model.fit(x, np.log(y))
+    except:
+        print('Error in:', paths, file=sys.stderr)
+        raise
 
-    xb = np.asarray([x for x, _ in data])
-    yb = np.asarray([y for _, y in data])
-    model = LinearRegression()
-    model.fit(xb, yb)
-    score = model.score(xb, yb)
-
-    return x, y, s, model, score
+    return x, y, o, z, model
 
 
 def main():
-    results = Parallel(n_jobs=2, verbose=3)(delayed(compute)(paths) for paths in sys.argv[1:])
-    for i, (x, y, s, model, score) in enumerate(results):
-        plt.figure()
-        plt.scatter(x, y, s=s)
-        xlim = (0, 20)
-        plt.xlim(xlim)
-        plt.ylim((0, 8))
-        plt.title('Note frequencies at all onsets')
-        plt.xlabel('Original note count')
-        plt.ylabel('Reduced note count')
-
-        xspace = np.linspace(xlim[0]+0.01, xlim[1], xlim[1] * 5)
-        for min_duration in [0.25, 0.5, 1.0, 2.0]:
-            yspace = model.predict(xbasis(xspace, np.ones_like(xspace) * min_duration))
-            plt.plot(xspace, yspace, label=str(min_duration))
-
-        plt.legend()
+    n_jobs = 1 if len(sys.argv[1:]) == 1 else 2
+    results = Parallel(n_jobs=n_jobs, verbose=3)(delayed(compute)(paths) for paths in sys.argv[1:])
+    for i, (x, y, o, z, model) in enumerate(results):
+        ypred = np.exp(model.predict(x))
+        # Always evaluate r^2 score w.r.t. note count
+        score = r2_score(y * z[:, 2], ypred * z[:, 2])
 
         print('Run {}: Coef {} Intercept {} R^2 {}'.format(
             i+1, model.coef_, model.intercept_, score))
+
+        # Sequence plot
+        scaler = z[:, 2] if PLOT_NOTE_COUNT else 1
+        style = dict(linewidth=0.5, drawstyle='steps-pre')
+        plt.figure(figsize=(12,4))
+        plt.plot(o, z[:, 0] * scaler, label='Original', color='C0', **style)
+        plt.plot(o, z[:, 1] * scaler, label='Base', color='C4', linewidth=0.5)
+        plt.plot(o, y * scaler, label='Reduced', color='C1', **style)
+        plt.plot(o, ypred * scaler, '--', label='Predicted', color='C2', **style)
+        plt.title('Note frequency sequences')
+        plt.xlabel('Time (QL)')
+        plt.ylabel('Note count' if PLOT_NOTE_COUNT else 'Note rate')
+        plt.legend()
+        plt.tight_layout()
 
     plt.show()
 

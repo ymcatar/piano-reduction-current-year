@@ -1,4 +1,4 @@
-from .base import ReductionAlgorithm
+from .base import FeatureAlgorithm
 from .active_rhythm import ActiveRhythm
 from .bass_line import BassLine
 from .entrance_effect import EntranceEffect
@@ -13,3 +13,6 @@ from .vertical_doubling import VerticalDoubling
 from .motif import Motif
 from .harmony import Harmony
 from .pitch_distance import PitchDistance
+from .output_count_estimate import OutputCountEstimate
+from .highest_pitch import HighestPitch
+from .highest_pitch_in_rhythm import HighestPitchInRhythm

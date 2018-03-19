@@ -60,11 +60,3 @@ python3 -m learning reduce -m <model file> [-o <output file>] <input file>[:<red
 # Inspect sample pair
 python3 -m learning inspect <original file>:<reduced file>
 ```
-
-## Feature caching
-
-When working on machine learning models, it is desirable to train models
-quickly. To remove the overhead of the various feature extraction Algorithms,
-the flag `--cache` can be used to cache the extracted features in
-`sample/cache`. However, the cache must be manually cleared when those
-Algorithms are modified.

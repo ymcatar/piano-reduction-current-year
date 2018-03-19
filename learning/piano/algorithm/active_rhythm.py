@@ -1,9 +1,9 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import FeatureAlgorithm, get_markings, iter_notes
 
 from music21 import stream
 
 
-class ActiveRhythm(ReductionAlgorithm):
+class ActiveRhythm(FeatureAlgorithm):
     dtype = 'bool'
 
     def run(self, score_obj):

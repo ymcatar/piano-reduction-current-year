@@ -1,10 +1,10 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import FeatureAlgorithm, get_markings, iter_notes
 
 from music21 import stream
 from collections import Counter
 
 
-class Occurrence(ReductionAlgorithm):
+class Occurrence(FeatureAlgorithm):
     dtype = 'bool'
 
     def run(self, score_obj):

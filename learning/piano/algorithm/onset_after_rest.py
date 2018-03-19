@@ -1,9 +1,9 @@
-from .base import ReductionAlgorithm, set_marking_in_general_note
+from .base import FeatureAlgorithm, set_marking_in_general_note
 
 from music21 import stream, note
 
 
-class OnsetAfterRest(ReductionAlgorithm):
+class OnsetAfterRest(FeatureAlgorithm):
     dtype = 'bool'
 
     def run(self, score_obj):

@@ -74,11 +74,10 @@ class Reducer(object):
         features = []
 
         for algo in self.algorithms:
-            if list(algo.all_keys) != [algo.key]:
-                # Multi-key features not supported yet
-                continue
-            feature = writerlib.guess_feature(algo)
-            features.append(feature)
+            for key in algo.all_keys:
+                feature = writerlib.guess_feature(algo)
+                feature.name = key
+                features.append(feature)
 
         return features
 

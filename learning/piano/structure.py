@@ -115,24 +115,11 @@ class OnsetNotes(StructureAlgorithm):
     n_features = 1
 
     def run(self, score_obj):
-        for bar in score_obj.by_bar:
-            note_map = defaultdict(list)
-            for n, offset in iter_notes_with_offset(bar, recurse=True):
-                note_map[offset].append(n)
-
-            for notes in note_map.values():
-                # Determined by an expert process :)
-                # See experiment 5 (onset frequency)
-                if not notes:
-                    continue
-                min_duration = float(min(n.duration.quarterLength for n in notes
-                                         if n.duration.quarterLength > 0))
-                exp_output_notes = (4.33 - 3.63 / len(notes) + 0.403 * math.log2(min_duration))
-                pairwise_penalty = exp_output_notes ** -2
-                for u in notes:
-                    for v in notes:
-                        if u != v:
-                            yield (score_obj.index(u), score_obj.index(v)), (pairwise_penalty,)
+        for offset, notes in score_obj.iter_offsets():
+            for u in notes:
+                for v in notes:
+                    if u != v:
+                        yield (score_obj.index(u), score_obj.index(v)), (1,)
 
     get_weights = get_repelling_weights
 
@@ -146,17 +133,27 @@ class OnsetBadIntervalNotes(StructureAlgorithm):
     def run(self, score_obj):
         BAD_INTERVALS = (1, 2, 6, 10, 11)
 
-        for bar in score_obj.by_bar:
-            note_map = defaultdict(list)
-            for n, offset in iter_notes_with_offset(bar, recurse=True):
-                note_map[offset].append(n)
+        for offset, notes in score_obj.iter_offsets():
+            for u in notes:
+                for v in notes:
+                    if (u != v and (int(u.pitch.ps) - int(v.pitch.ps) + 12) % 12 in BAD_INTERVALS):
+                        yield (score_obj.index(u), score_obj.index(v)), (1,)
 
-            for notes in note_map.values():
-                for u in notes:
-                    for v in notes:
-                        if (u != v and
-                                (int(u.pitch.ps) - int(v.pitch.ps) + 12) % 12 in BAD_INTERVALS):
-                            yield (score_obj.index(u), score_obj.index(v)), (1,)
+    get_weights = get_repelling_weights
+
+
+class OnsetDurationVaryingNotes(StructureAlgorithm):
+    '''
+    Connects notes at the same onset with different durations.
+    '''
+    n_features = 1
+
+    def run(self, score_obj):
+        for offset, notes in score_obj.iter_offsets():
+            for u in notes:
+                for v in notes:
+                    if (u != v and u.duration.quarterLength != v.duration.quarterLength):
+                        yield (score_obj.index(u), score_obj.index(v)), (1,)
 
     get_weights = get_repelling_weights
 

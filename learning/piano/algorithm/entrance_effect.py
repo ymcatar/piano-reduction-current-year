@@ -1,9 +1,9 @@
-from .base import ReductionAlgorithm, set_marking_in_general_note
+from .base import FeatureAlgorithm, set_marking_in_general_note
 
 from music21 import note, stream
 
 
-class EntranceEffect(ReductionAlgorithm):
+class EntranceEffect(FeatureAlgorithm):
     dtype = 'float'
     range = (0.0, None)
 
