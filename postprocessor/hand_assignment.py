@@ -38,9 +38,9 @@ class HandAssignmentAlgorithm(object):
             # if the lowest notes all have the same pitch class,
             # keep removing the lowest until two clusters remain or all related notes except the lowest are deleted
             target_class = notes[0].note.pitch.pitchClass
-            for i, n in enumerate(notes[1:]):
-                if n.note.pitch.pitchClass == target_class:
-                    n.deleted = True
+            for i, n in enumerate(notes):
+                if i != 0 and n.note.pitch.pitchClass == target_class:
+                    notes[i - 1].deleted = True
                     if self.get_number_of_cluster(notes) <= 2:
                         break
 
