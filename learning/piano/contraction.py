@@ -119,7 +119,7 @@ class IndexMapping:
         assert len(matrix) == self.input_size
 
         if isinstance(matrix, list):
-            result = [None] * len(matrix)
+            result = [None] * self.output_size
         else:
             result = np.empty((self.output_size, *matrix.shape[1:]), dtype=matrix.dtype)
         for g, indices in enumerate(self.groups):

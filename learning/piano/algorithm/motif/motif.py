@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from ..base import ReductionAlgorithm, get_markings
+from ..base import FeatureAlgorithm, get_markings
 from .analyzer import MotifAnalyzer
 
 
-class Motif(ReductionAlgorithm):
+class Motif(FeatureAlgorithm):
     dtype = 'float'
     range = (0, None)
 

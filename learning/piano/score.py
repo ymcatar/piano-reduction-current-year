@@ -4,7 +4,7 @@ import copy
 from itertools import zip_longest
 import logging
 import numpy as np
-from .algorithm.base import iter_notes
+from .util import iter_notes, iter_notes_with_offset
 
 
 logger = logging.getLogger('learning.piano.score')
@@ -122,6 +122,14 @@ class ScoreObject(object):
         '''
         return iter_notes(self.score, recurse=True)
 
+    def iter_offsets(self):
+        for bar in self.by_bar:
+            note_map = defaultdict(list)
+            for n, offset in iter_notes_with_offset(bar, recurse=True):
+                note_map[offset].append(n)
+            for offset, notes in sorted(note_map.items()):
+                yield bar.offset + offset, notes
+
     def extract(self, key, dtype, **kwargs):
         '''
         Extract the corresponding vector from an annotation in a score.
@@ -147,7 +155,8 @@ class ScoreObject(object):
         Annotate the given vector to the score.
         '''
         for v, n in zip(vector, self.notes):
-            n.editorial.misc[key] = v
+            if v is not None:
+                n.editorial.misc[key] = v
 
     def index(self, n):
         '''

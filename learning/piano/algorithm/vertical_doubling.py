@@ -1,9 +1,9 @@
-from .base import ReductionAlgorithm, get_markings, iter_notes
+from .base import FeatureAlgorithm, get_markings, iter_notes
 
 from collections import Counter, defaultdict
 
 
-class VerticalDoubling(ReductionAlgorithm):
+class VerticalDoubling(FeatureAlgorithm):
     dtype = 'bool'
 
     def run(self, score_obj):
