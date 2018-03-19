@@ -4,6 +4,7 @@ import numpy as np
 
 from collections import defaultdict
 from termcolor import colored
+from util import construct_piano_roll, construct_vector
 class HandAssignmentAlgorithm(object):
 
     def __init__(self, max_hand_span=7, verbose=False):
@@ -85,14 +86,7 @@ class HandAssignmentAlgorithm(object):
 
     def assign(self, measures):
 
-        # util functions
-        def print_vector(offset, notes):
-            # construct the vector
-            pitches = sorted(math.trunc(n.note.pitch.ps) for n in notes if not n.deleted)
-            vector = [0] * 97
-            for item in pitches:
-                if item in range(12, 97):
-                    vector[item] = 1
+        def print_vector(vector, notes):
             # print it out
             cluster_count = self.get_number_of_cluster(notes)
             message = '{:s} {:s} ({:d}) {:s}'.format(
@@ -106,11 +100,12 @@ class HandAssignmentAlgorithm(object):
             else:
                 print(message)
 
-        for i, measure in enumerate(measures):
-            offset, notes = measure
-            notes = sorted((n for n in notes if not n.deleted), key=lambda n: n.note.pitch.ps)
-            if self.verbose:
-                print_vector(offset, notes)
+        piano_roll = construct_piano_roll(measures)
+
+        if self.verbose:
+            for i, row in enumerate(piano_roll):
+                offset, notes = measures[i]
+                print_vector(piano_roll[i,:], notes)
 
         # Cherry's algorithm (revised)
         for offset, notes in measures:
