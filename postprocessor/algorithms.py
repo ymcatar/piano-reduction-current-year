@@ -18,7 +18,7 @@ class PostProcessorAlgorithms(object):
         ps_map = defaultdict(lambda: [])
 
         for n in notes:
-            ps_map[n.note.pitch.ps].append(n)
+            ps_map[(n.note.duration.quarterLength, n.note.pitch.ps)].append(n)
 
         for ps, notes in ps_map.items():
             if len(notes) > 1:
