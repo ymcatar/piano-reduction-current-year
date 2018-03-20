@@ -55,7 +55,7 @@ class MultipartReducer(object):
             for hand, part in zip(HANDS, parts):
 
                 key_signature, time_signature = None, None
-                notes, rest_sets, tie_sets = [], [], []
+                notes = []
 
                 for p in bar.parts:
                     rests = []
@@ -137,13 +137,31 @@ class MultipartReducer(object):
                 tie_map[(n.offset, n.duration.quarterLength, n.pitch.ps)] = n.tie
 
         # merge notes with same offset and duration into a single chord
-        for offset_item in offset_map.values():
-            for duration, duration_item in offset_item.items():
-                if len(duration_item) == 1:
-                    offset_item[duration] = music21.note.Note(duration_item[0])
+        for offset, offset_item in offset_map.items():
+            for duration, pitches in offset_item.items():
+                if len(pitches) == 1:
+                    offset_item[duration] = music21.note.Note(pitches[0])
+                    if (offset, duration, pitches[0].ps) in tie_map:
+                        offset_item[duration].tie = tie_map[(offset, duration, pitches[0].ps)]
                 else:
-                    duration_item = list(set(duration_item))
-                    offset_item[duration] = music21.chord.Chord(duration_item)
+                    pitches = list(set(pitches))
+                    offset_item[duration] = music21.chord.Chord(pitches)
+                    # check if all notes in chord have the same kind of tie
+                    valid = True
+                    prev_tie = None
+                    for pitch in pitches:
+                        index = (offset, duration, pitch.ps)
+                        if index not in tie_map:
+                            valid = False
+                            break
+                        if prev_tie is None:
+                            prev_tie = tie_map[index]
+                        if prev_tie.type != tie_map[index].type:
+                            valid = False
+                            break
+                    if valid:
+                        offset_item[duration].tie = tie_map[index]
+
                 offset_item[duration].duration.quarterLength = duration
 
         offset_map = dict(offset_map)
