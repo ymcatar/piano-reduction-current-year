@@ -85,7 +85,8 @@ class PyStructCRF(BaseModel):
     def __init__(self, reducer):
         super().__init__(reducer)
         self.model = MyGraphCRF(reducer)
-        self.learner = NSlackSSVM(self.model, max_iter=250, verbose=1, C=1.0)
+        self.learner = NSlackSSVM(self.model, max_iter=300, verbose=1, C=1.0,
+                                  show_loss_every=50)
 
     def fit_structured(self, X, y):
         y = [i.flatten() for i in y]

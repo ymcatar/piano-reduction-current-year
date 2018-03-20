@@ -6,10 +6,8 @@ reducer_args = {
     'algorithms': [
         algorithm.ActiveRhythm(),
         algorithm.BassLine(),
-        algorithm.Occurrence(),
         algorithm.OnsetAfterRest(),
         algorithm.RhythmVariety(),
-        algorithm.StrongBeats(division=1.0),
         algorithm.SustainedRhythm(),
         algorithm.VerticalDoubling(),
         algorithm.Motif(),
