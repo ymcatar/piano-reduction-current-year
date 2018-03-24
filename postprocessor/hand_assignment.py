@@ -106,6 +106,7 @@ class HandAssignmentAlgorithm(object):
             for i, row in enumerate(piano_roll):
                 offset, notes = measures[i]
                 print_vector(piano_roll[i,:], notes)
+            # np.save('result.npy', piano_roll)
 
         # Cherry's algorithm (revised)
         for offset, notes in measures:
@@ -113,7 +114,7 @@ class HandAssignmentAlgorithm(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
 
-            ps_median = 60 #np.median(list(n.note.pitch.ps for n in notes))
+            ps_median = 60 # np.median(list(n.note.pitch.ps for n in notes))
 
             left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
             right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
