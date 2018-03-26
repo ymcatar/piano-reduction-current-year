@@ -164,26 +164,32 @@ export default {
 
       // Notehead
       for (const [entry, annotation] of iterEntries()) {
-        let colour = '#000000';
+        let colours = [];
         for (let i = 0; i < annotation.noteheads.length; i++) {
           if (annotation.noteheads[i] !== '#000000')
-            colour = annotation.noteheads[i];
+            colours.push(annotation.noteheads[i]);
         }
-        if (colour) {
-          ctx.fillStyle = colour;
-          const path = new Path2D(entry.path);
-          let ctm = entry.ctm;
-          ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
-          ctx.fill(path);
-          ctm = ctm.inverse();
-          ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+        if (!colours.length) colours.push('#000000');
+        ctx.save();
+
+        let ctm = entry.ctm;
+        ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+        ctx.clip(new Path2D(entry.path));
+        ctm = ctm.inverse();
+        ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+
+        for (let i = 0; i < colours.length; i++) {
+          ctx.fillStyle = colours[i];
+          ctx.fillRect(
+              entry.bBox.x, entry.bBox.y + entry.bBox.height * i / colours.length,
+              entry.bBox.width, entry.bBox.height / colours.length);
         }
+        ctx.restore();
       }
 
       // Text
-      ctx.fillStyle = '#0000FF';
       ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 2;
       ctx.font = 'bold 8px Roboto, Noto Sans, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -191,9 +197,23 @@ export default {
         if (annotation.rightText) {
           const OFFSET = 1;
           const args = [
-            annotation.rightText,
+            annotation.rightText.text,
             entry.bBox.x + entry.bBox.width + OFFSET,
             entry.bBox.y + 0.5 * entry.bBox.height];
+          ctx.fillStyle = annotation.rightText.colour;
+          ctx.strokeText(...args);
+          ctx.fillText(...args);
+        }
+      }
+      ctx.textBaseline = 'top';
+      for (const [entry, annotation] of iterEntries()) {
+        if (annotation.bottomText) {
+          const OFFSET = 0;
+          const args = [
+            annotation.bottomText.text,
+            entry.bBox.x,
+            entry.bBox.y + entry.bBox.height + OFFSET];
+          ctx.fillStyle = annotation.bottomText.colour;
           ctx.strokeText(...args);
           ctx.fillText(...args);
         }

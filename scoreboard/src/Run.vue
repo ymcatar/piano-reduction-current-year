@@ -1,7 +1,7 @@
 <template>
   <div class="horizontal-layout">
     <md-card class="drawer">
-      <md-list class="md-dense" v-if="!selectedNotes.length">
+      <md-list class="md-dense" :style="{display: !selectedNotes.length ? 'block' : 'none'}">
         <md-subheader>Scores</md-subheader>
         <md-list-item v-for="score of run.scores" :key="score.name">
           <md-radio v-model="selectedScoreName" :value="score.name"
@@ -80,7 +80,7 @@
         </md-subheader>
         <template v-for="key of annotationKeys">
           <md-list-item :key="key">
-            <md-field>
+            <md-field class="feature-field">
               <label :for="key">{{key}}</label>
               <md-select v-model="annotationMap[key]" :id="key" md-dense>
                 <md-option key="null" value="none"></md-option>
@@ -105,7 +105,7 @@
         </template>
 
         <md-list-item>
-          <md-field>
+          <md-field class="feature-field">
             <label for="ray">ray</label>
             <md-select v-model="annotationMap.ray" id="ray" md-dense>
               <md-option key="null" value="none"></md-option>
@@ -130,7 +130,7 @@
 
       </md-list>
 
-      <md-list class="md-dense inspector" v-else>
+      <md-list class="md-dense inspector" v-if="selectedNotes.length">
         <md-subheader>
           <h2 style="flex: 1">
             Inspect note
@@ -184,11 +184,12 @@ export default {
     pages: null,
     featureData: null,
 
-    annotationKeys: ['notehead0', 'notehead1', 'rightText'],
+    annotationKeys: ['notehead0', 'notehead1', 'rightText', 'bottomText'],
     annotationTypes: {
       notehead0: 'colour',
       notehead1: 'colour',
       rightText: 'text',
+      bottomText: 'text',
       ray: 'colour',
     },
     annotationMap: {},
@@ -206,12 +207,18 @@ export default {
       return o;
     })({
       notehead0: {
-        colour: '#FF0000',
+        colour: '#FF9900',
         colourBasis: ['#000000', '#FF0000', '#FF9900', '#FFFF00'],
       },
       notehead1: {
         colour: '#33FF33',
         colourBasis: ['#000000', '#00FF00', '#00FFFF', '#0000FF'],
+      },
+      rightText: {
+        colour: '#9900FF',
+      },
+      bottomText: {
+        colour: '#009900',
       },
       ray: {
         colour: '#33DDDD',
@@ -271,19 +278,23 @@ export default {
             }
           }
         }
-        const rightText = this.getFeature('rightText');
-        if (rightText) {
-          const value = data[this.annotationMap['rightText']];
+        for (const key of ['rightText', 'bottomText']) {
+          const feature = this.getFeature(key);
+          if (!feature) continue;
+          const value = data[this.annotationMap[key]];
+          let formatted;
           if (typeof value === 'boolean') {
-            props.rightText = value ? '+' : '';
+            formatted = value ? '+' : '';
           } else if (typeof value === 'number') {
             const rounded = Math.round(value * 100) / 100;
-            props.rightText = String(rounded);
+            formatted = String(rounded);
           } else if (typeof value !== 'undefined' && value !== null) {
-            props.rightText = String(value);
+            formatted = String(value);
+          }
+          if (typeof formatted !== 'undefined') {
+            props[key] = {text: formatted, colour: feature.colour};
           }
         }
-
         if (this.selectedNotes.includes(key)) {
           props.circle = '#FF0000';
         } else if (data._pitch === selectedPitch) {
@@ -438,6 +449,10 @@ export default {
 audio {
   height: 32px;
   background-color: white;
+}
+
+.feature-field {
+  margin-bottom: 0;
 }
 
 .container {
