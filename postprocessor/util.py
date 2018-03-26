@@ -31,7 +31,7 @@ def construct_piano_roll(measures):
         piano_roll[i,:] = construct_vector(notes)
     return piano_roll
 
-def print_vector(vector, offset, notes=None, max_hand_span=7):
+def print_vector(vector, offset, notes=None, max_hand_span=7, func=None):
 
     def value_to_block(value):
         if value == 0:
@@ -41,6 +41,9 @@ def print_vector(vector, offset, notes=None, max_hand_span=7):
         else:
             return colored('█', 'blue')
 
+    if func is None:
+        func = value_to_block
+
     cluster_count = get_number_of_cluster(vector, max_hand_span)
     if cluster_count <= 2:
         cluster_count = '(' + str(cluster_count) + ')'
@@ -49,7 +52,7 @@ def print_vector(vector, offset, notes=None, max_hand_span=7):
 
     message = '{:s} {:s} {:s}'.format(
         '{:.2f}'.format(offset).zfill(6),
-        ''.join(value_to_block(i) for i in vector[12:]),
+        ''.join(func(i) for i in vector[12:]),
         cluster_count
     )
 

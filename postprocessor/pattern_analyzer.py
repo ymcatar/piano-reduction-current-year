@@ -54,7 +54,7 @@ class PatternAnalyzer(object):
         # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
-        # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
+        self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
 
     def detect_triads(self):
         results = []

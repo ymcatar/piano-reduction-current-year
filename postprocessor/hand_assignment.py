@@ -99,8 +99,8 @@ class HandAssignmentAlgorithm(object):
                 # offset, notes = measures[i]
                 # print_vector(piano_roll[i,:], i, notes, self.config['max_hand_span'])
 
-        analyzer = PatternAnalyzer(piano_roll, self.config)
-        analyzer.run()
+        # analyzer = PatternAnalyzer(piano_roll, self.config)
+        # analyzer.run()
 
         # Cherry's algorithm (revised)
         for offset, notes in measures:
@@ -108,7 +108,7 @@ class HandAssignmentAlgorithm(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
 
-            ps_median = 60 # np.median(list(n.note.pitch.ps for n in notes))
+            ps_median = np.median(list(n.note.pitch.ps for n in notes))
 
             left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
             right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
@@ -116,37 +116,62 @@ class HandAssignmentAlgorithm(object):
             # assign the median to whatever closer
             median_note = [n for n in notes if n.note.pitch.ps == ps_median]
             if len(median_note) > 0:
-                highest_left_notes = max(n.note.pitch.ps for n in notes)
-                lowest_right_notes = min(n.note.pitch.ps for n in notes)
+                highest_left_notes = max(n.note.pitch.ps for n in left_hand_notes) if len(left_hand_notes) else 0
+                lowest_right_notes = min(n.note.pitch.ps for n in right_hand_notes) if len(right_hand_notes) else 0
                 if median_note[0].note.pitch.ps - lowest_right_notes < highest_left_notes - median_note[0].note.pitch.ps:
                     left_hand_notes += median_note
                 else:
                     right_hand_notes += median_note
 
-            # if len(left_hand_notes) > 5:
-                # print(offset, 'too many left hand notes')
-                # left_hand_notes = left_hand_notes[:5]
+            left_hand_notes = sorted(left_hand_notes, key=lambda n: n.note.pitch.ps)
+            right_hand_notes = sorted(right_hand_notes, key=lambda n: n.note.pitch.ps)
 
-            # if len(right_hand_notes) > 5:
-                # print(offset, 'too many right hand notes')
-                # right_hand_notes = right_hand_notes[:5]
+            if len(left_hand_notes) > 5:
+                print(offset, 'too many left hand notes')
+                left_hand_notes = left_hand_notes[:5]
 
-            for i, note in enumerate(left_hand_notes):
+            if len(right_hand_notes) > 5:
+                print(offset, 'too many right hand notes')
+                right_hand_notes = right_hand_notes[:5]
+
+            for i, note in enumerate(reversed(left_hand_notes)):
                 note.hand = 'L'
-                # note.finger = 5 - i
+                note.finger = i + 1
 
             for i, note in enumerate(right_hand_notes):
                 note.hand = 'R'
-                # note.finger = i + 1
+                note.finger = i + 1
 
     def postassign(self, measures):
 
         pass
 
-
     def cost(self, measures):
 
-        # print(measures)
+        for offset, notes in measures.items():
+            self.print_frame(offset, notes)
+
         return 0
 
+    def print_frame(self, offset, notes):
 
+        vector = [0] * 97
+        for n in notes:
+            if not n.deleted:
+                if n.hand and n.finger:
+                    vector[math.trunc(n.note.pitch.ps)] = n.finger if n.hand == 'L' else 5 + n.finger
+                else:
+                    vector[math.trunc(n.note.pitch.ps)] = 11
+
+        def value_to_func(value):
+            value = int(value)
+            if value == 0:
+                return ' '
+            elif 1 <= value <= 5:
+                return str(['①', '②', '③', '④', '⑤'][value - 1])
+            elif 6 <= value <= 10:
+                return str(['❶', '❷', '❸', '❹', '❺'][value - 6])
+            elif value == 11:
+                return '-'
+
+        print_vector(vector, offset, notes=notes, max_hand_span=self.config['max_hand_span'], func=value_to_func)
