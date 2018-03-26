@@ -41,9 +41,12 @@ class PatternAnalyzer(object):
         self.patterns['triads'] = self.detect_triads()
         # too many notes within the same row
         self.patterns['clusters'] = self.detect_clusters()
+        # run of notes being hit repeatedly
+        self.patterns['repeats'] = self.detect_repeats()
 
         # self.print_piano_roll(self.highlight_pattern(self.patterns['triads']))
-        self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
+        self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
 
     def detect_triads(self):
         results = []
@@ -66,11 +69,23 @@ class PatternAnalyzer(object):
                 results.append(tuple((i, j) for j, is_active in enumerate(vector) if is_active))
         return results
 
+    def detect_repeats(self):
+        results = []
+        for j, column in enumerate(self.piano_roll.T):
+            for group in itertools.groupby(range(len(column)), key=lambda n: column[n]):
+                is_active, items = group
+                items = list(items)
+                if int(is_active) == 1 and len(items) >= self.config['min_repeat_len']:
+                    results.append(
+                        tuple((i, j) for i in items)
+                    )
+        return results
 
 piano_roll = np.load('result.npy')
 
 config = {}
 config['max_hand_span'] = 7
+config['min_repeat_len'] = 3
 
 analyzer = PatternAnalyzer(piano_roll, config)
 analyzer.run()
