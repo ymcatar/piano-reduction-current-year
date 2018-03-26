@@ -3,6 +3,7 @@ import curses
 import music21
 import numpy as np
 
+from random import randint
 from collections import defaultdict
 from termcolor import colored
 from util import construct_piano_roll, construct_vector, str_vector, get_number_of_cluster_from_notes
@@ -159,6 +160,13 @@ class HandAssignmentAlgorithm(object):
         if self.verbose:
             has_quit = False
             while not has_quit:
+
+                # randomize fingering
+                for offset, notes in measures.items():
+                    if randint(1, 3) == 1:
+                        for n in notes:
+                            n.finger = randint(1, 5)
+
                 has_quit = self.print_fingering(measures)
 
         if self.verbose:
@@ -166,26 +174,36 @@ class HandAssignmentAlgorithm(object):
 
         return 0
 
+    # output releated methods
+
     def init_screen(self):
 
+        self.prev_notes = {}
         self.start_line = 0
         self.stdscr = curses.initscr()
         self.stdscr_height = self.stdscr.getmaxyx()[0]
+
+        curses.start_color()
+        curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+
         curses.noecho() # disable screen echoing
         curses.cbreak() # accept key press
         curses.curs_set(0) # hide the cursoe
+
         self.stdscr.keypad(True) # accept directional key
-        self.stdscr.nodelay(True)
 
     def end_screen(self):
 
         curses.endwin()
         self.stdscr.keypad(False)
-        curses.curs_set(1)
+
+        curses.curs_set(2)
         curses.nocbreak()
         curses.echo()
+
         self.stdscr = None
         self.start_line = 0
+        self.prev_notes = {}
 
     def print_fingering(self, measures):
 
@@ -196,21 +214,30 @@ class HandAssignmentAlgorithm(object):
         for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
             offset, notes = item
             message = self.str_frame(offset, notes)
-            self.stdscr.addstr(i, 0, message)
+            if offset not in self.prev_notes or self.prev_notes[offset] != str(notes):
+                self.stdscr.addstr(i, 0, message, curses.color_pair(1))
+                self.prev_notes[offset] = str(notes)
+            else:
+                self.stdscr.addstr(i, 0, message)
 
-        try:
-            key = self.stdscr.getkey()
-            if key == 'KEY_UP':
-                if self.start_line > 0:
-                    self.start_line -= 1
-            elif key == 'KEY_DOWN':
-                if self.start_line < len(items) - self.stdscr_height:
-                    self.start_line += 1
-            elif key == 'q':
-                return True
-        except Exception as e:
-           # No input
-           pass
+        while True:
+            try:
+                key = self.stdscr.getkey()
+                if key == 'KEY_UP':
+                    if self.start_line > 0:
+                        self.start_line -= 1
+                    break
+                elif key == 'KEY_DOWN':
+                    if self.start_line < len(items) - self.stdscr_height:
+                        self.start_line += 1
+                    break
+                elif key == 'KEY_RIGHT':
+                    break
+                elif key == 'q':
+                    return True
+            except Exception as e:
+            # No input
+                pass
 
         self.stdscr.refresh()
         return False
@@ -234,6 +261,7 @@ class HandAssignmentAlgorithm(object):
             elif 6 <= value <= 10:
                 return str(['❶', '❷', '❸', '❹', '❺'][value - 6])
             elif value == 11:
+                quit()
                 return '-'
 
         return str_vector(vector, offset, notes=notes, max_hand_span=self.config['max_hand_span'], func=value_to_func)
