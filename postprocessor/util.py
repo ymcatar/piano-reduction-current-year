@@ -42,7 +42,12 @@ def print_vector(vector, offset, notes=None, max_hand_span=7):
             return colored('█', 'blue')
 
     cluster_count = get_number_of_cluster(vector, max_hand_span)
-    message = '{:s} {:s} ({:d})'.format(
+    if cluster_count <= 2:
+        cluster_count = '(' + str(cluster_count) + ')'
+    else:
+        cluster_count = colored('(' + str(cluster_count) + ')', 'red')
+
+    message = '{:s} {:s} {:s}'.format(
         '{:.2f}'.format(offset).zfill(6),
         ''.join(value_to_block(i) for i in vector[12:]),
         cluster_count
@@ -53,15 +58,12 @@ def print_vector(vector, offset, notes=None, max_hand_span=7):
         message += ' '
         message += ', '.join(n.note.pitch.name for n in notes)
 
-    if cluster_count > 2:
-        print(colored(message, 'red'))
-    else:
-        print(message)
+    print(message)
 
 def get_number_of_cluster(vector, max_hand_span):
 
     max_cluster_size = 2 * max_hand_span - 1
-    ps_list = [i for i, is_active in enumerate(vector) if int(is_active) == 1]
+    ps_list = [i for i, is_active in enumerate(vector) if int(is_active) != 0]
 
     if len(ps_list) == 0: # no note => trivially no cluster
         return 0
