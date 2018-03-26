@@ -198,7 +198,8 @@ def command_reduce(args, **kwargs):
         logging.info('Displaying output')
         result.show('musicxml')
 
-    writer = LogWriter(config.LOG_DIR)
+    title = '{}/reduction/{}'.format(get_module_name(kwargs['module']), os.path.basename(in_path))
+    writer = LogWriter(config.LOG_DIR, title=title)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)
@@ -274,7 +275,8 @@ def command_show(args, module, **kwargs):
     sample_out = target_entry.output_score_obj
 
     logging.info('Writing data')
-    writer = LogWriter(config.LOG_DIR)
+    title = '{}/features/{}'.format(get_module_name(module), os.path.basename(in_path))
+    writer = LogWriter(config.LOG_DIR, title=title)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
     writer.add_features(reducer.structure_features)

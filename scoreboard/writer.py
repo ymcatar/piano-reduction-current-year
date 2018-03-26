@@ -141,7 +141,7 @@ class LogWriter:
     A log and score aggregator that produces data which can be read by
     Scoreboard.
     '''
-    def __init__(self, log_dir, run=None):
+    def __init__(self, log_dir, run=None, title=None):
         self.run = run or \
             str(binascii.b2a_hex(os.urandom(4)), 'ascii')
 
@@ -151,6 +151,7 @@ class LogWriter:
         self.colour_it = generate_colours()
 
         self.timestamp = int(datetime.datetime.now().timestamp())
+        self.title = title
         self.flavours = []
         self.features = {}
         self.structure_features = {}
@@ -270,6 +271,7 @@ class LogWriter:
     def get_metadata(self):
         return {
             'timestamp': self.timestamp,
+            'title': self.title or '',
             'scores': self.flavours,
             'features': [f.__dict__ for f in self.features.values()],
             'structureFeatures': [f.json() for f in self.structure_features.values()]

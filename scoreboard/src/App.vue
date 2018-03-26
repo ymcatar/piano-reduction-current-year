@@ -2,10 +2,11 @@
   <div class="vertical-layout">
     <md-toolbar class="md-primary">
       <span class="md-title">Scoreboard</span>
-      <md-menu class="run-select">
+      <md-menu class="run-select" md-size="huge">
         <md-button md-menu-trigger @click="onMenuActivate">
           <template v-if="selectedRun">
             {{formatTimestamp(selectedRun.timestamp)}} ({{selectedRun.name}})
+            <em>{{selectedRun.title}}</em>
           </template>
           <template v-else>
             No run selected
@@ -18,6 +19,7 @@
             <span
                 :class="{'run-select-label': true, active: run.name === selectedRunName}">
               {{formatTimestamp(run.timestamp)}} ({{run.name}})
+              <em>{{run.title}}</em>
             </span>
           </md-menu-item>
         </md-menu-content>
@@ -82,12 +84,18 @@ export default {
   flex-direction: column;
 }
 
+.md-toolbar, .md-button {
+  text-transform: none;
+}
+
 .run-select {
   margin-left: 32px;
 }
+.run-select-label {
+  font-size: 14px;
+  &.active { color: #448aff !important; }
+}
 </style>
 <style lang="scss">
-.run-select-label.active {
-  color: #448aff !important;
-}
+  .md-menu-content-huge { max-width: none !important; }
 </style>
