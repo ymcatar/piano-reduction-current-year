@@ -91,7 +91,7 @@ async def ensure_xml_render(path):
     out_path = basepath + '-index.json'
     if not os.path.exists(out_path):
         logging.info('Rendering XML: {}'.format(path))
-        await call_mscore('-o', path[:-3] + 'svg', '-T', '0', path)
+        await call_mscore('-o', path[:-3] + 'svg', '-T', '16', path)
         full_image_paths = sorted(glob.glob('{}-*.svg'.format(basepath)))
         image_paths = [i.rsplit('/', 1)[1] for i in full_image_paths]
 

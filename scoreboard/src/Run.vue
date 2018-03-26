@@ -410,6 +410,7 @@ export default {
 
 <style lang="scss" scoped>
 .horizontal-layout {
+  min-height: 0;
   flex: 1;
   display: flex;
   .drawer { width: 300px; height: calc(100vh - 64px); overflow-y: auto; }
