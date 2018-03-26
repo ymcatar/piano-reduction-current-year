@@ -43,10 +43,15 @@ class PatternAnalyzer(object):
         self.patterns['clusters'] = self.detect_clusters()
         # run of notes being hit repeatedly
         self.patterns['repeats'] = self.detect_repeats()
+        # diagonal
+        self.patterns['diagonals_left'] = self.detect_diagonals(direction=-1)
+        self.patterns['diagonals_right'] = self.detect_diagonals(direction=+1)
 
         # self.print_piano_roll(self.highlight_pattern(self.patterns['triads']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
-        self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
+        self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
 
     def detect_triads(self):
         results = []
@@ -76,17 +81,64 @@ class PatternAnalyzer(object):
                 is_active, items = group
                 items = list(items)
                 if int(is_active) == 1 and len(items) >= self.config['min_repeat_len']:
-                    results.append(
-                        tuple((i, j) for i in items)
-                    )
+                    results.append(tuple((i, j) for i in items))
+        return results
+
+    def detect_diagonals(self, direction=+1):
+
+        """direction: -1 = towards bottom left; +1 = towards bottom right"""
+        assert direction in (-1, 1)
+
+        search_space = list(itertools.product(
+            range(1, self.config['max_diagonal_skip'] + 1),
+            range(1, self.config['max_diagonal_dist'] + 1)))
+
+        if direction == -1:
+            for key, value in enumerate(search_space):
+                x, y = value
+                search_space[key] = (x, -y)
+
+        height, width = self.piano_roll.shape
+
+        length_2_diagonal = defaultdict(lambda: set())
+        for i, vector in enumerate(self.piano_roll):
+            for j, is_active in enumerate(vector):
+                if is_active:
+                    for x, y in search_space:
+                        if 0 <= i + x < height and 0 <= j + y < width and self.piano_roll[i + x, j + y]:
+                            length_2_diagonal[(i, j)].add((i + x, j + y))
+
+        def get_all_diagonals(start):
+            if len(length_2_diagonal[start]) == 0:
+                return []
+            value = []
+            for end in length_2_diagonal[start]:
+                temp = get_all_diagonals(end)
+                if len(temp) == 0:
+                    value.append([end])
+                else:
+                    for t in temp:
+                        value.append([end] + t)
+            return value
+
+        results = []
+        for start, values in deepcopy(length_2_diagonal).items():
+            diagonals = get_all_diagonals(start)
+            for d in diagonals:
+                d = [start] + d
+                if len(d) >= self.config['min_diagonal_len']:
+                    results.append(d)
+
         return results
 
 piano_roll = np.load('result.npy')
 
 config = {}
-config['max_hand_span'] = 7
-config['min_repeat_len'] = 3
+config['max_hand_span'] = 7         # maximum size of a cluster
+config['min_repeat_len'] = 3        # minimum length of a vertical line
+config['min_diagonal_len'] = 4      # minimum length of a diagonal
+config['max_diagonal_dist'] = 3     # maximum allowed distance between consecutive notes within a diagonal
+config['max_diagonal_skip'] = 2     # maximum size of gap allowed within a diagonal
 
 analyzer = PatternAnalyzer(piano_roll, config)
 analyzer.run()
-# analyzer.print_piano_roll()
