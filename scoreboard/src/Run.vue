@@ -10,7 +10,8 @@
             {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
           <form method="get" :action="apiPrefix + score.xml">
-            <md-button class="md-icon-button md-dense" type="submit" @click.stop="true">
+            <md-button class="list-hover-button md-icon-button md-dense"
+                type="submit" @click.stop="true">
               <md-icon>file_download</md-icon>
             </md-button>
           </form>
@@ -481,6 +482,12 @@ audio {
 .feature-field {
   margin-bottom: 0;
 }
+
+.list-hover-button {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.md-list-item:hover .list-hover-button { opacity: 1; }
 
 .container {
   position: relative;
