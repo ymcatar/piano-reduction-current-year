@@ -42,12 +42,15 @@
             <md-icon>keyboard_arrow_right</md-icon>
           </md-button>
         </md-list-item>
+        <md-list-item>
+          <md-switch v-model="showTooltip">Show tooltip</md-switch>
+        </md-list-item>
 
         <md-list-item>
           <md-field>
             <label for="playback">Playback</label>
             <md-select v-model="selectedPlaybackScoreName" id="playback" md-dense>
-              <md-option key="null" value="none"></md-option>
+              <md-option key="null" value=""></md-option>
                 <md-option v-for="score of run.scores" :key="score.name" :value="score.name">
                   {{score.title ? `${score.title} (${score.name})` : score.name}}
                 </md-option>
@@ -83,7 +86,7 @@
             <md-field class="feature-field">
               <label :for="key">{{key}}</label>
               <md-select v-model="annotationMap[key]" :id="key" md-dense>
-                <md-option key="null" value="none"></md-option>
+                <md-option key="null" value=""></md-option>
                 <md-optgroup v-for="(features, group) in featureGroups"
                   :key="group" :label="group || '(No group)'">
                   <md-option v-for="feature of features" :key="feature.name"
@@ -108,7 +111,7 @@
           <md-field class="feature-field">
             <label for="ray">ray</label>
             <md-select v-model="annotationMap.ray" id="ray" md-dense>
-              <md-option key="null" value="none"></md-option>
+              <md-option key="null" value=""></md-option>
                 <md-optgroup v-for="(features, group) in structureFeatureGroups"
                   :key="group" :label="group || '(No group)'">
                   <md-option v-for="feature of features" :key="feature.name"
@@ -158,9 +161,18 @@
           <md-progress-spinner v-if="loading" md-mode="indeterminate" :md-diameter="20"
             :md-stroke="2" class="md-accent"></md-progress-spinner>
         </div>
+        <div v-if="showTooltip && hoveredNotes.length" class="tooltip"
+            :style="{left: hoverX + 10 + 'px', top: hoverY + 10 + 'px'}">
+          <div v-for="id of hoveredNotes" :key="id">
+            <h5>Note {{id}}</h5>
+            <ul>
+              <li v-for="v in hoverKeys">{{v}}: {{featureData.notes[id][v]}}</li>
+            </ul>
+          </div>
+        </div>
         <score-canvas :api-prefix="apiPrefix" :pages="pages"
           :annotations="annotations" @select="x => selectedNotes = x"
-          :page-offset.sync="pageOffset"
+          @hover="onHover" :page-offset.sync="pageOffset"
           @update:page-offset="x => pageOffset = x"></score-canvas>
       </div>
     </main>
@@ -197,6 +209,11 @@ export default {
     pageOffset: 0.0,
     pageCount: 100,
     selectedNotes: [],
+
+    showTooltip: false,
+    hoveredNotes: [],
+    hoverX: 0,
+    hoverY: 0,
 
     showInfo: false,
 
@@ -336,6 +353,10 @@ export default {
       }
       return ret;
     },
+
+    hoverKeys() {
+      return this.annotationKeys.map(x => this.annotationMap[x]).filter(x => !!x);
+    },
   },
 
   methods: {
@@ -397,7 +418,13 @@ export default {
       };
       this.savedConfigs = Object.assign({}, this.savedConfigs);
       localStorage['scoreboard:savedConfigs'] = JSON.stringify(this.savedConfigs, null, 4);
-    }
+    },
+
+    onHover(e) {
+      this.hoveredNotes = e.matches;
+      this.hoverX = e.offsetX;
+      this.hoverY = e.offsetY;
+    },
   },
 
   watch: {
@@ -471,5 +498,28 @@ audio {
 
 .inspector p {
   margin-top: 3px; margin-bottom: 3px;
+}
+
+.tooltip {
+  position: absolute;
+
+  padding: 4px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  min-width: 128px;
+
+  font-size: 12px;
+  line-height: 1.1;
+
+  h5 {
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
+  ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
 }
 </style>

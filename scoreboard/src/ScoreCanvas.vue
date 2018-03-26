@@ -1,5 +1,5 @@
 <template>
-  <canvas ref="canvas" @wheel="onWheel" @click="onClick"></canvas>
+  <canvas ref="canvas" @wheel="onWheel" @click="onClick" @mousemove="throttledOnMouseMove"></canvas>
 </template>
 
 <script>
@@ -36,6 +36,8 @@ export default {
 
     drawTimeTotal: 0,
     drawTimeCount: 0,
+
+    throttledOnMouseMove: () => {},
   }),
 
   computed: {
@@ -337,19 +339,32 @@ export default {
     },
 
     onClick(e) {
-      if (!this.pages || !this.bitmaps[0]) return;
+      const matches = this.findNotesByOffset(e.offsetX, e.offsetY);
+      if (matches.length) {
+        this.$emit('select', matches);
+      }
+    },
+
+    onMouseMove(e) {
+      const matches = this.findNotesByOffset(e.offsetX, e.offsetY);
+      this.$emit('hover', {matches, offsetX: e.offsetX, offsetY: e.offsetY});
+    },
+
+    findNotesByOffset(offsetX, offsetY) {
+      if (!this.pages || !this.bitmaps[0]) return [];
       // Convert to canvas units
-      const canvasX = e.offsetX * this.density, canvasY = e.offsetY * this.density;
+      const canvasX = offsetX * this.density, canvasY = offsetY * this.density;
 
       const match = this.visiblePages.find(p => p.pageX <= canvasX);
-      if (!match) return;
+      if (!match) return [];
 
       const pageIndex = match.pageIndex;
 
       const x = (canvasX - match.pageX) / this.realScale, y = (canvasY - match.pageY) / this.realScale;
 
       const noteMap = this.noteMaps[pageIndex];
-      if (!noteMap) return;
+      if (!noteMap) return [];
+
       const matches = [];
       for (const key in noteMap) {
         if (!this.noteMaps[pageIndex].hasOwnProperty(key)) continue;
@@ -357,9 +372,7 @@ export default {
         if (bBox.x <= x && x <= bBox.x + bBox.width && bBox.y <= y && y <= bBox.y + bBox.height)
           matches.push(key);
       }
-      if (matches.length) {
-        this.$emit('select', matches);
-      }
+      return matches;
     },
 
     findNoteInPage(key, currentPageIndex) {
@@ -417,6 +430,7 @@ export default {
 
     this.throttledResize = throttle(this.resize.bind(this));
     this.throttledDraw = throttle(this.draw.bind(this));
+    this.throttledOnMouseMove = throttle(this.onMouseMove.bind(this));
 
     this.resize();
     this.resizeListener = window.addEventListener('resize', () => this.throttledResize());
