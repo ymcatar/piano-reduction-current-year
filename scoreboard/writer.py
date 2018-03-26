@@ -6,6 +6,7 @@ from fractions import Fraction
 from itertools import chain, product
 import json
 import logging
+from matplotlib import cm, colors
 import music21
 import os
 import textwrap
@@ -72,19 +73,21 @@ def generate_colours():
         yield '#{:02X}{:02X}{:02X}'.format(*rgb)
 
 
-def iter_notes(stream, recurse=False):
+def iter_notes_with_offset(stream, recurse=False):
     '''
-    Given a stream, return an iterator that yields all notes, including those
-    inside a chord.
+    Given a stream, return an iterator that yields all notes with the offset
+    value, including those inside a chord.
+
+    Note that Notes inside a chord always have an offset value of 0.
     '''
     if recurse:
         stream = stream.recurse(skipSelf=False)
     for n in stream.notes:
         if isinstance(n, music21.chord.Chord):
             for n2 in n:
-                yield n2
+                yield n2, n.offset
         else:
-            yield n
+            yield n, n.offset
 
 
 class MyJSONEncoder(json.JSONEncoder):
@@ -101,6 +104,36 @@ class MyJSONEncoder(json.JSONEncoder):
             return float(obj)
         else:
             return super().default(obj)
+
+
+pitch_class_colours = [
+    '#{:02X}{:02X}{:02X}'.format(*(int(i * 255) for i in rgba[:3]))
+    for rgba in cm.ScalarMappable(colors.Normalize(0, 12), cm.hsv).to_rgba(range(12))
+    ]
+
+
+default_features = [
+    TextFeature('_pitch', group='intrinsic'),
+    CategoricalFeature('_pitch_class', {
+            n: (c, n)
+            for c, ns in zip(pitch_class_colours, [
+                ['B#', 'C'],
+                ['C#', 'D-'],
+                ['D'],
+                ['D#', 'E-'],
+                ['E', 'F-'],
+                ['E#', 'F'],
+                ['F#', 'G-'],
+                ['G'],
+                ['G#', 'A-'],
+                ['A'],
+                ['A#', 'B-'],
+                ['B', 'C-'],
+                ]) for n in ns}, '#000000', group='intrinsic'),
+    FloatFeature('_ps', range=(21, 108), group='intrinsic'),
+    FloatFeature('_duration', range=(0, 8), group='intrinsic'),
+    TextFeature('_offset', group='intrinsic'),
+    ]
 
 
 class LogWriter:
@@ -139,19 +172,21 @@ class LogWriter:
         score = copy.deepcopy(score)
 
         note_colours = []
-        for n in iter_notes(score, recurse=True):
+        for n, _ in iter_notes_with_offset(score, recurse=True):
             n.style.color = next(self.colour_it)
             note_colours.append(n.style.color)
 
         notes = defaultdict(list)
-        for n in iter_notes(score, recurse=True):
-            notes[n.style.color] = {
-                **n.editorial.misc,
-                '_pitch': n.pitch.nameWithOctave,
-                '_pitch_class': n.pitch.name,
-                '_ps': n.pitch.ps,
-                '_duration': n.duration.quarterLength,
-                }
+        for measure in score.recurse(skipSelf=False).getElementsByClass(music21.stream.Measure):
+            for n, offset in iter_notes_with_offset(measure, recurse=True):
+                notes[n.style.color] = {
+                    **n.editorial.misc,
+                    '_pitch': n.pitch.nameWithOctave,
+                    '_pitch_class': n.pitch.name,
+                    '_ps': n.pitch.ps,
+                    '_duration': n.duration.quarterLength,
+                    '_offset': measure.offset + offset,
+                    }
 
         structures = {}
         if structure_data:
@@ -241,6 +276,7 @@ class LogWriter:
             }
 
     def finalize(self):
+        self.add_features(default_features)
         # Determine bounds for float features
         all_features = chain(
             self.features.values(),
@@ -254,7 +290,7 @@ class LogWriter:
                     yield from (
                         n.editorial.misc.get(feature.name, feature.default)
                         for idx in self.score_indices.values()
-                        for n in iter_notes(idx['score'], recurse=True))
+                        for n, _ in iter_notes_with_offset(idx['score'], recurse=True))
                 if low is None:
                     low = min(values())
                 if high is None:
