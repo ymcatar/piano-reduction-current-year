@@ -4,7 +4,8 @@ import numpy as np
 
 from collections import defaultdict
 from termcolor import colored
-from util import construct_piano_roll, construct_vector
+from util import construct_piano_roll, construct_vector, print_vector, get_number_of_cluster_from_notes
+
 class HandAssignmentAlgorithm(object):
 
     def __init__(self, max_hand_span=7, verbose=False):
@@ -25,7 +26,7 @@ class HandAssignmentAlgorithm(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
             measures[i] = (offset, notes) # put back the sorted list to measures
-            num_cluster = self.get_number_of_cluster(notes)
+            num_cluster = get_number_of_cluster_from_notes(notes, self.config['max_hand_span'])
             problematic[i] = (num_cluster > 2)
 
         # try to resolve all problematic frame
@@ -42,11 +43,11 @@ class HandAssignmentAlgorithm(object):
             for i, n in enumerate(notes):
                 if i != 0 and n.note.pitch.pitchClass == target_class:
                     notes[i - 1].deleted = True
-                    if self.get_number_of_cluster(notes) <= 2:
+                    if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
                         break
 
             # move on if attempt to fix succeeded
-            if self.get_number_of_cluster(notes) <= 2:
+            if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
                 continue
 
             # attempts to move the lowest note up
@@ -54,7 +55,7 @@ class HandAssignmentAlgorithm(object):
             # notes = [n for n in notes if not n.deleted]
             # while notes[1].note.pitch.ps - notes[0].note.pitch.ps >= 12:
                 # notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
-                # if self.get_number_of_cluster(notes) <= 2:
+                # if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
                     # break
 
             # attempts to move the lowest group of notes up an octave if they are > an octave apart
@@ -72,11 +73,11 @@ class HandAssignmentAlgorithm(object):
                 distance = distance - distance % 12
                 for i in range(0, index + 1):
                     notes[i].note.transpose(music21.interval.Interval(distance), inPlace=True)
-                if self.get_number_of_cluster(notes) <= 2:
+                if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
                     continue
 
             # move on if attempt to fix succeeded
-            if self.get_number_of_cluster(notes) <= 2:
+            if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
                 continue
 
             # FIXME: what else can I do? => remove the frame for now
@@ -86,26 +87,12 @@ class HandAssignmentAlgorithm(object):
 
     def assign(self, measures):
 
-        def print_vector(vector, notes):
-            # print it out
-            cluster_count = self.get_number_of_cluster(notes)
-            message = '{:s} {:s} ({:d}) {:s}'.format(
-                '{:.2f}'.format(offset).zfill(6), # leftpad literally cures cancer
-                ''.join('█' if i == 1 else '▒' for i in vector[12:]),
-                cluster_count,
-                ', '.join(n.note.pitch.name for n in notes)
-            )
-            if cluster_count > 2:
-                print(colored(message, 'red'))
-            else:
-                print(message)
-
         piano_roll = construct_piano_roll(measures)
 
         if self.verbose:
             for i, row in enumerate(piano_roll):
                 offset, notes = measures[i]
-                print_vector(piano_roll[i,:], notes)
+                print_vector(piano_roll[i,:], i, notes, self.config['max_hand_span'])
             # np.save('result.npy', piano_roll)
 
         # Cherry's algorithm (revised)
@@ -148,31 +135,6 @@ class HandAssignmentAlgorithm(object):
     def postassign(self, measures):
 
         pass
-
-    def get_number_of_cluster(self, notes, verbose=False):
-
-        max_cluster_size = 2 * self.config['max_hand_span'] - 1
-        notes = [n for n in notes if not n.deleted]
-
-        if len(notes) == 0:
-            return 0
-
-        notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-        ps_list = [n.note.pitch.ps for n in notes]
-
-        if len(ps_list) == 1: # only one note => trivially one cluster
-            if verbose: print(ps_list)
-            return 1
-
-        if ps_list[-1] - ps_list[0] <= max_cluster_size: # all notes are close together
-            if verbose: print(ps_list)
-            return 1
-
-        # greedily expand the left cluster until it is impossible
-        for i, item in enumerate(ps_list):
-            if item - ps_list[0] > max_cluster_size:
-                if verbose: print(str(ps_list[:i]) + ' | ', end='')
-                return 1 + self.get_number_of_cluster(notes[i:], verbose=verbose)
 
 
     def cost(self, measures):
