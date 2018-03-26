@@ -58,7 +58,7 @@ class PostProcessor(object):
         self.apply_each(self.hand_assignment.preassign, self.grouped_onsets)
         self.apply_each(self.hand_assignment.assign, self.grouped_onsets, partition_size=-1)
         self.apply_each(self.hand_assignment.postassign, self.grouped_onsets)
-        self.hand_assignment.cost(self.grouped_onsets)
+        self.hand_assignment.optimize_fingering(self.grouped_onsets)
 
     def apply_each(self, algorithm, source, partition_size=1):
         source = list(source.items()) if isinstance(source, dict) else source

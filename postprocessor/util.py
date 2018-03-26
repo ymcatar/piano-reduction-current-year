@@ -31,7 +31,7 @@ def construct_piano_roll(measures):
         piano_roll[i,:] = construct_vector(notes)
     return piano_roll
 
-def print_vector(vector, offset, notes=None, max_hand_span=7, func=None):
+def str_vector(vector, offset, notes=None, max_hand_span=7, func=None):
 
     def value_to_block(value):
         if value == 0:
@@ -61,7 +61,7 @@ def print_vector(vector, offset, notes=None, max_hand_span=7, func=None):
         message += ' '
         message += ', '.join(n.note.pitch.name for n in notes)
 
-    print(message)
+    return message
 
 def get_number_of_cluster(vector, max_hand_span):
 

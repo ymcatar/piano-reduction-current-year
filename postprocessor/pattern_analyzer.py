@@ -7,7 +7,7 @@ from copy import deepcopy
 from termcolor import colored
 from collections import defaultdict
 
-from util import print_vector, get_number_of_cluster
+from util import str_vector, get_number_of_cluster
 
 class PatternAnalyzer(object):
 
@@ -24,7 +24,7 @@ class PatternAnalyzer(object):
             piano_roll = self.piano_roll
 
         for i, row in enumerate(piano_roll):
-            print_vector(row, i)
+            print(str_vector(row, i))
 
     def highlight_pattern(self, patterns):
 

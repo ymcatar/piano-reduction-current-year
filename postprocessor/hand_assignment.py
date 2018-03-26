@@ -1,10 +1,11 @@
 import math
+import curses
 import music21
 import numpy as np
 
 from collections import defaultdict
 from termcolor import colored
-from util import construct_piano_roll, construct_vector, print_vector, get_number_of_cluster_from_notes
+from util import construct_piano_roll, construct_vector, str_vector, get_number_of_cluster_from_notes
 
 from pattern_analyzer import PatternAnalyzer
 class HandAssignmentAlgorithm(object):
@@ -19,6 +20,10 @@ class HandAssignmentAlgorithm(object):
         self.config['max_diagonal_skip'] = 2            # maximum size of gap allowed within a diagonal
 
         self.verbose = verbose
+
+        if self.verbose:
+            self.stdscr = None
+            self.stdscr_height = None
 
     def preassign(self, measures):
 
@@ -97,7 +102,7 @@ class HandAssignmentAlgorithm(object):
         # if self.verbose:
             # for i, row in enumerate(piano_roll):
                 # offset, notes = measures[i]
-                # print_vector(piano_roll[i,:], i, notes, self.config['max_hand_span'])
+                # print(str_vector(piano_roll[i,:], i, notes, self.config['max_hand_span']))
 
         # analyzer = PatternAnalyzer(piano_roll, self.config)
         # analyzer.run()
@@ -146,14 +151,68 @@ class HandAssignmentAlgorithm(object):
 
         pass
 
-    def cost(self, measures):
+    def optimize_fingering(self, measures):
 
-        for offset, notes in measures.items():
-            self.print_frame(offset, notes)
+        if self.verbose:
+            self.init_screen()
+
+        if self.verbose:
+            while True:
+                self.print_fingering(measures)
+
+        if self.verbose:
+            self.end_screen()
 
         return 0
 
-    def print_frame(self, offset, notes):
+    def init_screen(self):
+
+        self.start_line = 0
+        self.stdscr = curses.initscr()
+        self.stdscr_height = self.stdscr.getmaxyx()[0]
+        curses.noecho() # disable screen echoing
+        curses.cbreak() # accept key press
+        curses.curs_set(0) # hide the cursoe
+        self.stdscr.keypad(True) # accept directional key
+        self.stdscr.nodelay(True)
+
+    def end_screen(self):
+
+        curses.endwin()
+        self.stdscr.keypad(False)
+        curses.curs_set(1)
+        curses.nocbreak()
+        curses.echo()
+        self.stdscr = None
+        self.start_line = 0
+
+    def print_fingering(self, measures):
+
+        items = [i for i in measures.items()]
+
+        self.stdscr.clear()
+
+        for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
+            offset, notes = item
+            message = self.str_frame(offset, notes)
+            self.stdscr.addstr(i, 0, message)
+
+        try:
+            key = self.stdscr.getkey()
+            if key == 'KEY_UP':
+                if self.start_line > 0:
+                    self.start_line -= 1
+            elif key == 'KEY_DOWN':
+                if self.start_line < len(items) - self.stdscr_height:
+                    self.start_line += 1
+        except Exception as e:
+           # No input
+           pass
+
+
+        self.stdscr.refresh()
+
+    def str_frame(self, offset, notes):
 
         vector = [0] * 97
         for n in notes:
@@ -174,4 +233,4 @@ class HandAssignmentAlgorithm(object):
             elif value == 11:
                 return '-'
 
-        print_vector(vector, offset, notes=notes, max_hand_span=self.config['max_hand_span'], func=value_to_func)
+        return str_vector(vector, offset, notes=notes, max_hand_span=self.config['max_hand_span'], func=value_to_func)
