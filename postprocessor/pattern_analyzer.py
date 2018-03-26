@@ -39,6 +39,8 @@ class PatternAnalyzer(object):
 
         # triad chord pattern
         self.patterns['triads'] = self.detect_triads()
+        # broken chord pattern
+        self.patterns['broken_chords'] = self.detect_broken_chords()
         # too many notes within the same row
         self.patterns['clusters'] = self.detect_clusters()
         # run of notes being hit repeatedly
@@ -48,9 +50,10 @@ class PatternAnalyzer(object):
         self.patterns['diagonals_right'] = self.detect_diagonals(direction=+1)
 
         # self.print_piano_roll(self.highlight_pattern(self.patterns['triads']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['broken_chords']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
-        self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
 
     def detect_triads(self):
@@ -131,14 +134,19 @@ class PatternAnalyzer(object):
 
         return results
 
-piano_roll = np.load('result.npy')
+    def detect_broken_chords(self):
+        # TODO
+        results = []
+        return results
 
-config = {}
-config['max_hand_span'] = 7         # maximum size of a cluster
-config['min_repeat_len'] = 3        # minimum length of a vertical line
-config['min_diagonal_len'] = 4      # minimum length of a diagonal
-config['max_diagonal_dist'] = 3     # maximum allowed distance between consecutive notes within a diagonal
-config['max_diagonal_skip'] = 2     # maximum size of gap allowed within a diagonal
+# piano_roll = np.load('result.npy')
 
-analyzer = PatternAnalyzer(piano_roll, config)
-analyzer.run()
+# config = {}
+# config['max_hand_span'] = 7         # maximum size of a cluster
+# config['min_repeat_len'] = 3        # minimum length of a vertical line
+# config['min_diagonal_len'] = 4      # minimum length of a diagonal
+# config['max_diagonal_dist'] = 3     # maximum allowed distance between consecutive notes within a diagonal
+# config['max_diagonal_skip'] = 2     # maximum size of gap allowed within a diagonal
+
+# analyzer = PatternAnalyzer(piano_roll, config)
+# analyzer.run()

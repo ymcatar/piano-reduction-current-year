@@ -6,12 +6,17 @@ from collections import defaultdict
 from termcolor import colored
 from util import construct_piano_roll, construct_vector, print_vector, get_number_of_cluster_from_notes
 
+from pattern_analyzer import PatternAnalyzer
 class HandAssignmentAlgorithm(object):
 
     def __init__(self, max_hand_span=7, verbose=False):
 
         self.config = {}
-        self.config['max_hand_span'] = max_hand_span
+        self.config['max_hand_span'] = max_hand_span    # maximum size of a cluster
+        self.config['min_repeat_len'] = 3               # minimum length of a vertical line
+        self.config['min_diagonal_len'] = 4             # minimum length of a diagonal
+        self.config['max_diagonal_dist'] = 3            # maximum allowed distance between consecutive notes within a diagonal
+        self.config['max_diagonal_skip'] = 2            # maximum size of gap allowed within a diagonal
 
         self.verbose = verbose
 
@@ -89,11 +94,13 @@ class HandAssignmentAlgorithm(object):
 
         piano_roll = construct_piano_roll(measures)
 
-        if self.verbose:
-            for i, row in enumerate(piano_roll):
-                offset, notes = measures[i]
-                print_vector(piano_roll[i,:], i, notes, self.config['max_hand_span'])
-            # np.save('result.npy', piano_roll)
+        # if self.verbose:
+            # for i, row in enumerate(piano_roll):
+                # offset, notes = measures[i]
+                # print_vector(piano_roll[i,:], i, notes, self.config['max_hand_span'])
+
+        analyzer = PatternAnalyzer(piano_roll, self.config)
+        analyzer.run()
 
         # Cherry's algorithm (revised)
         for offset, notes in measures:
