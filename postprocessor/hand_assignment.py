@@ -157,8 +157,9 @@ class HandAssignmentAlgorithm(object):
             self.init_screen()
 
         if self.verbose:
-            while True:
-                self.print_fingering(measures)
+            has_quit = False
+            while not has_quit:
+                has_quit = self.print_fingering(measures)
 
         if self.verbose:
             self.end_screen()
@@ -205,12 +206,14 @@ class HandAssignmentAlgorithm(object):
             elif key == 'KEY_DOWN':
                 if self.start_line < len(items) - self.stdscr_height:
                     self.start_line += 1
+            elif key == 'q':
+                return True
         except Exception as e:
            # No input
            pass
 
-
         self.stdscr.refresh()
+        return False
 
     def str_frame(self, offset, notes):
 
