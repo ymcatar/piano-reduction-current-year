@@ -12,30 +12,20 @@ LEFT_HAND = 'L'
 
 # util function to find any gap within a given interval tree
 def find_slient_interval(intervals, start, end):
-    # there is no note within the interval
-    if len(intervals) == 0:
-        return [(start, end)]
-    # base case
-    if start >= end:
-        return []
-    # if the entire interval have no item, return (start, end)
-    items = intervals[start:end]
-    if len(items) == 0:
-        return [(start, end)]
-    # detect if there is gap between start & first item / last item & end
+
+    intervals = sorted(intervals, key=lambda n: n[0]) # sort by starting time
     results = []
-    min_start = intervals.begin()
-    max_end = intervals.end()
-    if start != min_start and start < min_start:
-        results.append((start, min_start))
-        start = min_start
-    if end != max_end and max_end < end:
-        results.append((max_end, end))
-        end = max_end
-    # catch the remaining gaps recursively
-    for item in items:
-        item_start, _, _ = item
-        results += find_slient_interval(intervals, start, item_start)
+
+    curr_start = 0.0
+    for item in intervals:
+        item_start, item_end, _ = item
+        if item_start - curr_start >= 1e-4: # curr_start < start
+            results.append((curr_start, item_start))
+        curr_start = item_end
+
+    if end - curr_start >= 1e-4: # curr_start < end
+        results.append((curr_start, end))
+
     return results
 
 class MultipartReducer(object):
@@ -65,7 +55,7 @@ class MultipartReducer(object):
             for hand, part in zip(HANDS, parts):
 
                 key_signature, time_signature = None, None
-                notes, rest_sets, tie_sets = [], [], []
+                notes = []
 
                 for p in bar.parts:
                     rests = []
@@ -81,6 +71,7 @@ class MultipartReducer(object):
 
                         elif isinstance(elem, music21.meter.TimeSignature):
                             time_signature = elem
+                            bar_length = elem.barDuration.quarterLength
 
                         elif isinstance(elem, music21.note.Note):
                             if elem.editorial.misc.get('hand') == hand:
@@ -129,7 +120,7 @@ class MultipartReducer(object):
 
         return result
 
-    def _create_measure(self, notes=[], measure_length=0):
+    def _create_measure(self, notes=[], measure_length=4.0):
 
         result = music21.stream.Measure()
 
@@ -146,13 +137,32 @@ class MultipartReducer(object):
                 tie_map[(n.offset, n.duration.quarterLength, n.pitch.ps)] = n.tie
 
         # merge notes with same offset and duration into a single chord
-        for offset_item in offset_map.values():
-            for duration, duration_item in offset_item.items():
-                if len(duration_item) == 1:
-                    offset_item[duration] = duration_item[0]
+        for offset, offset_item in offset_map.items():
+            for duration, pitches in offset_item.items():
+                if len(pitches) == 1:
+                    offset_item[duration] = music21.note.Note(pitches[0])
+                    if (offset, duration, pitches[0].ps) in tie_map:
+                        offset_item[duration].tie = tie_map[(offset, duration, pitches[0].ps)]
                 else:
-                    duration_item = list(set(duration_item))
-                    offset_item[duration] = music21.chord.Chord(duration_item)
+                    pitches = list(set(pitches))
+                    offset_item[duration] = music21.chord.Chord(pitches)
+                    # check if all notes in chord have the same kind of tie
+                    valid = True
+                    prev_tie = None
+                    for pitch in pitches:
+                        index = (offset, duration, pitch.ps)
+                        if index not in tie_map:
+                            valid = False
+                            break
+                        if prev_tie is None:
+                            prev_tie = tie_map[index]
+                        if prev_tie.type != tie_map[index].type:
+                            valid = False
+                            break
+                    if valid:
+                        offset_item[duration].tie = tie_map[index]
+
+                offset_item[duration].duration.quarterLength = duration
 
         offset_map = dict(offset_map)
         for key in offset_map.keys():
@@ -170,14 +180,13 @@ class MultipartReducer(object):
         current_voice = 0
 
         intervals = sorted(intervals, key=lambda n: (n[0], n[1]))
+
         while len(intervals) > 0:
             prev_end = None
             temp_intervals = intervals.copy()
             for item in intervals:
                 start, end, elem = item
                 if prev_end is None or start >= prev_end:
-                    if isinstance(elem, music21.pitch.Pitch):
-                        elem = music21.note.Note(elem)
                     voices[current_voice].append((start, end, elem))
                     temp_intervals.remove(item)
                     prev_end = end
@@ -204,7 +213,6 @@ class MultipartReducer(object):
                     elem.quarterLength = end - start
                     voice.insert(start, elem)
                 result.insert(0, voice)
-                break
         else:
             # FIXME
             print('JESUS CHRIST BE PRIASED, there are too many voices. Ignoring ...', len(voices))
