@@ -153,8 +153,31 @@ class HandAssignmentAlgorithm(object):
         pass
 
     def cost_model(self, prev_frame, curr_frame):
-        return randint(1, 100)
-        # print(prev_frame, curr_frame)
+        # record where the fingers are
+        prev_fingers, curr_fingers = {}, {}
+        for n in prev_frame:
+            if n.finger is not None:
+                finger = n.finger if n.hand == 'L' else n.finger + 5
+                prev_fingers[finger] = n
+        for n in curr_frame:
+            if n.finger is not None:
+                finger = n.finger if n.hand == 'L' else n.finger + 5
+                curr_fingers[finger] = n
+        # record finger position change
+        total_movement = 0
+        total_new_placement = 0
+        for finger in range(1, 11):
+            # current finger are in both frames => movement cost
+            if finger in prev_fingers and finger in curr_fingers:
+                prev_ps = prev_fingers[finger].note.pitch.ps
+                curr_ps = curr_fingers[finger].note.pitch.ps
+                total_movement += abs(curr_ps - prev_ps)
+            # current finger are only in current frame => new placement cost
+            if finger not in prev_fingers and finger in curr_fingers:
+                total_new_placement += 1
+
+        # total cost
+        return total_movement + total_new_placement
 
     def optimize_fingering(self, measures):
 
@@ -233,7 +256,7 @@ class HandAssignmentAlgorithm(object):
                     offset, notes = item
                     cost = None
                     if item != items[0]: # has previous frame
-                        cost = self.cost_model(items[self.start_line + i - 1], notes)
+                        cost = self.cost_model(items[self.start_line + i - 1][1], notes)
                     message = self.str_frame(offset, notes)
                     if offset not in self.prev_notes or self.prev_notes[offset] != str(notes):
                         self.stdscr.addstr(i, 0, message, curses.color_pair(1))
@@ -242,7 +265,7 @@ class HandAssignmentAlgorithm(object):
                         self.stdscr.addstr(i, 0, message)
 
                     if cost is not None:
-                        self.stdscr.addstr(i, self.stdscr_width - 10, '<{:d}>'.format(cost).ljust(5))
+                        self.stdscr.addstr(i, self.stdscr_width - 10, '<{:.0f}>'.format(cost).ljust(5))
 
             isChanged = False
 
