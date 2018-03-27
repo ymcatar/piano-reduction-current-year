@@ -3,7 +3,7 @@ import curses
 import music21
 import numpy as np
 
-from random import randint
+from random import randint, shuffle
 from collections import defaultdict
 from termcolor import colored
 from util import construct_piano_roll, construct_vector, str_vector, get_number_of_cluster_from_notes
@@ -152,22 +152,33 @@ class HandAssignmentAlgorithm(object):
 
         pass
 
+    def cost_model(self, prev_frame, curr_frame):
+        return randint(1, 100)
+        # print(prev_frame, curr_frame)
+
     def optimize_fingering(self, measures):
 
         if self.verbose:
             self.init_screen()
 
-        if self.verbose:
-            has_quit = False
-            while not has_quit:
+        while True:
 
-                # randomize fingering
-                for offset, notes in measures.items():
-                    if randint(1, 3) == 1:
-                        for n in notes:
-                            n.finger = randint(1, 5)
+            # randomize fingering
+            for offset, notes in measures.items():
+                if randint(1, 3) == 1:
+                    temp = list(range(1, 6))
+                    shuffle(temp)
+                    for i, n in enumerate(notes):
+                        n.finger = temp[i]
 
-                has_quit = self.print_fingering(measures)
+            # items = [i for i in measures.items()]
+            # for i, pairs in zip(items, items[1:]):
+            #     prev_frame, next_frame = pairs
+            #     cost = self.cost_model(prev_frame, next_frame)
+
+            if self.verbose:
+                if self.print_fingering(measures):
+                    break
 
         if self.verbose:
             self.end_screen()
@@ -182,6 +193,7 @@ class HandAssignmentAlgorithm(object):
         self.start_line = 0
         self.stdscr = curses.initscr()
         self.stdscr_height = self.stdscr.getmaxyx()[0]
+        self.stdscr_width = self.stdscr.getmaxyx()[1]
 
         curses.start_color()
         curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
@@ -211,35 +223,49 @@ class HandAssignmentAlgorithm(object):
 
         self.stdscr.clear()
 
-        for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
-            offset, notes = item
-            message = self.str_frame(offset, notes)
-            if offset not in self.prev_notes or self.prev_notes[offset] != str(notes):
-                self.stdscr.addstr(i, 0, message, curses.color_pair(1))
-                self.prev_notes[offset] = str(notes)
-            else:
-                self.stdscr.addstr(i, 0, message)
+        is_changed = True
 
         while True:
+
+            if is_changed:
+
+                for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
+                    offset, notes = item
+                    cost = None
+                    if item != items[0]: # has previous frame
+                        cost = self.cost_model(items[self.start_line + i - 1], notes)
+                    message = self.str_frame(offset, notes)
+                    if offset not in self.prev_notes or self.prev_notes[offset] != str(notes):
+                        self.stdscr.addstr(i, 0, message, curses.color_pair(1))
+                        self.prev_notes[offset] = str(notes)
+                    else:
+                        self.stdscr.addstr(i, 0, message)
+
+                    if cost is not None:
+                        self.stdscr.addstr(i, self.stdscr_width - 10, '<{:d}>'.format(cost).ljust(5))
+
+            isChanged = False
+
             try:
                 key = self.stdscr.getkey()
                 if key == 'KEY_UP':
                     if self.start_line > 0:
                         self.start_line -= 1
-                    break
+                    is_changed = True
                 elif key == 'KEY_DOWN':
                     if self.start_line < len(items) - self.stdscr_height:
                         self.start_line += 1
-                    break
+                    is_changed = True
                 elif key == 'KEY_RIGHT':
                     break
                 elif key == 'q':
                     return True
             except Exception as e:
-            # No input
+                # No input
                 pass
 
-        self.stdscr.refresh()
+            self.stdscr.refresh()
+
         return False
 
     def str_frame(self, offset, notes):
@@ -264,4 +290,7 @@ class HandAssignmentAlgorithm(object):
                 quit()
                 return '-'
 
-        return str_vector(vector, offset, notes=notes, max_hand_span=self.config['max_hand_span'], func=value_to_func)
+        return str_vector(
+            vector, offset, notes=notes,
+            max_hand_span=self.config['max_hand_span'],
+            func=value_to_func)
