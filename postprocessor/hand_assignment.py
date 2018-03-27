@@ -145,7 +145,7 @@ class HandAssignmentAlgorithm(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
-        self.global_optimize(measures)
+        # self.global_optimize(measures)
 
     def postassign(self, measures):
 
