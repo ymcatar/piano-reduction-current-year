@@ -100,15 +100,10 @@ class HandAssignmentAlgorithm(object):
 
         piano_roll = construct_piano_roll(measures)
 
-        # if self.verbose:
-            # for i, row in enumerate(piano_roll):
-                # offset, notes = measures[i]
-                # print(str_vector(piano_roll[i,:], i, notes, self.config['max_hand_span']))
-
         # analyzer = PatternAnalyzer(piano_roll, self.config)
         # analyzer.run()
 
-        # Cherry's algorithm (revised)
+        # Cherry's algorithm (revised): used to give an initial assignment
         for offset, notes in measures:
 
             notes = [n for n in notes if not n.deleted]
@@ -148,30 +143,38 @@ class HandAssignmentAlgorithm(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
+        self.optimize_fingering(measures)
+
     def postassign(self, measures):
 
         pass
 
-    def cost_model(self, prev_frame, curr_frame):
+    def cost_model(self, prev, curr, next):
+
         # record where the fingers are
-        prev_fingers, curr_fingers = {}, {}
-        for n in prev_frame:
-            if n.finger is not None:
+        prev_fingers, curr_fingers, next_fingers = {}, {}, {}
+        for n in prev:
+            if n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 prev_fingers[finger] = n
-        for n in curr_frame:
-            if n.finger is not None:
+        for n in curr:
+            if n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 curr_fingers[finger] = n
+        for n in next:
+            if n.hand and n.finger:
+                finger = n.finger if n.hand == 'L' else n.finger + 5
+                next_fingers[finger] = n
+
         # record finger position change
         total_movement = 0
         total_new_placement = 0
         for finger in range(1, 11):
-            # current finger are in both frames => movement cost
-            if finger in prev_fingers and finger in curr_fingers:
-                prev_ps = prev_fingers[finger].note.pitch.ps
+            # current finger are in both curr & next frame => movement cost
+            if finger in curr_fingers and finger in next_fingers:
                 curr_ps = curr_fingers[finger].note.pitch.ps
-                total_movement += abs(curr_ps - prev_ps)
+                next_ps = next_fingers[finger].note.pitch.ps
+                total_movement += abs(next_ps - curr_ps)
             # current finger are only in current frame => new placement cost
             if finger not in prev_fingers and finger in curr_fingers:
                 total_new_placement += 1
@@ -186,18 +189,15 @@ class HandAssignmentAlgorithm(object):
 
         while True:
 
-            # randomize fingering
-            # for offset, notes in measures.items():
-                # if randint(1, 3) == 1:
-                    # temp = list(range(1, 6))
-                    # shuffle(temp)
-                    # for i, n in enumerate(notes):
-                        # n.finger = temp[i]
+            items = [i[1] for i in measures]
 
-            # items = [i for i in measures.items()]
-            # for i, pairs in zip(items, items[1:]):
-            #     prev_frame, next_frame = pairs
-            #     cost = self.cost_model(prev_frame, next_frame)
+            # optimize fingering
+            costs = []
+            for prev_frame, curr_frame, next_frame in zip(items, items[1:], items[2:]):
+                cost = self.cost_model(prev_frame, curr_frame, next_frame)
+                costs.append(cost)
+
+            max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
 
             if self.verbose:
                 if self.print_fingering(measures):
@@ -242,8 +242,6 @@ class HandAssignmentAlgorithm(object):
 
     def print_fingering(self, measures):
 
-        items = [i for i in measures.items()]
-
         self.stdscr.clear()
 
         is_changed = True
@@ -252,13 +250,16 @@ class HandAssignmentAlgorithm(object):
 
             if is_changed:
 
-                for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
+                for i, item in enumerate(measures[self.start_line:self.start_line + self.stdscr_height]):
 
                     offset, notes = item
 
                     cost = None
-                    if item != items[0]: # has previous frame
-                        cost = self.cost_model(items[self.start_line + i - 1][1], notes)
+                    if item != measures[0] and item != measures[-1]: # has previous & next frame
+                        cost = self.cost_model(
+                            measures[self.start_line + i - 1][1],
+                            notes,
+                            measures[self.start_line + i + 1][1])
 
                     message = self.str_frame(offset, notes).ljust(self.stdscr_width - 10)
 
@@ -280,13 +281,17 @@ class HandAssignmentAlgorithm(object):
                         self.start_line -= 1
                     is_changed = True
                 elif key == 'KEY_DOWN':
-                    if self.start_line < len(items) - self.stdscr_height:
+                    if self.start_line < len(measures) - self.stdscr_height:
                         self.start_line += 1
                     is_changed = True
                 elif key == 'KEY_RIGHT':
                     break
                 elif key == 'q':
                     return True
+
+            except KeyboardInterrupt:
+                return True
+
             except Exception as e:
                 # No input
                 pass
