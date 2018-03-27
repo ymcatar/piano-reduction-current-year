@@ -1,7 +1,7 @@
 <template>
   <div class="horizontal-layout">
     <md-card class="drawer">
-      <md-list class="md-dense" v-if="!selectedNotes.length">
+      <md-list class="md-dense" :style="{display: !selectedNotes.length ? 'block' : 'none'}">
         <md-subheader>Scores</md-subheader>
         <md-list-item v-for="score of run.scores" :key="score.name">
           <md-radio v-model="selectedScoreName" :value="score.name"
@@ -10,7 +10,8 @@
             {{score.title ? `${score.title} (${score.name})` : score.name}}
           </span>
           <form method="get" :action="apiPrefix + score.xml">
-            <md-button class="md-icon-button md-dense" type="submit" @click.stop="true">
+            <md-button class="list-hover-button md-icon-button md-dense"
+                type="submit" @click.stop="true">
               <md-icon>file_download</md-icon>
             </md-button>
           </form>
@@ -42,12 +43,15 @@
             <md-icon>keyboard_arrow_right</md-icon>
           </md-button>
         </md-list-item>
+        <md-list-item>
+          <md-switch v-model="showTooltip">Show tooltip</md-switch>
+        </md-list-item>
 
         <md-list-item>
           <md-field>
             <label for="playback">Playback</label>
             <md-select v-model="selectedPlaybackScoreName" id="playback" md-dense>
-              <md-option key="null" value="none"></md-option>
+              <md-option key="null" value=""></md-option>
                 <md-option v-for="score of run.scores" :key="score.name" :value="score.name">
                   {{score.title ? `${score.title} (${score.name})` : score.name}}
                 </md-option>
@@ -80,10 +84,10 @@
         </md-subheader>
         <template v-for="key of annotationKeys">
           <md-list-item :key="key">
-            <md-field>
+            <md-field class="feature-field">
               <label :for="key">{{key}}</label>
               <md-select v-model="annotationMap[key]" :id="key" md-dense>
-                <md-option key="null" value="none"></md-option>
+                <md-option key="null" value=""></md-option>
                 <md-optgroup v-for="(features, group) in featureGroups"
                   :key="group" :label="group || '(No group)'">
                   <md-option v-for="feature of features" :key="feature.name"
@@ -105,10 +109,10 @@
         </template>
 
         <md-list-item>
-          <md-field>
+          <md-field class="feature-field">
             <label for="ray">ray</label>
             <md-select v-model="annotationMap.ray" id="ray" md-dense>
-              <md-option key="null" value="none"></md-option>
+              <md-option key="null" value=""></md-option>
                 <md-optgroup v-for="(features, group) in structureFeatureGroups"
                   :key="group" :label="group || '(No group)'">
                   <md-option v-for="feature of features" :key="feature.name"
@@ -130,7 +134,7 @@
 
       </md-list>
 
-      <md-list class="md-dense inspector" v-else>
+      <md-list class="md-dense inspector" v-if="selectedNotes.length">
         <md-subheader>
           <h2 style="flex: 1">
             Inspect note
@@ -158,9 +162,18 @@
           <md-progress-spinner v-if="loading" md-mode="indeterminate" :md-diameter="20"
             :md-stroke="2" class="md-accent"></md-progress-spinner>
         </div>
+        <div v-if="showTooltip && hoveredNotes.length" class="tooltip"
+            :style="{left: hoverX + 10 + 'px', top: hoverY + 10 + 'px'}">
+          <div v-for="id of hoveredNotes" :key="id">
+            <h5>Note {{id}}</h5>
+            <ul>
+              <li v-for="v in hoverKeys">{{v}}: {{featureData.notes[id][v]}}</li>
+            </ul>
+          </div>
+        </div>
         <score-canvas :api-prefix="apiPrefix" :pages="pages"
           :annotations="annotations" @select="x => selectedNotes = x"
-          :page-offset.sync="pageOffset"
+          @hover="onHover" :page-offset.sync="pageOffset"
           @update:page-offset="x => pageOffset = x"></score-canvas>
       </div>
     </main>
@@ -184,11 +197,12 @@ export default {
     pages: null,
     featureData: null,
 
-    annotationKeys: ['notehead0', 'notehead1', 'rightText'],
+    annotationKeys: ['notehead0', 'notehead1', 'rightText', 'bottomText'],
     annotationTypes: {
       notehead0: 'colour',
       notehead1: 'colour',
       rightText: 'text',
+      bottomText: 'text',
       ray: 'colour',
     },
     annotationMap: {},
@@ -196,6 +210,11 @@ export default {
     pageOffset: 0.0,
     pageCount: 100,
     selectedNotes: [],
+
+    showTooltip: false,
+    hoveredNotes: [],
+    hoverX: 0,
+    hoverY: 0,
 
     showInfo: false,
 
@@ -206,12 +225,18 @@ export default {
       return o;
     })({
       notehead0: {
-        colour: '#FF0000',
+        colour: '#FF9900',
         colourBasis: ['#000000', '#FF0000', '#FF9900', '#FFFF00'],
       },
       notehead1: {
         colour: '#33FF33',
         colourBasis: ['#000000', '#00FF00', '#00FFFF', '#0000FF'],
+      },
+      rightText: {
+        colour: '#9900FF',
+      },
+      bottomText: {
+        colour: '#009900',
       },
       ray: {
         colour: '#33DDDD',
@@ -271,19 +296,23 @@ export default {
             }
           }
         }
-        const rightText = this.getFeature('rightText');
-        if (rightText) {
-          const value = data[this.annotationMap['rightText']];
+        for (const key of ['rightText', 'bottomText']) {
+          const feature = this.getFeature(key);
+          if (!feature) continue;
+          const value = data[this.annotationMap[key]];
+          let formatted;
           if (typeof value === 'boolean') {
-            props.rightText = value ? '+' : '';
+            formatted = value ? '+' : '';
           } else if (typeof value === 'number') {
             const rounded = Math.round(value * 100) / 100;
-            props.rightText = String(rounded);
+            formatted = String(rounded);
           } else if (typeof value !== 'undefined' && value !== null) {
-            props.rightText = String(value);
+            formatted = String(value);
+          }
+          if (typeof formatted !== 'undefined') {
+            props[key] = {text: formatted, colour: feature.colour};
           }
         }
-
         if (this.selectedNotes.includes(key)) {
           props.circle = '#FF0000';
         } else if (data._pitch === selectedPitch) {
@@ -324,6 +353,10 @@ export default {
         ret[group].push(feature);
       }
       return ret;
+    },
+
+    hoverKeys() {
+      return this.annotationKeys.map(x => this.annotationMap[x]).filter(x => !!x);
     },
   },
 
@@ -386,7 +419,13 @@ export default {
       };
       this.savedConfigs = Object.assign({}, this.savedConfigs);
       localStorage['scoreboard:savedConfigs'] = JSON.stringify(this.savedConfigs, null, 4);
-    }
+    },
+
+    onHover(e) {
+      this.hoveredNotes = e.matches;
+      this.hoverX = e.offsetX;
+      this.hoverY = e.offsetY;
+    },
   },
 
   watch: {
@@ -410,6 +449,7 @@ export default {
 
 <style lang="scss" scoped>
 .horizontal-layout {
+  min-height: 0;
   flex: 1;
   display: flex;
   .drawer { width: 300px; height: calc(100vh - 64px); overflow-y: auto; }
@@ -439,6 +479,16 @@ audio {
   background-color: white;
 }
 
+.feature-field {
+  margin-bottom: 0;
+}
+
+.list-hover-button {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.md-list-item:hover .list-hover-button { opacity: 1; }
+
 .container {
   position: relative;
   width: 100%; height: 100%;
@@ -455,5 +505,28 @@ audio {
 
 .inspector p {
   margin-top: 3px; margin-bottom: 3px;
+}
+
+.tooltip {
+  position: absolute;
+
+  padding: 4px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  min-width: 128px;
+
+  font-size: 12px;
+  line-height: 1.1;
+
+  h5 {
+    margin-top: 4px;
+    margin-bottom: 2px;
+  }
+
+  ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
 }
 </style>

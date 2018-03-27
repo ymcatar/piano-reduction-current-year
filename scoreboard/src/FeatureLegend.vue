@@ -13,21 +13,21 @@
       <div class="label">
         <div v-if="type === 'colour'" class="colour-bar"
             :style="{background: `linear-gradient(to right, ${feature.colourBasis.join(', ')})`}"></div>
-        <div v-else class="text-box">+</div>
+        <div v-else class="text-box" :style="{color: feature.colour}">+</div>
         <div>Value [{{feature.range[0]}}, {{feature.range[1]}}]</div>
       </div>
     </template>
     <template v-else-if="feature.dtype === 'structure'">
       <div class="label">
         <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>
-        <div v-else class="text-box">+</div>
+        <div v-else class="text-box" :style="{color: feature.colour}">+</div>
         <div>{{feature.directed ? 'Directed' : 'Undirected'}}</div>
       </div>
     </template>
     <template v-else>
       <div class="label">
         <div v-if="type === 'colour'" class="colour-box" :style="{backgroundColor: feature.colour}"></div>
-        <div v-else class="text-box">+</div>
+        <div v-else class="text-box" :style="{color: feature.colour}">+</div>
         <div>True label</div>
       </div>
     </template>
@@ -63,7 +63,6 @@ export default {
     min-width: 60px;
 
     font-size: 0.8em;
-    color: #0000ff;
   }
   p {
     margin-top: 4px; margin-bottom: 4px;
