@@ -3,9 +3,11 @@ import curses
 import music21
 import numpy as np
 
-from random import randint, shuffle
-from collections import defaultdict
+from copy import deepcopy
 from termcolor import colored
+from collections import defaultdict
+from random import randint, shuffle
+
 from util import construct_piano_roll, construct_vector, str_vector, get_number_of_cluster_from_notes
 
 from pattern_analyzer import PatternAnalyzer
@@ -143,7 +145,7 @@ class HandAssignmentAlgorithm(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
-        self.optimize_fingering(measures)
+        self.global_optimize(measures)
 
     def postassign(self, measures):
 
@@ -169,38 +171,76 @@ class HandAssignmentAlgorithm(object):
         # record finger position change
         total_movement = 0
         total_new_placement = 0
+
         for finger in range(1, 11):
+
             # current finger are in both curr & next frame => movement cost
             if finger in curr_fingers and finger in next_fingers:
                 curr_ps = curr_fingers[finger].note.pitch.ps
                 next_ps = next_fingers[finger].note.pitch.ps
                 total_movement += abs(next_ps - curr_ps)
+
             # current finger are only in current frame => new placement cost
             if finger not in prev_fingers and finger in curr_fingers:
-                total_new_placement += 1
+                search_range = range(1, 6) if finger in range(1, 6) else range(6, 11)
+                prev = [ n.note.pitch.ps for key, n in prev_fingers.items() if key in search_range ]
+                prev_ps = np.median(prev) # = median of left finger ps in previous frame
+                curr_ps = curr_fingers[finger].note.pitch.ps
+                prev_ps = curr_ps if math.isnan(prev_ps) else prev_ps # sanity checkc
+                total_new_placement += abs(curr_ps - prev_ps)
 
         # total cost
         return total_movement + total_new_placement
 
-    def optimize_fingering(self, measures):
+    def global_optimize(self, measures):
 
         if self.verbose:
             self.init_screen()
 
         while True:
 
-            items = [i[1] for i in measures]
-
             # optimize fingering
             costs = []
-            for prev_frame, curr_frame, next_frame in zip(items, items[1:], items[2:]):
+            for triplet in zip(measures, measures[1:], measures[2:]):
+                prev_item, curr_item, next_item = triplet
+                prev_offset, prev_frame = prev_item
+                curr_offset, curr_frame = curr_item
+                next_offset, next_frame = next_item
                 cost = self.cost_model(prev_frame, curr_frame, next_frame)
                 costs.append(cost)
 
-            max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
+            # find the row with max cost
+            temp = sorted([(cost, i) for i, cost in enumerate(costs)], reverse=True)
+            max_cost_index = temp[randint(0, 4)][1] + 1 # randomly pick among the top 5 max
+
+            copy = deepcopy(measures[max_cost_index]) # save the current row assignment
+
+            # optimize the assignment
+            prev_offset, prev_frame = measures[max_cost_index - 1]
+            curr_offset, curr_frame = measures[max_cost_index]
+            next_offset, next_frame = measures[max_cost_index + 1]
+
+            prev_total_cost = sum(costs, 0)
+            self.local_optimize(prev_frame, curr_frame, next_frame)
+
+            costs = []
+            for triplet in zip(measures, measures[1:], measures[2:]):
+                prev_item, curr_item, next_item = triplet
+                prev_offset, prev_frame = prev_item
+                curr_offset, curr_frame = curr_item
+                next_offset, next_frame = next_item
+                cost = self.cost_model(prev_frame, curr_frame, next_frame)
+                costs.append(cost)
+
+            curr_total_count = sum(costs, 0)
+
+            if curr_total_count < prev_total_cost: # if total cost is lowered
+                measures[max_cost_index] = copy
 
             if self.verbose:
-                if self.print_fingering(measures):
+                # move the center of the screen to the highlighted line
+                self.start_line = max_cost_index - self.stdscr_height // 2
+                if self.print_fingering(measures, highlight=curr_offset):
                     break
 
         if self.verbose:
@@ -208,11 +248,25 @@ class HandAssignmentAlgorithm(object):
 
         return 0
 
+    def local_optimize(self, prev, curr, next): # optimizes curr_frame
+        # FIXME: naive random
+        fingers = list(range(1, 10))
+        shuffle(fingers)
+        for i, n in enumerate(curr):
+            if 1 <= fingers[i] <= 5:
+                n.hand = 'L'
+                n.finger = fingers[i]
+            elif 6 <= fingers[i] <= 10:
+                n.hand = 'R'
+                n.finger = fingers[i] - 5
+            else:
+                n.hand = None
+                n.finger = None
+
     # output releated methods
 
     def init_screen(self):
 
-        self.prev_notes = {}
         self.start_line = 0
         self.stdscr = curses.initscr()
         self.stdscr_height = self.stdscr.getmaxyx()[0]
@@ -238,9 +292,8 @@ class HandAssignmentAlgorithm(object):
 
         self.stdscr = None
         self.start_line = 0
-        self.prev_notes = {}
 
-    def print_fingering(self, measures):
+    def print_fingering(self, measures, highlight=None):
 
         self.stdscr.clear()
 
@@ -263,9 +316,8 @@ class HandAssignmentAlgorithm(object):
 
                     message = self.str_frame(offset, notes).ljust(self.stdscr_width - 10)
 
-                    if offset in self.prev_notes and self.prev_notes[offset] != str(notes):
+                    if offset == highlight:
                         self.stdscr.addstr(i, 0, message, curses.color_pair(1))
-                        self.prev_notes[offset] = str(notes)
                     else:
                         self.stdscr.addstr(i, 0, message)
 
