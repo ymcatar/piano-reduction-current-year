@@ -145,7 +145,7 @@ class HandAssignmentAlgorithm(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
-        # self.global_optimize(measures)
+        self.global_optimize(measures)
 
     def postassign(self, measures):
 
@@ -184,13 +184,30 @@ class HandAssignmentAlgorithm(object):
             if finger not in prev_fingers and finger in curr_fingers:
                 search_range = range(1, 6) if finger in range(1, 6) else range(6, 11)
                 prev = [ n.note.pitch.ps for key, n in prev_fingers.items() if key in search_range ]
-                prev_ps = np.median(prev) # = median of left finger ps in previous frame
                 curr_ps = curr_fingers[finger].note.pitch.ps
-                prev_ps = curr_ps if math.isnan(prev_ps) else prev_ps # sanity checkc
+                if len(prev) == 0:
+                    prev_ps = curr_ps
+                else:
+                    prev_ps = np.median(prev) # = median of left finger ps in previous frame
                 total_new_placement += abs(curr_ps - prev_ps)
 
         # total cost
         return total_movement + total_new_placement
+
+    def get_cost_array(self, notes):
+        costs = []
+        for triplet in zip(notes, notes[1:], notes[2:]):
+            prev_item, curr_item, next_item = triplet
+            prev_offset, prev_frame = prev_item
+            curr_offset, curr_frame = curr_item
+            next_offset, next_frame = next_item
+            cost = self.cost_model(prev_frame, curr_frame, next_frame)
+            costs.append(cost)
+        return costs
+
+    def get_total_cost(self, notes):
+        costs = self.get_cost_array(notes)
+        return sum(costs, 0)
 
     def global_optimize(self, measures):
 
@@ -199,49 +216,34 @@ class HandAssignmentAlgorithm(object):
 
         while True:
 
-            # optimize fingering
-            costs = []
-            for triplet in zip(measures, measures[1:], measures[2:]):
-                prev_item, curr_item, next_item = triplet
-                prev_offset, prev_frame = prev_item
-                curr_offset, curr_frame = curr_item
-                next_offset, next_frame = next_item
-                cost = self.cost_model(prev_frame, curr_frame, next_frame)
-                costs.append(cost)
+            # peephole optimization
 
-            # find the row with max cost
-            temp = sorted([(cost, i) for i, cost in enumerate(costs)], reverse=True)
-            max_cost_index = temp[randint(0, 4)][1] + 1 # randomly pick among the top 5 max
+            WINDOW_SIZE = 4
 
-            copy = deepcopy(measures[max_cost_index]) # save the current row assignment
+            for i in range(len(measures) - WINDOW_SIZE):
 
-            # optimize the assignment
-            prev_offset, prev_frame = measures[max_cost_index - 1]
-            curr_offset, curr_frame = measures[max_cost_index]
-            next_offset, next_frame = measures[max_cost_index + 1]
+                window = measures[i:i+WINDOW_SIZE]
 
-            prev_total_cost = sum(costs, 0)
-            self.local_optimize(prev_frame, curr_frame, next_frame)
+                costs = self.get_cost_array(window)
+                max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
 
-            costs = []
-            for triplet in zip(measures, measures[1:], measures[2:]):
-                prev_item, curr_item, next_item = triplet
-                prev_offset, prev_frame = prev_item
-                curr_offset, curr_frame = curr_item
-                next_offset, next_frame = next_item
-                cost = self.cost_model(prev_frame, curr_frame, next_frame)
-                costs.append(cost)
+                copy = deepcopy(measures[max_cost_index]) # save the current row assignment
 
-            curr_total_count = sum(costs, 0)
+                prev_total_cost = self.get_total_cost(measures)
 
-            if curr_total_count < prev_total_cost: # if total cost is lowered
-                measures[max_cost_index] = copy
+                # optimize the assignment
+                prev_offset, prev_frame = measures[max_cost_index - 1]
+                curr_offset, curr_frame = measures[max_cost_index]
+                next_offset, next_frame = measures[max_cost_index + 1]
 
-            if self.verbose:
-                # move the center of the screen to the highlighted line
-                self.start_line = max_cost_index - self.stdscr_height // 2
-                if self.print_fingering(measures, highlight=curr_offset):
-                    break
+                self.local_optimize(prev_frame, curr_frame, next_frame)
+
+                if self.get_total_cost(measures) < prev_total_cost: # if total cost is lowered
+                    measures[max_cost_index] = copy # revert
+
+                if self.verbose:
+                    if self.print_fingering(measures, highlight=curr_offset):
+                        break
 
         if self.verbose:
             self.end_screen()
@@ -365,11 +367,11 @@ class HandAssignmentAlgorithm(object):
         def value_to_func(value):
             value = int(value)
             if value == 0:
-                return ' '
+                return '.'
             elif 1 <= value <= 5:
-                return str(['①', '②', '③', '④', '⑤'][value - 1])
+                return str(['a', 'b', 'c', 'd', 'e'][value - 1])
             elif 6 <= value <= 10:
-                return str(['❶', '❷', '❸', '❹', '❺'][value - 6])
+                return str(['1', '2', '3', '4', '5'][value - 6])
             elif value == 11:
                 quit()
                 return '-'
