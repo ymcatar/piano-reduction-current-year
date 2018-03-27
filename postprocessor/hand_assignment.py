@@ -187,12 +187,12 @@ class HandAssignmentAlgorithm(object):
         while True:
 
             # randomize fingering
-            for offset, notes in measures.items():
-                if randint(1, 3) == 1:
-                    temp = list(range(1, 6))
-                    shuffle(temp)
-                    for i, n in enumerate(notes):
-                        n.finger = temp[i]
+            # for offset, notes in measures.items():
+                # if randint(1, 3) == 1:
+                    # temp = list(range(1, 6))
+                    # shuffle(temp)
+                    # for i, n in enumerate(notes):
+                        # n.finger = temp[i]
 
             # items = [i for i in measures.items()]
             # for i, pairs in zip(items, items[1:]):
@@ -253,12 +253,16 @@ class HandAssignmentAlgorithm(object):
             if is_changed:
 
                 for i, item in enumerate(items[self.start_line:self.start_line + self.stdscr_height]):
+
                     offset, notes = item
+
                     cost = None
                     if item != items[0]: # has previous frame
                         cost = self.cost_model(items[self.start_line + i - 1][1], notes)
-                    message = self.str_frame(offset, notes)
-                    if offset not in self.prev_notes or self.prev_notes[offset] != str(notes):
+
+                    message = self.str_frame(offset, notes).ljust(self.stdscr_width - 10)
+
+                    if offset in self.prev_notes and self.prev_notes[offset] != str(notes):
                         self.stdscr.addstr(i, 0, message, curses.color_pair(1))
                         self.prev_notes[offset] = str(notes)
                     else:
