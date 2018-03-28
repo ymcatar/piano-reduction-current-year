@@ -13,7 +13,6 @@ def get_flow_state():
     if not _flow_state:
         _flow_state = FlowState()
     return _flow_state
-    ...
 
 
 class Harmony(FeatureAlgorithm):
@@ -23,8 +22,10 @@ class Harmony(FeatureAlgorithm):
         return ['{}_{!s}'.format(self.key, s) for s in self.sub_keys]
 
     def __init__(self, *, sub_keys=('dissonance',)):
+        super().__init__()
         assert set(sub_keys) <= {'base', '3rd', '5th', 'dissonance'}
         self.sub_keys = sub_keys
+        self.args = [], {'sub_keys': self.sub_keys}
 
     def run(self, score_obj):
         '''
@@ -70,7 +71,3 @@ class Harmony(FeatureAlgorithm):
                             if 'dissonance' in self.sub_keys:
                                 get_markings(j)[self.key + '_dissonance'] = \
                                     j.pitch.name in current_note.dissonance
-
-    @property
-    def args(self):
-        return [], {'sub_keys': self.sub_keys}

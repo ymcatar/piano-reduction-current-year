@@ -11,6 +11,9 @@ class FeatureAlgorithm(object):
         # To be determined by the reducer
         self.key_prefix = '!'
 
+        # The *args and **kwargs that can be used to reconstruct this algorithm
+        self.args = [], {}
+
     @property
     def all_keys(self):
         # Key(s) of the markings created by this algorithm
@@ -20,14 +23,6 @@ class FeatureAlgorithm(object):
     def key(self):
         # Generate a default main key, for convenience
         return str(self.key_prefix) + '_' + str(type(self).__name__)
-
-    @property
-    def args(self):
-        '''
-        Returns the *args and **kwargs that can be used to reconstruct this
-        algorithm.
-        '''
-        return ([], {})
 
     def run(self, score_obj):
         raise NotImplementedError()

@@ -14,6 +14,8 @@ class ProductTerms(FeatureAlgorithm):
         self.algos = [ensure_algorithm(a) for a in algos]
         self.degree = degree
         self._key_prefix = '?'
+        algos = [dump_algorithm(a) for a in self.algos]
+        self.args = [], {'algos': algos, 'degree': self.degree}
 
     @property
     def key_prefix(self):
@@ -50,11 +52,6 @@ class ProductTerms(FeatureAlgorithm):
                 for f in factors[1:]:
                     value *= get_markings(n).get(f, 0)
                 get_markings(n)[key] = value
-
-    @property
-    def args(self):
-        algos = [dump_algorithm(a) for a in self.algos]
-        return [], {'algos': algos, 'degree': self.degree}
 
     @property
     def features(self):

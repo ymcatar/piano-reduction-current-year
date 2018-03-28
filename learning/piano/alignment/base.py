@@ -4,19 +4,12 @@ class AlignmentMethod(object):
     '''
 
     def __init__(self):
-        pass
+        # The *args and **kwargs that can be used to reconstruct this algorithm
+        self.args = [], {}
 
     all_keys = ['align_type', 'align']
     key = 'align'
     features = []
-
-    @property
-    def args(self):
-        '''
-        Returns the *args and **kwargs that can be used to reconstruct this
-        algorithm.
-        '''
-        return ([], {})
 
     def run(self, input_score_obj, output_score_obj, extra=False):
         raise NotImplementedError()

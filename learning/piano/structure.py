@@ -14,6 +14,9 @@ class StructureAlgorithm:
 
     where y_C is the edge.
     '''
+    def __init__(self):
+        # The *args and **kwargs that can be used to reconstruct this algorithm
+        self.args = [], {}
 
     @property
     def n_features():
@@ -46,10 +49,6 @@ class StructureAlgorithm:
     @property
     def key(self):
         return type(self).__name__
-
-    @property
-    def args(self):
-        return ([], {})
 
 
 def get_repelling_weights(self, label_type, var_fn, use_different=True):

@@ -171,7 +171,12 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
 
     y_proba = reducer.predict_from(model, target, X=X_test,
                                    mapping=target_entry.mapping, structured=True)
-    y_pred = np.argmax(y_proba, axis=1)
+    if reducer.label_type == 'align':
+        y_pred = y_proba.flatten() >= 0.5
+    elif reducer.label_type == 'hand':
+        y_pred = np.argmax(y_proba, axis=1)
+    else:
+        raise NotImplementedError()
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -313,7 +318,7 @@ def command_show(args, module, **kwargs):
     if out_path:
         writer.add_features(reducer.alignment.features)
         sample_out.score.toWrittenPitch(inPlace=True)
-        writer.add_score('ex', sample_out.score, title='Ex. Red.', flavour=False)
+        writer.add_score('ex', sample_out.score, title='Ex. Red.')
         writer.add_flavour(['orig', 'ex'])
 
     writer.finalize()
