@@ -9,8 +9,13 @@ from scoreboard import writer
 
 
 class AlignMinOctaveMatching(AlignmentMethod):
-    all_keys = ['justified', 'hand']
-    key = 'hand'
+    def __init__(self, use_hand=True):
+        super().__init__()
+        self.use_hand = use_hand
+        self.key = 'hand' if use_hand else 'align'
+        self.all_keys = ['justified', self.key]
+
+        self.args = [], {'use_hand': self.use_hand}
 
     def run(self, input_score_obj, output_score_obj, extra=False):
         '''
@@ -24,7 +29,10 @@ class AlignMinOctaveMatching(AlignmentMethod):
             'Output score does not have exactly 2 parts!'
 
         for n in input_score_obj.notes:
-            n.editorial.misc['hand'] = 0
+            if self.use_hand:
+                n.editorial.misc['hand'] = 0
+            else:
+                n.editorial.misc['align'] = False
         for n in output_score_obj.notes:
             n.editorial.misc['justified'] = False
 
@@ -62,10 +70,14 @@ class AlignMinOctaveMatching(AlignmentMethod):
                     for n, _ in out_notes[out_octave]:
                         n.editorial.misc['justified'] = True
                     for n in in_notes[in_octave]:
-                        n.editorial.misc['hand'] = out_part
+                        if self.use_hand:
+                            n.editorial.misc['hand'] = out_part
+                        else:
+                            n.editorial.misc['align'] = True
 
-    features = [
-        writer.CategoricalFeature(
+    @property
+    def features(self):
+        hand = writer.CategoricalFeature(
             'hand',
             {
                 0: ('#000000', 'Discarded'),
@@ -74,9 +86,13 @@ class AlignMinOctaveMatching(AlignmentMethod):
                 },
             '#000000',
             help='Which staff the note is kept in, determined with MinOctaveMatching.',
-            group='alignment'
-            ),
-        writer.CategoricalFeature(
+            group='alignment')
+
+        align = writer.BoolFeature('align',
+            help='Whether the note is kept, determined with MinOctaveMatching.',
+            group='alignment')
+
+        justified = writer.CategoricalFeature(
             'justified',
             {
                 'true': ('#000000', 'Justified'),
@@ -85,5 +101,6 @@ class AlignMinOctaveMatching(AlignmentMethod):
             '#000000',
             help='Which the output note is justified by some input note label.',
             group='alignment'
-            ),
-        ]
+            )
+
+        return [hand if self.use_hand else align, justified]
