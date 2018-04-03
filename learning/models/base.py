@@ -2,8 +2,8 @@ import numpy as np
 
 
 class BaseModel(object):
-    def __init__(self, reducer):
-        self.reducer = reducer
+    def __init__(self, pre_processor):
+        self.pre_processor = pre_processor
 
     def fit(self, X, y):
         '''

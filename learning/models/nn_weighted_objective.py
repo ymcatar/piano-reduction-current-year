@@ -6,8 +6,8 @@ from ..piano.alignment.pitch_class_onset import AlignPitchClassOnset
 
 
 class NNWeightedObjective(TflearnModel):
-    def __init__(self, reducer):
-        n_features = len(reducer.all_keys)
+    def __init__(self, pre_processor):
+        n_features = len(pre_processor.all_keys)
         tf.reset_default_graph()
 
         net = tflearn.input_data(dtype=tf.float32, shape=[None, n_features])
@@ -20,7 +20,7 @@ class NNWeightedObjective(TflearnModel):
             return tflearn.objectives.weighted_crossentropy(y_pred, y_true, 0.7)
         net = tflearn.regression(net, optimizer=optimizer, loss=loss)
 
-        super().__init__(reducer, net)
+        super().__init__(pre_processor, net)
 
     def fit(self, X, Y):
         super().fit(X, Y, n_epoch=100)

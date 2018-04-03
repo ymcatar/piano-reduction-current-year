@@ -9,17 +9,17 @@ class ModelMetrics:
     '''
     Model metrics evaluate the model based on its probabilistic predictions.
     '''
-    def __init__(self, reducer, y_proba, y_test, keys=None):
+    def __init__(self, pre_processor, y_proba, y_test, keys=None):
         self.keys = keys = keys or self.ALL
         self.names = {}
 
         # Calculate the predictions in multi-class and binary forms.
         y_test_bin = y_test != 0
 
-        if reducer.label_type == 'align':
+        if pre_processor.label_type == 'align':
             y_pred_bin = y_pred = y_proba >= 0.5
             y_proba_bin = y_proba
-        elif reducer.label_type == 'hand':
+        elif pre_processor.label_type == 'hand':
             y_pred = np.argmax(y_proba, axis=1)
             y_proba_bin = np.sum(y_proba[:, 1:], axis=1)
             y_pred_bin = y_proba_bin >= 0.5
@@ -89,7 +89,7 @@ class ScoreMetrics:
     '''
     Score metrics evaluate the model based on the generated score.
     '''
-    def __init__(self, reducer, gen_score, test_score, keys=None):
+    def __init__(self, pre_processor, gen_score, test_score, keys=None):
         self.keys = keys = keys or self.ALL
         self.names = {}
 

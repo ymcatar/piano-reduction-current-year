@@ -17,7 +17,6 @@ from tabulate import tabulate
 from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
 from .piano.contraction import IndexMapping
-from .piano.reducer import Reducer
 from .piano.score import ScoreObject
 from .piano.contraction_writing import create_contracted_score_obj
 from .piano.pre_processor import StructuralPreProcessor
