@@ -36,7 +36,7 @@ def gaussian_filter(seq, offsets, durations, *, sigma):
     result = np.empty_like(seq)
     for i in range(len(seq)):
         win = window_at(seq, offsets, durations, i, BLUR_SIZE * sigma)
-        result[i] = sum(x * gaussian_cdf(r, sigma) - gaussian_cdf(l, sigma) for x, (l, r) in win)
+        result[i] = sum(x * (gaussian_cdf(r, sigma) - gaussian_cdf(l, sigma)) for x, (l, r) in win)
     return result
 
 

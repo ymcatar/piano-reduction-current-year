@@ -13,6 +13,7 @@ import time
 from music21 import expressions
 from pprint import pformat, pprint
 import numpy as np
+from tabulate import tabulate
 from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
 from .piano.contraction import IndexMapping
@@ -98,17 +99,13 @@ def load(filename):
     return reducer, model
 
 
-def train(args, module, save_model=False, **kwargs):
+def train(module, sample=None, save_to=None):
     logging.info('Initializing model')
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    dataset = Dataset(reducer, paths=args.sample)
-    if getattr(args, 'validation', False):
-        train_dataset, _ = dataset.split_dataset(dataset.find_index(args.file))
-        X, y = train_dataset.get_matrices(structured=True)
-    else:
-        X, y = dataset.get_matrices(structured=True)
+    dataset = Dataset(reducer, paths=sample)
+    X, y = dataset.get_matrices(structured=True)
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
@@ -117,30 +114,52 @@ def train(args, module, save_model=False, **kwargs):
     model.fit_structured(X, y)
     logging.info('Training metric = {}'.format(model.evaluate_structured(X, y)))
 
-    if save_model:
-        output = args.output or get_default_save_file(module)
-        save(model, module, output)
+    output = save_to or get_default_save_file(module)
+    save(model, module, output)
 
     logging.info('Done training')
 
     return reducer, model
 
 
-def command_train(args, **kwargs):
-    train(args, save_model=True, **kwargs)
+def command_train(args, *, module, **kwargs):
+    train(module=module, sample=args.sample, save_to=args.output)
 
 
-def command_reduce(args, **kwargs):
-    if args.validation:
+def command_reduce(args, *, module, **kwargs):
+    if args.train:
         # Train model in place
-        reducer, model = train(args, **kwargs)
-        assert not args.model, 'Model file cannot be used in validation mode'
+        reducer, model = train(module=module, sample=args.sample, save_to=args.model)
     else:
-        model = args.model or get_default_save_file(kwargs['module'])
+        model = args.model or get_default_save_file(module)
         reducer, model = load(model)
 
-    logging.info('Reading score')
-    in_path, _, out_path = args.file.partition(':')
+    results = []
+    for f in args.file:
+        result = reduce_score(module, reducer, model, f, output=args.output,
+                              no_output=args.no_output, train=args.train)
+        if result:
+            results.append((os.path.basename(f), *result))
+
+    if len(results) > 1:
+        logging.info('=' * 60)
+        _, mmetrics, smetrics = results[0]
+        mkeys = [k for k in mmetrics.keys if isinstance(mmetrics[k], float)]
+        skeys = [k for k in smetrics.keys if isinstance(smetrics[k], float)]
+        headers = ['File', *mkeys, *skeys]
+
+        rows = [[name] + mmetrics[mkeys] + smetrics[skeys]
+                for name, mmetrics, smetrics in results]
+        average = np.mean(np.asarray([row[1:] for row in rows], dtype='float'), axis=0)
+        rows.append(['(Average performance)'] + average.tolist())
+
+        print(tabulate(rows, headers=headers))
+
+
+def reduce_score(module, reducer, model, path_pair, *, output=None,
+                 no_output=False, train=False):
+    in_path, _, out_path = path_pair.partition(':')
+    logging.info('Reading score {}'.format(in_path))
     target_entry = DatasetEntry((in_path, out_path))
     target_entry.load(reducer)
     target = target_entry.input_score_obj
@@ -167,11 +186,11 @@ def command_reduce(args, **kwargs):
         'contracted', help='Whether the note is contracted to some other note', group='input'))
 
     if y_test is not None:
-        metrics = ModelMetrics(reducer, y_proba, y_test)
-        logging.info('Model metrics\n' + metrics.format())
+        mmetrics = ModelMetrics(reducer, y_proba, y_test)
+        logging.info('Model metrics\n' + mmetrics.format())
 
-        metrics = ScoreMetrics(reducer, result, target_out.score)
-        logging.info('Score metrics\n' + metrics.format())
+        smetrics = ScoreMetrics(reducer, result, target_out.score)
+        logging.info('Score metrics\n' + smetrics.format())
 
         # Wrongness marking
         correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
@@ -189,16 +208,18 @@ def command_reduce(args, **kwargs):
     add_description_to_score(result, description)
     description += '\nReducer arguments:\n' + pformat(reducer.args, width=100)
 
-    if args.no_output:
+    if no_output:
         pass
-    elif args.output:
+    elif output:
         logging.info('Writing output')
-        result.write(fp=args.output)
+        result.write(fp=output)
     else:
         logging.info('Displaying output')
         result.show('musicxml')
 
-    title = '{}/reduction/{}'.format(get_module_name(kwargs['module']), os.path.basename(in_path))
+    title = '{}/{}/{}'.format(get_module_name(module),
+                              'training' if train else 'reduction',
+                              os.path.basename(in_path))
     writer = LogWriter(config.LOG_DIR, title=title)
     logging.info('Log directory: {}'.format(writer.dir))
     writer.add_features(reducer.input_features)
@@ -261,7 +282,12 @@ def command_reduce(args, **kwargs):
 
     writer.finalize()
 
-    logging.info('Done')
+    logging.info('Done {}'.format(in_path))
+
+    if target_out:
+        return mmetrics, smetrics
+    else:
+        return None
 
 
 def command_show(args, module, **kwargs):
@@ -401,16 +427,15 @@ def run_model_cli(module):
     train_parser.add_argument('--output', '-o', help='Output to file')
 
     reduce_parser.add_argument(
-        'file', help='Input file. Optionally specify an input-output pair '
-                     'to evaluate test metrics.')
+        'file', nargs='+',
+        help='Input files. Optionally specify an input-output pairs to '
+             'evaluate test metrics.')
     reduce_parser.add_argument('--output', '-o', help='Output to file')
     reduce_parser.add_argument('--model', '-m', help='Model file')
     reduce_parser.add_argument('--no-output', '-s', action='store_true',
                                help='Disable score output')
-    reduce_parser.add_argument(
-        '--validation', action='store_true',
-        help='Perform train-validate evaluation, i.e. train on all samples '
-             'except the target score and test on the target score.')
+    reduce_parser.add_argument('--train', action='store_true',
+                               help='Train the model in place')
 
     show_parser = subparsers.add_parser('show', help='Show features in Scoreboard')
     show_parser.add_argument(

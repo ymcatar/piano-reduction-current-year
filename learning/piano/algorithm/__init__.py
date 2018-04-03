@@ -16,3 +16,4 @@ from .pitch_distance import PitchDistance
 from .output_count_estimate import OutputCountEstimate
 from .highest_pitch import HighestPitch
 from .highest_pitch_in_rhythm import HighestPitchInRhythm
+from .product_terms import ProductTerms

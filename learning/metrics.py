@@ -70,6 +70,12 @@ class ModelMetrics:
 
         return '\n'.join(out)
 
+    def __getitem__(self, keys):
+        if isinstance(keys, str):
+            return getattr(self, keys)
+        else:
+            return [getattr(self, key) for key in keys]
+
 
 def pitch_space_offset_key_func(n, offset, precision):
     return (int(offset * precision), n.pitch.ps)
@@ -144,3 +150,9 @@ class ScoreMetrics:
                 out.append(textwrap.indent('{!r}'.format(value), ' ' * 32))
 
         return '\n'.join(out)
+
+    def __getitem__(self, keys):
+        if isinstance(keys, str):
+            return getattr(self, keys)
+        else:
+            return [getattr(self, key) for key in keys]

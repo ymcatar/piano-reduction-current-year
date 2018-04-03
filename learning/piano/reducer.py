@@ -72,12 +72,8 @@ class Reducer(object):
     @property
     def input_features(self):
         features = []
-
         for algo in self.algorithms:
-            for key in algo.all_keys:
-                feature = writerlib.guess_feature(algo)
-                feature.name = key
-                features.append(feature)
+            features.extend(writerlib.guess_features(algo))
 
         return features
 

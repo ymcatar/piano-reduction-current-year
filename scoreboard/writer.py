@@ -317,3 +317,16 @@ def guess_feature(algo):
             help=help, group='input')
     else:
         return BoolFeature(algo.key, help=help, group='input')
+
+
+def guess_features(algo):
+    if getattr(algo, 'features', None):
+        return algo.features
+
+    features = []
+    for key in algo.all_keys:
+        feature = guess_feature(algo)
+        feature.name = key
+        features.append(feature)
+
+    return features
