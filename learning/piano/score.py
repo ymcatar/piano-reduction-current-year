@@ -68,7 +68,8 @@ class ScoreObject(object):
         iters = [part.getElementsByClass(stream.Measure)
                  for part in result.parts]
         for i, measures in enumerate(zip_longest(*iters)):
-            assert all(measures), 'Measures missing at index {}'.format(i)
+            assert all(m is not None for m in measures), \
+                'Measures missing at index {}'.format(i)
             bar = result.cloneEmpty(derivationMethod='by_bar')
             bar.offset = measures[0].offset
             for part, m in zip(result.parts, measures):

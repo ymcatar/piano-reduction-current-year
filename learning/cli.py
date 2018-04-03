@@ -19,6 +19,7 @@ from .piano.alignment.difference import AlignDifference
 from .piano.contraction import IndexMapping
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
+from .piano.contraction_writing import create_contracted_score_obj
 from .piano.pre_processor import StructuralPreProcessor
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
@@ -239,6 +240,7 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
         writer.add_features(differ.features)
         differ.run(target_out, result_obj, extra=True)
 
+    structure_data = {**target_entry.contractions, **target_entry.structures}
     writer.add_score('orig', target.score, title='Orig.',
                      structure_data={**target_entry.contractions, **target_entry.structures},
                      flavour=False)
@@ -246,38 +248,9 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
     writer.add_flavour(['orig', 'gen'], help=description)
 
     # Generate a contracted score
-    target2 = ScoreObject(copy.deepcopy(target.score))
-    for n in target2.notes:
-        if target_entry.mapping.is_contracted(target2.index(n)):
-            n.editorial.misc['hand'] = 0
-        else:
-            n.editorial.misc['hand'] = 1 if n.pitch.ps >= 60 else 2
-    contracted = post_processor.generate_piano_score(target2, playable=False, label_type='hand')
-    contracted_obj = ScoreObject(contracted)
-    contracted = contracted_obj.score
-
-    # Attach markings
-    def key_func(n, offset, precision):
-        return (int(offset * precision), n.pitch.ps)
-    alignment = align_all_notes(contracted, target.score, ignore_parts=True, key_func=key_func)
-
-    mapping = [None] * len(target_entry.features)  # From contracted index to contracted score index
-    for i, n in enumerate(contracted_obj.notes):
-        for m in alignment[n]:  # We hope the alignment is one-to-one
-            mapping[target_entry.mapping[target.index(m)]] = i
-    mapping = IndexMapping(mapping, output_size=len(contracted_obj), aggregator=lambda i: i[0])
-    for i, key in enumerate(reducer.all_keys):
-        contracted_obj.annotate(mapping.map_matrix(list(target_entry.features[:, i]), default=None), key)
-    contracted_obj.annotate(mapping.map_matrix(list(y_pred.flatten()), default=None),
-                            reducer.alignment.key)
-    if y_test is not None:
-        contracted_obj.annotate(mapping.map_matrix(list(correction), default=None),
-                                'correction')
-
-    structure_data = {k: list(mapping.map_structure(target_entry.mapping.map_structure(dict(v))).items())
-                      for k, v in target_entry.structures.items()}
-    writer.add_score('contr', contracted, structure_data=structure_data, flavour=False,
-                     title='Contr.')
+    contracted_obj, c_structure_data = create_contracted_score_obj(target_entry, structure_data)
+    writer.add_score('contr', contracted_obj.score, structure_data=c_structure_data,
+                     flavour=False, title='Contr.')
 
     if target_out:
         writer.add_flavour(['contr', 'gen'], help=description)
