@@ -3,8 +3,7 @@ import os
 from unittest.mock import Mock
 from .algorithm.base import FeatureAlgorithm, get_markings
 from .alignment.base import AlignmentMethod
-from .dataset import DatasetEntry
-from .reducer import Reducer
+from .pre_processor import BottomUpPreProcessor
 from .score import ScoreObject
 
 
@@ -41,41 +40,37 @@ y = np.ones((13, 1))  # AlignDummy
 path = 'learning/piano/test_sample/chromatic_scale.xml'
 
 
-def test_dataset_entry_from_file():
-    reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
+def test_pre_process_from_file():
+    pre = BottomUpPreProcessor(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
 
     # Input only
     for i in range(2):
-        d = DatasetEntry(path_pair=(path, None))
-        d.load(reducer)
+        d = pre.process_path_pair(path, None)
         assert np.all(d.X == X)
         assert d.y is None
 
     # Input and output
     for i in range(2):
-        d = DatasetEntry(path_pair=(path, path))
-        d.load(reducer)
+        d = pre.process_path_pair(path, path)
         assert np.all(d.X == X)
         assert np.all(d.y == y)
 
 
-def test_dataset_entry_from_object():
-    reducer = Reducer(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
+def test_pre_process_from_object():
+    pre = BottomUpPreProcessor(algorithms=[PitchSpace(), DummySequences()], alignment=AlignDummy())
 
     # Input only
     s = ScoreObject.from_file(path)
-    d = DatasetEntry(score_obj_pair=(s, None))
-    d.load(reducer)
+    d = pre.process_score_obj_pair(s, None)
 
     assert np.all(d.X == X)
     assert d.y is None
-    assert d.input_score_obj
+    assert d.input
 
     # Input and output
     s = ScoreObject.from_file(path)
-    d = DatasetEntry(score_obj_pair=(s, s))
-    d.load(reducer)
+    d = pre.process_score_obj_pair(s, s)
 
     assert np.all(d.X == X)
     assert np.all(d.y == y)
-    assert d.input_score_obj
+    assert d.input

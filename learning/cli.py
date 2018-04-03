@@ -17,9 +17,9 @@ from tabulate import tabulate
 from .piano.alignment import align_all_notes
 from .piano.alignment.difference import AlignDifference
 from .piano.contraction import IndexMapping
-from .piano.dataset import Dataset, DatasetEntry, CROSSVAL_SAMPLES
 from .piano.reducer import Reducer
 from .piano.score import ScoreObject
+from .piano.pre_processor import StructuralPreProcessor
 from .piano.post_processor import PostProcessor
 from .models.base import BaseModel
 from .models.sk import WrappedSklearnModel
@@ -48,7 +48,7 @@ def add_description_to_score(score, description):
 
 
 def create_reducer_and_model(module):
-    reducer = Reducer(**module.reducer_args)
+    reducer = StructuralPreProcessor(**module.reducer_args)
 
     Model = module.Model
     if type(Model) == type and not issubclass(Model, BaseModel):
@@ -104,15 +104,15 @@ def train(module, sample=None, save_to=None):
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    dataset = Dataset(reducer, paths=sample)
-    X, y = dataset.get_matrices(structured=True)
+    ds = reducer.process(sample)
 
     logging.info('Feature set:\n' +
                  textwrap.indent('\n'.join(reducer.all_keys), '-   '))
     logging.info('Training ML model')
 
-    model.fit_structured(X, y)
-    logging.info('Training metric = {}'.format(model.evaluate_structured(X, y)))
+    model.fit_structured(ds.X, ds.y)
+    metric = model.evaluate_structured(ds.X, ds.y)
+    logging.info('Training metric = {}'.format(metric))
 
     output = save_to or get_default_save_file(module)
     save(model, module, output)
@@ -160,23 +160,22 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
                  no_output=False, train=False):
     in_path, _, out_path = path_pair.partition(':')
     logging.info('Reading score {}'.format(in_path))
-    target_entry = DatasetEntry((in_path, out_path))
-    target_entry.load(reducer)
-    target = target_entry.input_score_obj
-    target_out = target_entry.output_score_obj
+    target_entry = reducer.process_path_pair(in_path, out_path)
+    target = target_entry.input
+    target_out = target_entry.output
 
-    X_test = (target_entry.X, target_entry.E, target_entry.F)
+    X_test = target_entry.X
     y_test = target_entry.y
     logging.info('Predicting')
 
-    y_proba = reducer.predict_from(model, target, X=X_test,
-                                   mapping=target_entry.mapping, structured=True)
+    y_proba = model.predict_structured(X_test)
     if reducer.label_type == 'align':
         y_pred = y_proba.flatten() >= 0.5
     elif reducer.label_type == 'hand':
         y_pred = np.argmax(y_proba, axis=1)
     else:
         raise NotImplementedError()
+    target.annotate(target_entry.mapping.unmap_matrix(y_pred), reducer.label_type)
 
     post_processor = PostProcessor()
     result = post_processor.generate_piano_score(
@@ -262,13 +261,13 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
         return (int(offset * precision), n.pitch.ps)
     alignment = align_all_notes(contracted, target.score, ignore_parts=True, key_func=key_func)
 
-    mapping = [None] * len(target_entry.X)  # From contracted index to contracted score index
+    mapping = [None] * len(target_entry.features)  # From contracted index to contracted score index
     for i, n in enumerate(contracted_obj.notes):
         for m in alignment[n]:  # We hope the alignment is one-to-one
             mapping[target_entry.mapping[target.index(m)]] = i
     mapping = IndexMapping(mapping, output_size=len(contracted_obj), aggregator=lambda i: i[0])
     for i, key in enumerate(reducer.all_keys):
-        contracted_obj.annotate(mapping.map_matrix(list(target_entry.X[:, i]), default=None), key)
+        contracted_obj.annotate(mapping.map_matrix(list(target_entry.features[:, i]), default=None), key)
     contracted_obj.annotate(mapping.map_matrix(list(y_pred.flatten()), default=None),
                             reducer.alignment.key)
     if y_test is not None:
@@ -296,14 +295,13 @@ def reduce_score(module, reducer, model, path_pair, *, output=None,
 
 
 def command_show(args, module, **kwargs):
-    reducer = Reducer(**module.reducer_args)
+    reducer = StructuralPreProcessor(**module.reducer_args)
 
     logging.info('Reading score')
     in_path, _, out_path = args.file.partition(':')
-    target_entry = DatasetEntry((in_path, out_path))
-    target_entry.load(reducer)
-    sample_in = target_entry.input_score_obj
-    sample_out = target_entry.output_score_obj
+    target_entry = reducer.process_path_pair(in_path, out_path)
+    sample_in = target_entry.input
+    sample_out = target_entry.output
 
     logging.info('Writing data')
     title = '{}/features/{}'.format(get_module_name(module), os.path.basename(in_path))
@@ -340,13 +338,13 @@ def command_info(args, **kwargs):
 
 
 def command_crossval(args, module, **kwargs):
+    assert False, 'BROKEN'
     start = time.time()
     logging.info('Initializing reducer')
     reducer, model = create_reducer_and_model(module)
 
     logging.info('Reading sample scores')
-    dataset = Dataset(reducer, paths=CROSSVAL_SAMPLES)
-    dataset.get_matrices()
+    dataset = reducer.process(paths=CROSSVAL_SAMPLES)
 
     all_metrics = defaultdict(list)
     metric_names = {}
