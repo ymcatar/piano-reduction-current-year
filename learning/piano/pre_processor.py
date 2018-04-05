@@ -177,7 +177,7 @@ class ContractingPreProcessor(BottomUpPreProcessor):
 
 
 class StructuralPreProcessor(ContractingPreProcessor):
-    def __init__(self, algorithms, alignment, contractions=[], structures=None):
+    def __init__(self, algorithms, alignment, contractions=[], structures=[]):
         super().__init__(algorithms, alignment, contractions)
         self.structures = [ensure_algorithm(algo) for algo in structures]
         self.args[1]['structures'] = \
