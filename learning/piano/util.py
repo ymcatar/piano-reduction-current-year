@@ -9,13 +9,14 @@ def import_symbol(path):
     return getattr(importlib.import_module(module), symbol)
 
 
-def load_algorithm(path, args, kwargs):
+def load_algorithm(tup):
+    path, args, kwargs = tup
     return import_symbol(path)(*args, **kwargs)
 
 
 def ensure_algorithm(obj):
     if isinstance(obj, Sequence):
-        return load_algorithm(*obj)
+        return load_algorithm(obj)
     else:
         return obj
 

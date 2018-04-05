@@ -2,6 +2,7 @@ from collections import defaultdict, namedtuple
 import copy
 import logging
 import numpy as np
+import os
 from .score import ScoreObject
 from .util import dump_algorithm, ensure_algorithm
 from .contraction import ContractionMapping
@@ -16,6 +17,7 @@ class PreProcessedEntry:
     def __init__(self, X=None, y=None):
         self.X = X
         self.y = y
+        self.name = '<Untitled>'
 
 
 class PreProcessedList:
@@ -36,7 +38,7 @@ class BasePreProcessor:
     def process_path_pair(self, in_path, out_path, **kwargs):
         input = ScoreObject.from_file(in_path)
         output = ScoreObject.from_file(out_path) if out_path else None
-        return self.process_score_obj_pair(input, output)
+        return self.process_score_obj_pair(input, output, name=os.path.basename(in_path))
 
     def process_score_obj_pair(self, input, output, **kwargs):
         raise NotImplementedError()
@@ -69,9 +71,11 @@ class BottomUpPreProcessor(BasePreProcessor):
             'alignment': dump_algorithm(self.alignment),
             })
 
-    def process_score_obj_pair(self, input, output, extra=False):
+    def process_score_obj_pair(self, input, output, extra=False, name=None):
         ret = PreProcessedEntry()
         ret.len = len(input)
+        if name:
+            ret.name = name
 
         # Features
         X = np.empty((ret.len, len(self.all_keys)), dtype='float')
