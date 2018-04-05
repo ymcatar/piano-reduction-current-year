@@ -1,4 +1,4 @@
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 import copy
 import logging
 import numpy as np
@@ -32,8 +32,14 @@ class PreProcessedList:
 
 
 class BasePreProcessor:
+    '''
+    Base class for pre-processors. Pre-processors take XML paths or ScoreObject
+    instances as input and convert them to a dataset suitable for parameter
+    learning and prediction.
+    '''
     def __init__(self):
         self.args = [], {}
+        self.label_type = None
 
     def process_path_pair(self, in_path, out_path, **kwargs):
         input = ScoreObject.from_file(in_path)
@@ -41,6 +47,9 @@ class BasePreProcessor:
         return self.process_score_obj_pair(input, output, name=os.path.basename(in_path))
 
     def process_score_obj_pair(self, input, output, **kwargs):
+        '''
+        Convert the given ScoreObject pair into a PreProcessedEntry.
+        '''
         raise NotImplementedError()
 
     def process(self, path_pairs, **kwargs):
@@ -52,6 +61,35 @@ class BasePreProcessor:
                 in_path, out_path = pair
             result.append(self.process_path_pair(in_path, out_path))
         return PreProcessedList(result)
+
+    def post_predict(self, y_proba):
+        '''
+        Transform the labels of the dataset to the format specified by
+        self.label_type.
+
+        Returns: (y_pred, y_proba)
+            y_pred: int ndarray of shape (n, 1) or (n, 3)
+                The predicted label for each note.
+            y_proba: float ndarray of shape (n, 1) or (n, 3)
+                The probability vector for each note.
+        '''
+
+        if self.label_type == 'align':
+            if y_proba.ndim == 1:
+                y_proba = y_proba[:, np.newaxis]
+            if y_proba.shape[1] == 2:
+                y_proba = y_proba[:, 1:2]
+            assert y_proba.shape[1] == 1
+            y_pred = y_proba.flatten() >= 0.5
+
+        elif self.label_type == 'hand':
+            assert y_proba.shape[1] == 3
+            y_pred = np.argmax(y_proba, axis=1)
+
+        else:
+            raise ValueError('label_type must be align or hand')
+
+        return y_pred, y_proba
 
 
 class BottomUpPreProcessor(BasePreProcessor):

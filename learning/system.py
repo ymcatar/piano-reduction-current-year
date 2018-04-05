@@ -99,12 +99,8 @@ class PianoReductionSystem:
         logging.info('Predicting')
 
         y_proba = self.model.predict_structured(entry.X)
-        if self.pre_processor.label_type == 'align':
-            y_pred = y_proba.flatten() >= 0.5
-        elif self.pre_processor.label_type == 'hand':
-            y_pred = np.argmax(y_proba, axis=1)
-        else:
-            raise NotImplementedError()
+        y_pred, y_proba = self.pre_processor.post_predict(y_proba)
+
         target.annotate(entry.mapping.unmap_matrix(y_pred), self.pre_processor.label_type)
 
         post_processor = PostProcessor()
