@@ -14,6 +14,9 @@ class StructureAlgorithm:
 
     where y_C is the edge.
     '''
+    def __init__(self):
+        # The *args and **kwargs that can be used to reconstruct this algorithm
+        self.args = [], {}
 
     @property
     def n_features():
@@ -46,10 +49,6 @@ class StructureAlgorithm:
     @property
     def key(self):
         return type(self).__name__
-
-    @property
-    def args(self):
-        return ([], {})
 
 
 def get_repelling_weights(self, label_type, var_fn, use_different=True):
@@ -153,7 +152,11 @@ class OnsetDurationVaryingNotes(StructureAlgorithm):
             for u in notes:
                 for v in notes:
                     if (u != v and u.duration.quarterLength != v.duration.quarterLength):
-                        yield (score_obj.index(u), score_obj.index(v)), (1,)
+                        d1, d2 = sorted((u.duration.quarterLength, v.duration.quarterLength))
+                        if d1 == 0.0:  # e.g. grace note
+                            continue
+                        log_ratio = math.log2(d2/d1)
+                        yield (score_obj.index(u), score_obj.index(v)), (log_ratio,)
 
     get_weights = get_repelling_weights
 
@@ -162,7 +165,7 @@ class AdjacentNotes(StructureAlgorithm):
     '''
     Connects notes that occur one after another.
     '''
-    n_features = 1
+    n_features = 3
 
     def run(self, score_obj):
         for voices in score_obj.voices_by_part:
@@ -182,8 +185,12 @@ class AdjacentNotes(StructureAlgorithm):
                             # Heuristic: Top-pitch note is linked to
                             # top-pitch note, etc.
                             for u, v in zip(notes, last_notes):
-                                yield (score_obj.index(u), score_obj.index(v)), (1,)
+                                if v.duration.quarterLength == 0.0:  # Grace note
+                                    continue
+                                log_d = math.log2(v.duration.quarterLength)
+                                yield (score_obj.index(u), score_obj.index(v)), (1, log_d, log_d**2,)
 
                             last_notes = notes
 
-    get_weights = get_hand_only_repelling_weights
+    def get_weights(self, *args, **kwargs):
+        return [get_hand_only_repelling_weights(self, *args, **kwargs) for _ in range(3)]

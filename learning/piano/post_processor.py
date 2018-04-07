@@ -108,7 +108,7 @@ class PostProcessor(object):
         for bar in score_obj.by_bar:
             for measure in bar.recurse(
                     skipSelf=False).getElementsByClass(stream.Measure):
-                for voice in measure.voices:
+                for voice in measure.voices or measure:
                     pss = [n.pitch.ps for n in iter_notes(measure, recurse=True)
                            if keep_func(n)]
 

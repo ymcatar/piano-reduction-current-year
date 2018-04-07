@@ -5,6 +5,10 @@ from .algorithm.base import iter_notes_with_offset
 
 
 class ContractionAlgorithm:
+    def __init__(self):
+        # The *args and **kwargs that can be used to reconstruct this algorithm
+        self.args = [], {}
+
     def run(self, score_obj):
         '''
         Returns a list of pairs (x, y) indicating Note y should be contracted to
@@ -15,10 +19,6 @@ class ContractionAlgorithm:
     @property
     def key(self):
         return type(self).__name__
-
-    @property
-    def args(self):
-        return ([], {})
 
 
 class ContractTies(ContractionAlgorithm):

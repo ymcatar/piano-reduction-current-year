@@ -5,6 +5,7 @@ class StrongBeats(FeatureAlgorithm):
     def __init__(self, division=1):
         super(StrongBeats, self).__init__()
         self.division = division  # in terms of quarter length
+        self.args = [], {'division': self.division}
 
     dtype = 'bool'
 
@@ -16,7 +17,3 @@ class StrongBeats(FeatureAlgorithm):
         for n, offset in iter_notes_with_offset(score_obj._score, recurse=True):
             # Note that here, % is a flcf), recurse=Trueoating point operation
             get_markings(n)[self.key] = offset % self.division < 1e-3
-
-    @property
-    def args(self):
-        return [], {'division': self.division}

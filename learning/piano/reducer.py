@@ -20,7 +20,6 @@ class Reducer(object):
             contractions: List of contraction algorithms.
             structures: List of structure algorithms.
         '''
-
         self._algorithms = []
         for algo in algorithms:
             self._algorithms.append(ensure_algorithm(algo))
@@ -29,8 +28,8 @@ class Reducer(object):
         for i, algo in enumerate(self.algorithms):
             algo.key_prefix = str(i)
 
-        self._all_keys = sorted(
-            key for algo in self.algorithms for key in algo.all_keys)
+        self._all_keys = [
+            key for algo in self.algorithms for key in algo.all_keys]
 
         self.alignment = ensure_algorithm(alignment)
         self.label_type = self.alignment.key
