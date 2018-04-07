@@ -82,11 +82,12 @@ class PyStructCRF(BaseModel):
     There are unary and pairwise potentials. Note that pairwise potentials are
     directed.
     '''
-    def __init__(self, pre_processor):
+    def __init__(self, pre_processor, Model=MyGraphCRF, model_kwargs={},
+                 learner_kwargs={}):
         super().__init__(pre_processor)
-        self.model = MyGraphCRF(pre_processor)
+        self.model = Model(pre_processor, **model_kwargs)
         self.learner = NSlackSSVM(self.model, max_iter=300, verbose=1, C=1.0,
-                                  show_loss_every=50)
+                                  show_loss_every=50, **learner_kwargs)
 
     def fit_structured(self, X, y):
         y = [i.flatten() for i in y]
