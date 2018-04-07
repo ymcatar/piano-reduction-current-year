@@ -6,11 +6,11 @@ from ..piano import algorithm, alignment, contraction, structure
 
 
 class SupportVectorRegression(BaseModel):
-    def __init__(self, reducer):
-        super().__init__(reducer)
-        assert reducer.label_type == 'align'
-        assert type(reducer.algorithms[0]) == algorithm.OffsetValue
-        assert type(reducer.algorithms[1]) == algorithm.OutputCountEstimate
+    def __init__(self, pre_processor):
+        super().__init__(pre_processor)
+        assert pre_processor.label_type == 'align'
+        assert type(pre_processor.algorithms[0]) == algorithm.OffsetValue
+        assert type(pre_processor.algorithms[1]) == algorithm.OutputCountEstimate
         self.model = LinearSVC(loss='hinge')
 
     def fit_structured(self, X, y):

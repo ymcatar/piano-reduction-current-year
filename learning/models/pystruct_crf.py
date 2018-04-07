@@ -12,24 +12,24 @@ Variable = namedtuple('Variable', ['id', 'name'])
 
 class MyGraphCRF(EdgeFeatureGraphCRF):
     '''
-    A PyStruct Model class that chooses proper dimensions according to a Reducer
-    object, and implements parameter tying.
+    A PyStruct Model class that chooses proper dimensions according to a
+    pre-processor object, and implements parameter tying.
     '''
-    def __init__(self, reducer):
-        n_states = 3 if reducer.label_type == 'hand' else 2
-        n_edge_features = sum(a.n_features for a in reducer.structures)
+    def __init__(self, pre_processor):
+        n_states = 3 if pre_processor.label_type == 'hand' else 2
+        n_edge_features = sum(a.n_features for a in pre_processor.structures)
 
         self.pairwise_variables = []
         pairwise_indices = []
 
-        for algo in reducer.structures:
+        for algo in pre_processor.structures:
             def var_fn(name=None):
                 name = '{}_{}'.format(algo.key, name or str(len(self.pairwise_variables)))
                 var = Variable(id=len(self.pairwise_variables), name=name)
                 self.pairwise_variables.append(var)
                 return var
 
-            var_mats = algo.get_weights(reducer.label_type, var_fn)
+            var_mats = algo.get_weights(pre_processor.label_type, var_fn)
 
             if not isinstance(var_mats[0][0], list):
                 var_mats = [var_mats]
@@ -41,7 +41,7 @@ class MyGraphCRF(EdgeFeatureGraphCRF):
         self.pairwise_indices = np.concatenate(pairwise_indices)
 
         super().__init__(
-            n_states=n_states, n_features=len(reducer.all_keys),
+            n_states=n_states, n_features=len(pre_processor.all_keys),
             n_edge_features=n_edge_features, inference_method='ad3')
 
     def get_unary_weights(self, w):
@@ -82,9 +82,9 @@ class PyStructCRF(BaseModel):
     There are unary and pairwise potentials. Note that pairwise potentials are
     directed.
     '''
-    def __init__(self, reducer):
-        super().__init__(reducer)
-        self.model = MyGraphCRF(reducer)
+    def __init__(self, pre_processor):
+        super().__init__(pre_processor)
+        self.model = MyGraphCRF(pre_processor)
         self.learner = NSlackSSVM(self.model, max_iter=300, verbose=1, C=1.0,
                                   show_loss_every=50)
 
@@ -118,7 +118,7 @@ class PyStructCRF(BaseModel):
         # Unary features
         mat = self.model.get_unary_weights(w)
         mat = mat[:, 1:] - mat[:, 0:1]  # Weights relative to class 0
-        items.extend(zip(self.reducer.all_keys, mat))
+        items.extend(zip(self.pre_processor.all_keys, mat))
 
         # Sort weights
         items.sort(key=lambda i: -np.mean(i[1]))
@@ -126,7 +126,7 @@ class PyStructCRF(BaseModel):
         # Edge features
         mat = self.model.get_pairwise_weights(w)
         i = 0
-        for algo in self.reducer.structures:
+        for algo in self.pre_processor.structures:
             for j in range(algo.n_features):
                 items.append(('{}_{}'.format(algo.key, j), mat[i, :, :]))
                 i += 1

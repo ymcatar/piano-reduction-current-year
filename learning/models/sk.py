@@ -3,8 +3,8 @@ from .base import BaseModel
 
 
 class WrappedSklearnModel(BaseModel):
-    def __init__(self, Model, reducer, *args, **kwargs):
-        self.reducer = reducer
+    def __init__(self, Model, pre_processor, *args, **kwargs):
+        self.pre_processor = pre_processor
         self.model = Model(*args, **kwargs)
 
     def fit(self, X, Y):
