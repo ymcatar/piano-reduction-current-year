@@ -7,7 +7,6 @@ from util import str_vector
 
 
 class HandAssignmentVisualizer(object):
-
     def __init__(self, context):
 
         self.context = context
@@ -44,17 +43,21 @@ class HandAssignmentVisualizer(object):
 
     def print_fingering(self, measures, highlight=None):
 
-        self.stdscr.clear()
-
         is_changed = True
 
         while True:
 
             if is_changed:
 
+                is_changed = False
                 self.stdscr.clear()
 
-                is_changed = False
+                if highlight is not None:
+                    offsets = [offset for offset, notes in measures]
+                    self.start_line = offsets.index(
+                        highlight) - self.stdscr_height // 2
+                    self.start_line = max(0, self.start_line)
+                    self.start_line = min(len(measures), self.start_line)
 
                 for i, item in enumerate(measures[
                         self.start_line:self.start_line + self.stdscr_height]):
@@ -64,8 +67,7 @@ class HandAssignmentVisualizer(object):
                     cost = None
                     if item != measures[0] and item != measures[-1]:
                         cost = self.context.cost_model(
-                            measures[self.start_line + i - 1][1],
-                            notes,
+                            measures[self.start_line + i - 1][1], notes,
                             measures[self.start_line + i + 1][1])
 
                     message = self.str_frame(
@@ -79,6 +81,8 @@ class HandAssignmentVisualizer(object):
                     if cost is not None:
                         self.stdscr.addstr(i, self.stdscr_width - 10,
                                            '<{:.0f}>'.format(cost).ljust(5))
+
+                self.stdscr.refresh()
 
             try:
                 key = self.stdscr.getkey()
@@ -97,8 +101,6 @@ class HandAssignmentVisualizer(object):
             except Exception as e:
                 # No input
                 pass
-
-            self.stdscr.refresh()
 
         return False
 

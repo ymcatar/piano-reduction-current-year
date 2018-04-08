@@ -127,6 +127,31 @@ class HandAssignmentAlgorithm(object):
             # for n in notes:
             # n.deleted = True
 
+    def split_to_hands(self, notes):
+        '''split a list of notes to left hand part and right hand part'''
+
+        ps_list = sorted(list(n.note.pitch.ps for n in notes))
+
+        left_hand_notes = []
+        right_hand_notes = []
+
+        max_note_distance = 2 * self.config['max_hand_span'] - 1
+        # all notes are close together => assign to same hand
+        if ps_list[-1] - ps_list[0] <= max_note_distance:
+            if ps_list[0] < MIDDLE_C:
+                left_hand_notes = notes
+            else:
+                right_hand_notes = notes
+        else:
+            # greedily expand the left cluster until it is impossible
+            for i, item in enumerate(ps_list):
+                if item - ps_list[0] <= max_note_distance:
+                    left_hand_notes.append(notes[i])
+                else:
+                    right_hand_notes.append(notes[i])
+
+        return left_hand_notes, right_hand_notes
+
     def assign(self, measures):
 
         # piano_roll = construct_piano_roll(measures)
@@ -139,25 +164,7 @@ class HandAssignmentAlgorithm(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
 
-            ps_list = sorted(list(n.note.pitch.ps for n in notes))
-
-            left_hand_notes = []
-            right_hand_notes = []
-
-            max_note_distance = 2 * self.config['max_hand_span'] - 1
-            # all notes are close together => assign to same hand
-            if ps_list[-1] - ps_list[0] <= max_note_distance:
-                if ps_list[0] < MIDDLE_C:
-                    left_hand_notes = notes
-                else:
-                    right_hand_notes = notes
-            else:
-                # greedily expand the left cluster until it is impossible
-                for i, item in enumerate(ps_list):
-                    if item - ps_list[0] <= max_note_distance:
-                        left_hand_notes.append(notes[i])
-                    else:
-                        right_hand_notes.append(notes[i])
+            left_hand_notes, right_hand_notes = self.split_to_hands(notes)
 
             if len(left_hand_notes) > 5:
                 print(offset, 'too many left hand notes')
@@ -217,8 +224,8 @@ class HandAssignmentAlgorithm(object):
 
             # current finger are only in current frame => new placement cost
             if finger not in prev_fingers and finger in curr_fingers:
-                search_range = range(1, 6) if finger in range(1, 6) else range(
-                    6, 11)
+                search_range = range(1, 6) \
+                    if finger in range(1, 6) else range(6, 11)
                 prev = [
                     n.note.pitch.ps for key, n in prev_fingers.items()
                     if key in search_range
@@ -244,7 +251,7 @@ class HandAssignmentAlgorithm(object):
             next_offset, next_frame = next_item
             cost = self.cost_model(prev_frame, curr_frame, next_frame)
             costs.append(cost)
-        return costs
+        return [0] + costs
 
     def get_total_cost(self, notes):
 
@@ -260,38 +267,30 @@ class HandAssignmentAlgorithm(object):
 
         while not hasStopped:
 
-            # peephole optimization
+            costs = self.get_cost_array(measures)
+            max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
 
-            WINDOW_SIZE = 4
+            # save the current row assignment
+            copy = deepcopy(measures[max_cost_index])
 
-            for i in range(len(measures) - WINDOW_SIZE):
+            prev_total_cost = self.get_total_cost(measures)
 
-                window = measures[i:i + WINDOW_SIZE]
+            # optimize the assignment
+            prev_offset, prev_frame = measures[max_cost_index - 1]
+            curr_offset, curr_frame = measures[max_cost_index]
+            next_offset, next_frame = measures[max_cost_index + 1]
 
-                costs = self.get_cost_array(window)
-                max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
+            self.local_optimize(prev_frame, curr_frame, next_frame)
 
-                copy = deepcopy(measures[
-                    max_cost_index])  # save the current row assignment
+            # if total cost is lowered
+            if self.get_total_cost(measures) < prev_total_cost:
+                measures[max_cost_index] = copy  # revert
 
-                prev_total_cost = self.get_total_cost(measures)
-
-                # optimize the assignment
-                prev_offset, prev_frame = measures[max_cost_index - 1]
-                curr_offset, curr_frame = measures[max_cost_index]
-                next_offset, next_frame = measures[max_cost_index + 1]
-
-                self.local_optimize(prev_frame, curr_frame, next_frame)
-
-                if self.get_total_cost(
-                        measures) < prev_total_cost:  # if total cost is lowered
-                    measures[max_cost_index] = copy  # revert
-
-                if self.visualizer is not None:
-                    if self.visualizer.print_fingering(
-                            measures, highlight=curr_offset):
-                        hasStopped = True
-                        break
+            if self.visualizer is not None:
+                if self.visualizer.print_fingering(
+                        measures, highlight=curr_offset):
+                    hasStopped = True
+                    break
 
         if self.visualizer is not None:
             self.visualizer.end_screen()
