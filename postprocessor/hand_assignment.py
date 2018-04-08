@@ -1,12 +1,13 @@
 import math
 import curses
+import logging
 import music21
 import traceback
 import numpy as np
 
 from copy import deepcopy
-from termcolor import colored
 from collections import defaultdict
+from itertools import combinations
 from random import randint, shuffle
 
 from util import \
@@ -21,6 +22,17 @@ MIDDLE_C = 60
 
 class HandAssignment(object):
     def __init__(self, max_hand_span=7, verbose=False):
+
+        # configure logger
+
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
+
+        fmt = '%(asctime)s %(levelname)s: %(message)s'
+        formatter = logging.Formatter(fmt, datefmt='%H:%M:%S')
+        sh = logging.StreamHandler()
+        sh.setFormatter(formatter)
+        self.logger.addHandler(sh)
 
         self.config = {}
 
@@ -166,11 +178,11 @@ class HandAssignment(object):
             left_hand_notes, right_hand_notes = self.split_to_hands(notes)
 
             if len(left_hand_notes) > 5:
-                print(offset, 'too many left hand notes')
+                self.logger.info('too many left hand notes at ' + str(offset))
                 left_hand_notes = left_hand_notes[:5]
 
             if len(right_hand_notes) > 5:
-                print(offset, 'too many right hand notes')
+                self.logger.info('too many right hand notes' + str(offset))
                 right_hand_notes = right_hand_notes[:5]
 
             for i, note in enumerate(reversed(left_hand_notes)):
@@ -203,12 +215,12 @@ class HandAssignment(object):
         prev_fingers, curr_fingers = {}, {}
 
         for n in prev:
-            if n.hand and n.finger:
+            if not n.deleted and n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 prev_fingers[finger] = n
 
         for n in curr:
-            if n.hand and n.finger:
+            if not n.deleted and n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 curr_fingers[finger] = n
 
@@ -276,13 +288,17 @@ class HandAssignment(object):
         while count < 10 and not hasStopped:
 
             count += 1
-            WINDOW_SIZE = 10
+            WINDOW_SIZE = 16
 
             for i in range(len(measures) - WINDOW_SIZE):
 
                 window = measures[i:i + WINDOW_SIZE]
 
                 costs = self.get_cost_array(window)
+
+                # if the max cost is not that high => stop
+                if max(costs) < 10:
+                    continue
 
                 max_cost_index = max(
                     range(len(costs)), key=lambda n: costs[n]) + i
@@ -302,7 +318,8 @@ class HandAssignment(object):
                         break
 
             if not self.verbose:
-                print('Optimizing piano score - pass', count, '...')
+                self.logger.info(
+                    'Optimizing piano score - pass ' + str(count) + ' ...')
 
         if self.verbose:
             self.visualizer.end_screen()
@@ -311,33 +328,43 @@ class HandAssignment(object):
 
     def local_optimize(self, measures, index, prev, curr, next):
 
-        # save the current row assignment
-        copy = deepcopy(measures[index])
-        prev_total_cost = self.get_total_cost(measures)
+        # backup the current assignment
+        original_assignment = deepcopy(measures[index])
+        original_cost = self.get_total_cost(measures)
 
-        for i in range(10):
+        # try to reassign fingers
+        left_hand_notes, right_hand_notes = self.split_to_hands(curr)
 
-            # FIXME: naive random
-            fingers = list(range(1, 10))
-            shuffle(fingers)
+        best_assignment = None
+        best_cost = None
 
-            for i, n in enumerate(curr[:min(len(curr), 9)]):
-                if 1 <= fingers[i] <= 5:
+        # loop through all possible finger assignment
+        # FIXME: handle frame with only left hand notes / right hand notes
+        for lefts in combinations(range(1, 6), len(left_hand_notes)):
+            for rights in combinations(range(1, 6), len(right_hand_notes)):
+                # backup the previous assignment for potential revert
+                for i, n in enumerate(left_hand_notes):
                     n.hand = 'L'
-                    n.finger = fingers[i]
-                elif 6 <= fingers[i] <= 10:
+                    n.finger = lefts[i]
+                for i, n in enumerate(right_hand_notes):
                     n.hand = 'R'
-                    n.finger = fingers[i] - 5
+                    n.finger = rights[i]
+                # evaluate if the new assignment is better
+                curr_cost = self.get_total_cost(measures)
+                if (best_assignment is None
+                        and best_cost is None) or curr_cost < best_cost:
+                    best_assignment = deepcopy(measures[index])
+                    best_cost = curr_cost
 
-            # if total cost is lowered
-            if self.get_total_cost(measures) > prev_total_cost:
-                measures[index] = copy  # revert
+        # if total cost is lowered
+        if best_cost is not None:
+            if best_cost < original_cost:
+                measures[index] = best_assignment
             else:
-                break
-
-        if i == 10:
-
-            # no finger assignment could lower the cost => remove notes
-            for n in curr:
-                n.hand = None
-                n.finger = None
+                measures[index] = original_assignment  # revert
+                # cannot improve the finger assignment anymore => remove notes
+                self.logger.info('need to remove notes at ' + str(index))
+                for n in measures[index][1]:
+                    n.deleted = None
+                    n.hand = None
+                    n.finger = None

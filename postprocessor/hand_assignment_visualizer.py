@@ -83,8 +83,15 @@ class HandAssignmentVisualizer(object):
                         self.stdscr.addstr(i, 0, message)
 
                     if cost is not None:
-                        self.stdscr.addstr(i, self.stdscr_width - 10,
-                                           '<{:.0f}>'.format(cost).ljust(5))
+                        if offset == highlight:
+                            self.stdscr.addstr(
+                                i, self.stdscr_width - 10,
+                                '<{:.0f}>'.format(cost).ljust(5),
+                                curses.color_pair(1))
+                        else:
+                            self.stdscr.addstr(
+                                i, self.stdscr_width - 10,
+                                '<{:.0f}>'.format(cost).ljust(5))
 
                 self.stdscr.refresh()
 
