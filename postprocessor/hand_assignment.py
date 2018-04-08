@@ -1,6 +1,5 @@
 import math
 import curses
-import signal
 import music21
 import traceback
 import numpy as np
@@ -20,7 +19,7 @@ from hand_assignment_visualizer import HandAssignmentVisualizer
 MIDDLE_C = 60
 
 
-class HandAssignmentAlgorithm(object):
+class HandAssignment(object):
     def __init__(self, max_hand_span=7, verbose=False):
 
         self.config = {}
@@ -196,19 +195,17 @@ class HandAssignmentAlgorithm(object):
     def cost_model(self, prev, curr, next):
 
         # record where the fingers are
-        prev_fingers, curr_fingers, next_fingers = {}, {}, {}
+        prev_fingers, curr_fingers = {}, {}
+
         for n in prev:
             if n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 prev_fingers[finger] = n
+
         for n in curr:
             if n.hand and n.finger:
                 finger = n.finger if n.hand == 'L' else n.finger + 5
                 curr_fingers[finger] = n
-        for n in next:
-            if n.hand and n.finger:
-                finger = n.finger if n.hand == 'L' else n.finger + 5
-                next_fingers[finger] = n
 
         # record finger position change
         total_movement = 0
@@ -216,26 +213,30 @@ class HandAssignmentAlgorithm(object):
 
         for finger in range(1, 11):
 
-            # current finger are in both curr & next frame => movement cost
-            if finger in curr_fingers and finger in next_fingers:
+            # current finger are in both prev & curr frame => movement cost
+            if finger in prev_fingers and finger in curr_fingers:
+                prev_ps = prev_fingers[finger].note.pitch.ps
                 curr_ps = curr_fingers[finger].note.pitch.ps
-                next_ps = next_fingers[finger].note.pitch.ps
-                total_movement += abs(next_ps - curr_ps)
+                total_movement += abs(curr_ps - prev_ps)
 
             # current finger are only in current frame => new placement cost
             if finger not in prev_fingers and finger in curr_fingers:
+
                 search_range = range(1, 6) \
                     if finger in range(1, 6) else range(6, 11)
+
                 prev = [
                     n.note.pitch.ps for key, n in prev_fingers.items()
                     if key in search_range
                 ]
+
                 curr_ps = curr_fingers[finger].note.pitch.ps
+
                 if len(prev) == 0:
                     prev_ps = curr_ps
                 else:
-                    prev_ps = np.median(
-                        prev)  # = median of left finger ps in previous frame
+                    prev_ps = np.median(prev)
+
                 total_new_placement += abs(curr_ps - prev_ps)
 
         # total cost
@@ -251,7 +252,7 @@ class HandAssignmentAlgorithm(object):
             next_offset, next_frame = next_item
             cost = self.cost_model(prev_frame, curr_frame, next_frame)
             costs.append(cost)
-        return [0] + costs
+        return costs
 
     def get_total_cost(self, notes):
 
@@ -265,32 +266,43 @@ class HandAssignmentAlgorithm(object):
 
         hasStopped = False
 
-        while not hasStopped:
+        count = 0
 
-            costs = self.get_cost_array(measures)
-            max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
+        while count < 100 and not hasStopped:
 
-            # save the current row assignment
-            copy = deepcopy(measures[max_cost_index])
+            count += 1
+            WINDOW_SIZE = 10
 
-            prev_total_cost = self.get_total_cost(measures)
+            for i in range(len(measures) - WINDOW_SIZE):
 
-            # optimize the assignment
-            prev_offset, prev_frame = measures[max_cost_index - 1]
-            curr_offset, curr_frame = measures[max_cost_index]
-            next_offset, next_frame = measures[max_cost_index + 1]
+                window = measures[i:i + WINDOW_SIZE]
 
-            self.local_optimize(prev_frame, curr_frame, next_frame)
+                costs = self.get_cost_array(window)
 
-            # if total cost is lowered
-            if self.get_total_cost(measures) < prev_total_cost:
-                measures[max_cost_index] = copy  # revert
+                max_cost_index = max(
+                    range(len(costs)), key=lambda n: costs[n]) + i
 
-            if self.visualizer is not None:
-                if self.visualizer.print_fingering(
-                        measures, highlight=curr_offset):
-                    hasStopped = True
-                    break
+                # save the current row assignment
+                copy = deepcopy(measures[max_cost_index])
+
+                prev_total_cost = self.get_total_cost(measures)
+
+                # optimize the assignment
+                prev_offset, prev_frame = measures[max_cost_index - 1]
+                curr_offset, curr_frame = measures[max_cost_index]
+                next_offset, next_frame = measures[max_cost_index + 1]
+
+                self.local_optimize(prev_frame, curr_frame, next_frame)
+
+                # if total cost is lowered
+                if self.get_total_cost(measures) > prev_total_cost:
+                    measures[max_cost_index] = copy  # revert
+
+                if self.visualizer is not None:
+                    if self.visualizer.print_fingering(
+                            measures, highlight=curr_offset):
+                        hasStopped = True
+                        break
 
         if self.visualizer is not None:
             self.visualizer.end_screen()
@@ -309,6 +321,3 @@ class HandAssignmentAlgorithm(object):
             elif 6 <= fingers[i] <= 10:
                 n.hand = 'R'
                 n.finger = fingers[i] - 5
-            else:
-                n.hand = None
-                n.finger = None
