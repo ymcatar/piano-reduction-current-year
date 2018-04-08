@@ -21,6 +21,7 @@ from .pre_processor import ContractingPreProcessor
 from .algorithm.output_count_estimate import OutputCountEstimate
 from .structure import AdjacentNotes
 from . import onset_chain_ext
+from scoreboard import writer as writerlib
 
 
 class OnsetStruct:
@@ -30,7 +31,7 @@ class OnsetStruct:
 
     A list of OnsetStructs defines a conditional random field.
     '''
-    def __init__(self, offset, note_features, note_count, max_kept, indices):
+    def __init__(self, offset, note_features, note_count, max_kept, indices, pitch_classes):
         self.voice_edges = []
 
         self.offset = offset
@@ -41,6 +42,16 @@ class OnsetStruct:
         self.note_count = note_count
         self.max_kept = max_kept
         self.indices = indices
+        self.pitch_classes = pitch_classes
+
+        self.horiz_weight_start = self.n_note_features + 1
+
+    count_algo = OutputCountEstimate()
+    count_algo.key_prefix = 'OnsetStruct'
+    input_features = [
+        writerlib.guess_feature(count_algo)
+        ]
+    input_features[0].group = 'input'
 
     @classmethod
     def create(cls, score_obj, entry):
@@ -52,31 +63,40 @@ class OnsetStruct:
         onsets = []
         onset_lookup = {}
 
-        count_algo = OutputCountEstimate()
-        count_algo.key_prefix = 'OnsetStruct'
-        count_algo.run(score_obj)
+        cls.count_algo.run(score_obj)
 
         for offset, notes in score_obj.iter_offsets():
             # Create a struct for each onset
 
             # Contracted indices
-            indices = list({entry.mapping.mapping[score_obj.index(n)] for n in notes})
-            output_est = notes[0].editorial.misc[count_algo.key] if notes else 0.0
+            cnotes, indices = [], []
+            for n in notes:
+                orig_index = score_obj.index(n)
+                if entry.mapping.parents[orig_index] == orig_index:
+                    cnotes.append(n)
+                    indices.append(entry.mapping.mapping[orig_index])
+
+            output_est = notes[0].editorial.misc[cls.count_algo.key] if notes else 0.0
             output_est = min(8, int(round(output_est)))
 
-            struct = cls(offset, entry.X[indices, :], len(indices), output_est, indices)
+            pitch_classes = np.asarray([n.pitch.pitchClass for n in cnotes])
+
+            struct = cls(offset, entry.X[indices, :], len(indices), output_est,
+                         indices, pitch_classes)
             onset_index = len(onsets)
             onsets.append(struct)
 
             for i, index in enumerate(indices):
                 onset_lookup[index] = onset_index, i
 
+        assert sum(onset.note_count for onset in onsets) == len(entry.X)
+
         # Add voice edges between onsets
         adj = entry.mapping.map_structure(dict(AdjacentNotes().run(score_obj)))
         for (u, v), _ in adj.items():
             # Sort by onset index
             (u_onset, u_index), (v_onset, v_index) = \
-                sorted([onset_lookup[u], onset_lookup[v]])
+                sorted([onset_lookup.get(u, (-1, -1)), onset_lookup.get(v, (-1, -1))])
             if v_onset - u_onset != 1:
                 continue
 
@@ -117,7 +137,7 @@ class OnsetStruct:
         Returns: float ndarray of shape (k,)
             The potential value for each label vector.
         '''
-        intercept = w[self.n_note_features]
+        intercept, = w[self.n_note_features:self.horiz_weight_start]
         weights = w[:self.n_note_features]
 
         # @ = matmul operator
@@ -162,7 +182,11 @@ class OnsetChainPreProcessor(ContractingPreProcessor):
 
     @property
     def n_weights(self):
-        return len(self.all_keys) + 3
+        return len(self.all_keys) + 4
+
+    @property
+    def input_features(self):
+        return [*super().input_features, *OnsetStruct.input_features]
 
 
 class OnsetChainPyStructModel(StructuredModel):
@@ -208,10 +232,30 @@ class OnsetChainPyStructModel(StructuredModel):
         return ret
 
     def inference(self, x, w, relaxed=None):
+        self._last_x = x
         return self._inference(x, w)
 
     def loss_augmented_inference(self, x, y, w, relaxed=None):
+        self._last_x = x
         return self._inference(x, w, y)
+
+    def loss(self, y, y_hat, x=None):
+        if isinstance(y_hat, tuple):
+            return self.continuous_loss(y, y_hat[0])
+
+        if x is None:
+            x = self._last_x  # HACK
+        if x is None or sum(onset.note_count for onset in x) != len(y):
+            raise ValueError('x must be known')
+
+        total = sum(onset.note_count**2 for onset in x)
+        return sum(np.sum(y[onset.indices] != y_hat[onset.indices])**2 for onset in x) / total
+
+    def max_loss(self, y, x=None):
+        return 1.0
+
+    def continuous_loss(self, y, y_hat):
+        raise NotImplementedError()
 
     def _split_y(self, y, onsets):
         return [y[onset.indices] for onset in onsets]
@@ -233,6 +277,7 @@ class OnsetChainPyStructModel(StructuredModel):
             return np.asarray([])
 
         loss_augmented = y is not None
+        loss_denom = sum(onset.note_count**2 for onset in onsets)
 
         COUNT = 32768
 
@@ -243,7 +288,7 @@ class OnsetChainPyStructModel(StructuredModel):
 
         u = onsets[0].get_vertical_potentials(Y_hats[0], w)
         if loss_augmented:
-            u += np.sum(Y_hats[0] != Y[0][np.newaxis, :], axis=1)
+            u += np.sum(Y_hats[0] != Y[0][np.newaxis, :], axis=1)**2 / loss_denom
 
         onset_prev, Y_hat_prev = onsets[0], Y_hats[0]
         for i, (onset, Y_hat) in enumerate(zip(onsets[1:], Y_hats[1:])):
@@ -255,7 +300,7 @@ class OnsetChainPyStructModel(StructuredModel):
 
             u += onset.get_vertical_potentials(Y_hat, w)
             if loss_augmented:
-                u += np.sum(Y_hat != Y[i+1][np.newaxis, :], axis=1)
+                u += np.sum(Y_hat != Y[i+1][np.newaxis, :], axis=1)**2 / loss_denom
 
             onset_prev, Y_hat_prev = onset, Y_hat
 

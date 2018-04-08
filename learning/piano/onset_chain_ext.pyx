@@ -11,19 +11,22 @@ def packbits(matrix, dtype='uint32'):
     return np.sum(matrix.astype(dtype) * sig, axis=1).astype(dtype)
 
 
+def pitch_class_vectors(onset, Y):
+    mat = np.zeros((len(Y), 12), dtype='uint32')
+    for i, y in enumerate(Y):
+        pcs = onset.pitch_classes[np.where(y == 1)]
+        if len(pcs):
+            mat[i, pcs] = 1
+
+    return packbits(mat)
+
+
 def get_horizontal_potentials(self, prev, Y_prev, Y_curr, w):
     # Convert to bit vectors for efficiency
-    y1 = packbits(Y_prev)
-    y2 = packbits(Y_curr)
-    return np.asarray(get_horizontal_potentials_impl(self, prev, y1, y2, w))
+    cdef uint32_t[:] y1 = packbits(Y_prev)
+    cdef uint32_t[:] y2 = packbits(Y_curr)
 
-
-cdef double[:, :] get_horizontal_potentials_impl(
-        object self, object prev, uint32_t[:] y1, uint32_t[:] y2, double[:] w):
-    cdef double[:, :] U = np.zeros((len(y1), len(y2)), dtype='double')
-
-    cdef uint32_t i, j, k
-
+    # Pre-computation
     cdef double duration = self.offset - prev.offset
     if duration == 0.0:  # Grace notes
         duration = 0.25
@@ -33,8 +36,14 @@ cdef double[:, :] get_horizontal_potentials_impl(
         arr = arr[:, np.newaxis]
     cdef int[:, :] voice_edges = arr
 
-    cdef double w_onset, w_voice
-    w_onset, w_voice = w[self.n_note_features+1:]
+    cdef uint32_t[:] pc1 = pitch_class_vectors(prev, Y_prev)
+    cdef uint32_t[:] pc2 = pitch_class_vectors(self, Y_curr)
+
+    cdef double w_onset, w_voice, w_pc_diff
+    w_onset, w_voice, w_pc_diff = w[self.horiz_weight_start:]
+
+    cdef double[:, :] U = np.zeros((len(y1), len(y2)), dtype='double')
+    cdef uint32_t i, j, k
 
     # Disable bounds check for efficiency
     with cython.boundscheck(False):
@@ -50,6 +59,19 @@ cdef double[:, :] get_horizontal_potentials_impl(
                             y2[j] & (1 << voice_edges[k, 1])):
                         U[i, j] += w_voice
 
+                # Pitch class difference
+                U[i, j] += popcount(pc1[i] ^ pc2[j]) * w_pc_diff
+
                 U[i, j] /= duration
 
-    return U
+    return np.asarray(U)
+
+
+cdef extern:
+    int __builtin_popcount(unsigned int x)
+
+
+cdef int popcount(uint32_t x):
+    # Supported by GCC and LLVM
+    # Fix this if someone uses another compiler
+    return __builtin_popcount(x)
