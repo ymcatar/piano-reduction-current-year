@@ -31,8 +31,11 @@ def find_slient_interval(intervals, start, end):
 
 
 class MultipartReducer(object):
-    def __init__(self, score):
+
+    def __init__(self, score, max_hand_span=7):
+
         self.score = score
+        self.max_hand_span = max_hand_span
 
     def reduce(self):
 
@@ -54,6 +57,7 @@ class MultipartReducer(object):
                     break
 
             bar_length = measures[0].barDuration.quarterLength
+
             for hand, part in zip(HANDS, parts):
 
                 key_signature, time_signature = None, None
@@ -75,13 +79,21 @@ class MultipartReducer(object):
                             bar_length = elem.barDuration.quarterLength
 
                         elif isinstance(elem, music21.note.Note):
-                            if elem.editorial.misc.get('hand') == hand:
+                            if 'hand' not in elem.editorial.misc:
+                                continue
+                            if hand == LEFT_HAND and elem.pitch.ps < 60:
+                                notes.append(elem)
+                            elif hand == RIGHT_HAND and elem.pitch.ps >= 60:
                                 notes.append(elem)
 
                         elif isinstance(elem, music21.chord.Chord):
                             for n in elem:
-                                if elem.editorial.misc.get('hand') == hand:
-                                    notes.append(elem)
+                                if 'hand' not in n.editorial.misc:
+                                    continue
+                                if hand == LEFT_HAND and n.pitch.ps < 60:
+                                    notes.append(n)
+                                elif hand == RIGHT_HAND and n.pitch.ps >= 60:
+                                    notes.append(n)
 
                         else:
                             # Ignore other stuff by default
