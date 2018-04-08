@@ -182,9 +182,14 @@ class HandAssignment(object):
                 note.finger = i + 1
 
         try:
+
             self.global_optimize(measures)
+
         except Exception as e:
-            self.visualizer.end_screen()
+
+            if self.visualizer is not None:
+                self.visualizer.end_screen()
+
             traceback.print_exc()
             exit(1)
 
@@ -261,14 +266,14 @@ class HandAssignment(object):
 
     def global_optimize(self, measures):
 
-        if self.visualizer is not None:
+        if self.verbose:
             self.visualizer.init_screen()
 
         hasStopped = False
 
         count = 0
 
-        while count < 100 and not hasStopped:
+        while count < 10 and not hasStopped:
 
             count += 1
             WINDOW_SIZE = 10
@@ -282,42 +287,57 @@ class HandAssignment(object):
                 max_cost_index = max(
                     range(len(costs)), key=lambda n: costs[n]) + i
 
-                # save the current row assignment
-                copy = deepcopy(measures[max_cost_index])
-
-                prev_total_cost = self.get_total_cost(measures)
-
                 # optimize the assignment
                 prev_offset, prev_frame = measures[max_cost_index - 1]
                 curr_offset, curr_frame = measures[max_cost_index]
                 next_offset, next_frame = measures[max_cost_index + 1]
 
-                self.local_optimize(prev_frame, curr_frame, next_frame)
+                self.local_optimize(measures, max_cost_index, prev_frame,
+                                    curr_frame, next_frame)
 
-                # if total cost is lowered
-                if self.get_total_cost(measures) > prev_total_cost:
-                    measures[max_cost_index] = copy  # revert
-
-                if self.visualizer is not None:
+                if self.verbose:
                     if self.visualizer.print_fingering(
                             measures, highlight=curr_offset):
                         hasStopped = True
                         break
 
-        if self.visualizer is not None:
+            if not self.verbose:
+                print('Optimizing piano score - pass', count, '...')
+
+        if self.verbose:
             self.visualizer.end_screen()
 
         return 0
 
-    def local_optimize(self, prev, curr, next):  # optimizes curr_frame
+    def local_optimize(self, measures, index, prev, curr, next):
 
-        # FIXME: naive random
-        fingers = list(range(1, 10))
-        shuffle(fingers)
-        for i, n in enumerate(curr):
-            if 1 <= fingers[i] <= 5:
-                n.hand = 'L'
-                n.finger = fingers[i]
-            elif 6 <= fingers[i] <= 10:
-                n.hand = 'R'
-                n.finger = fingers[i] - 5
+        # save the current row assignment
+        copy = deepcopy(measures[index])
+        prev_total_cost = self.get_total_cost(measures)
+
+        for i in range(10):
+
+            # FIXME: naive random
+            fingers = list(range(1, 10))
+            shuffle(fingers)
+
+            for i, n in enumerate(curr[:min(len(curr), 9)]):
+                if 1 <= fingers[i] <= 5:
+                    n.hand = 'L'
+                    n.finger = fingers[i]
+                elif 6 <= fingers[i] <= 10:
+                    n.hand = 'R'
+                    n.finger = fingers[i] - 5
+
+            # if total cost is lowered
+            if self.get_total_cost(measures) > prev_total_cost:
+                measures[index] = copy  # revert
+            else:
+                break
+
+        if i == 10:
+
+            # no finger assignment could lower the cost => remove notes
+            for n in curr:
+                n.hand = None
+                n.finger = None
