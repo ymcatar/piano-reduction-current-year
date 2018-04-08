@@ -29,7 +29,12 @@ class HandAssignmentVisualizer(object):
         curses.curs_set(0)  # hide the cursoe
 
         self.stdscr.keypad(True)  # accept directional key
-        signal.signal(signal.SIGINT, lambda a, b: self.end_screen())
+
+        def on_exit(a, b):
+            self.end_screen()
+            exit(1)
+
+        signal.signal(signal.SIGINT, on_exit)
 
     def end_screen(self):
 
@@ -45,19 +50,18 @@ class HandAssignmentVisualizer(object):
 
         is_changed = True
 
+        if highlight is not None:
+            offsets = [offset for offset, notes in measures]
+            self.start_line = offsets.index(highlight) - self.stdscr_height // 2
+            self.start_line = max(0, self.start_line)
+            self.start_line = min(len(measures), self.start_line)
+
         while True:
 
             if is_changed:
 
                 is_changed = False
                 self.stdscr.clear()
-
-                if highlight is not None:
-                    offsets = [offset for offset, notes in measures]
-                    self.start_line = offsets.index(
-                        highlight) - self.stdscr_height // 2
-                    self.start_line = max(0, self.start_line)
-                    self.start_line = min(len(measures), self.start_line)
 
                 for i, item in enumerate(measures[
                         self.start_line:self.start_line + self.stdscr_height]):
@@ -108,13 +112,12 @@ class HandAssignmentVisualizer(object):
 
         vector = [0] * 97
         for n in notes:
-            if not n.deleted:
-                if n.hand and n.finger:
-                    vector[math.trunc(
-                        n.note.pitch.ps
-                    )] = n.finger if n.hand == 'L' else 5 + n.finger
-                else:
-                    vector[math.trunc(n.note.pitch.ps)] = 11
+            if not n.deleted and n.hand and n.finger:
+                vector[math.trunc(
+                    n.note.pitch.ps
+                )] = n.finger if n.hand == 'L' else 5 + n.finger
+            else:
+                vector[math.trunc(n.note.pitch.ps)] = 11
 
         def value_to_func(value):
             value = int(value)
@@ -125,7 +128,6 @@ class HandAssignmentVisualizer(object):
             elif 6 <= value <= 10:
                 return str(['1', '2', '3', '4', '5'][value - 6])
             elif value == 11:
-                quit()
                 return '-'
 
         return str_vector(
