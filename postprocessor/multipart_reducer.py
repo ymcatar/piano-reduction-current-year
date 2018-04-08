@@ -60,7 +60,6 @@ class MultipartReducer(object):
                 notes = []
 
                 for p in bar.parts:
-                    rests = []
 
                     for elem in p.recurse(skipSelf=False):
 
