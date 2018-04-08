@@ -110,6 +110,7 @@ class BottomUpPreProcessor(BasePreProcessor):
             })
 
     def process_score_obj_pair(self, input, output, extra=False, name=None):
+        logging.info('Extracting features')
         ret = PreProcessedEntry()
         ret.len = len(input)
         if name:
@@ -118,7 +119,6 @@ class BottomUpPreProcessor(BasePreProcessor):
         # Features
         X = np.empty((ret.len, len(self.all_keys)), dtype='float')
         for algo in self.algorithms:
-            logging.info('Evaluating feature {}'.format(type(algo).__name__))
             algo.run(input)
 
             for i, key in enumerate(algo.all_keys):
@@ -128,7 +128,6 @@ class BottomUpPreProcessor(BasePreProcessor):
 
         # Labels
         if output:
-            logging.info('Evaluating alignment {}'.format(type(self.alignment).__name__))
             self.alignment.run(input, output, extra=extra)
             y = input.extract(self.alignment.key, dtype='int')
             y = y[:, np.newaxis]
@@ -184,7 +183,6 @@ class ContractingPreProcessor(BottomUpPreProcessor):
         ret.contractions = {}
         all_contractions = []
         for algo in self.contractions:
-            logging.info('Evaluating contraction {}'.format(type(algo).__name__))
             contr = list(algo.run(input))
             ret.contractions[algo.key] = [(edge, ()) for edge in contr]
             all_contractions.extend(contr)
@@ -234,7 +232,6 @@ class StructuralPreProcessor(ContractingPreProcessor):
         all_structures = defaultdict(lambda: np.zeros(n_edge_features, dtype='float'))
         d = 0
         for algo in self.structures:
-            logging.info('Evaluating structure {}'.format(type(algo).__name__))
             ret.structures[algo.key] = list(algo.run(input))
             for edge, features in ret.structures[algo.key]:
                 all_structures[tuple(sorted(edge))][d:d + algo.n_features] = features
