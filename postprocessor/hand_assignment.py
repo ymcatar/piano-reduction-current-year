@@ -17,6 +17,8 @@ from util import \
 from pattern_analyzer import PatternAnalyzer
 from hand_assignment_visualizer import HandAssignmentVisualizer
 
+MIDDLE_C = 60
+
 
 class HandAssignmentAlgorithm(object):
     def __init__(self, max_hand_span=7, verbose=False):
@@ -131,38 +133,31 @@ class HandAssignmentAlgorithm(object):
         # analyzer = PatternAnalyzer(piano_roll, self.config)
         # analyzer.run()
 
-        # Cherry's algorithm (revised): used to give an initial assignment
+        # used to give an naive assignment
         for offset, notes in measures:
 
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
 
-            ps_median = np.median(list(n.note.pitch.ps for n in notes))
+            ps_list = sorted(list(n.note.pitch.ps for n in notes))
 
-            left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
-            right_hand_notes = [
-                n for n in notes if n.note.pitch.ps > ps_median
-            ]
+            left_hand_notes = []
+            right_hand_notes = []
 
-            # assign the median to whatever closer
-            median_note = [n for n in notes if n.note.pitch.ps == ps_median]
-            if len(median_note) > 0:
-                highest_left_notes = max(
-                    n.note.pitch.ps
-                    for n in left_hand_notes) if len(left_hand_notes) else 0
-                lowest_right_notes = min(
-                    n.note.pitch.ps
-                    for n in right_hand_notes) if len(right_hand_notes) else 0
-                if median_note[0].note.pitch.ps - lowest_right_notes < \
-                        highest_left_notes - median_note[0].note.pitch.ps:
-                    left_hand_notes += median_note
+            max_note_distance = 2 * self.config['max_hand_span'] - 1
+            # all notes are close together => assign to same hand
+            if ps_list[-1] - ps_list[0] <= max_note_distance:
+                if ps_list[0] < MIDDLE_C:
+                    left_hand_notes = notes
                 else:
-                    right_hand_notes += median_note
-
-            left_hand_notes = sorted(
-                left_hand_notes, key=lambda n: n.note.pitch.ps)
-            right_hand_notes = sorted(
-                right_hand_notes, key=lambda n: n.note.pitch.ps)
+                    right_hand_notes = notes
+            else:
+                # greedily expand the left cluster until it is impossible
+                for i, item in enumerate(ps_list):
+                    if item - ps_list[0] <= max_note_distance:
+                        left_hand_notes.append(notes[i])
+                    else:
+                        right_hand_notes.append(notes[i])
 
             if len(left_hand_notes) > 5:
                 print(offset, 'too many left hand notes')
@@ -297,7 +292,6 @@ class HandAssignmentAlgorithm(object):
                             measures, highlight=curr_offset):
                         hasStopped = True
                         break
-
 
         if self.visualizer is not None:
             self.visualizer.end_screen()
