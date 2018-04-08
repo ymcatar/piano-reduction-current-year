@@ -9,8 +9,8 @@ from collections import defaultdict
 
 from util import str_vector, get_number_of_cluster
 
-class PatternAnalyzer(object):
 
+class PatternAnalyzer(object):
     def __init__(self, piano_roll, config):
 
         self.piano_roll = piano_roll
@@ -32,7 +32,7 @@ class PatternAnalyzer(object):
         for pattern in patterns:
             for item in pattern:
                 i, j = item
-                new_piano_roll[i,j] = 2
+                new_piano_roll[i, j] = 2
         return new_piano_roll
 
     def run(self):
@@ -54,19 +54,23 @@ class PatternAnalyzer(object):
         # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
-        self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
+        self.print_piano_roll(
+            self.highlight_pattern(self.patterns['diagonals_right']))
 
     def detect_triads(self):
         results = []
         for i, vector in enumerate(self.piano_roll):
             # look at 3 notes at a time
-            notes = [ n for n, is_active in enumerate(vector) if is_active ]
+            notes = [n for n, is_active in enumerate(vector) if is_active]
             for triplet in itertools.combinations(notes, 3):
                 # can be optimzed
-                first, second, third = list(music21.note.Note(ps=ps) for ps in triplet)
+                first, second, third = list(
+                    music21.note.Note(ps=ps) for ps in triplet)
                 first_interval = music21.interval.Interval(first, second)
                 second_interval = music21.interval.Interval(first, third)
-                if first_interval.name in ('M3', 'm3') and second_interval.name in ('P5', 'd5', 'a5'):
+                if first_interval.name in (
+                        'M3', 'm3') and second_interval.name in ('P5', 'd5',
+                                                                 'a5'):
                     results.append(tuple((i, j) for j in triplet))
         return results
 
@@ -74,27 +78,31 @@ class PatternAnalyzer(object):
         results = []
         for i, vector in enumerate(self.piano_roll):
             if get_number_of_cluster(vector, self.config['max_hand_span']) > 2:
-                results.append(tuple((i, j) for j, is_active in enumerate(vector) if is_active))
+                results.append(
+                    tuple((i, j) for j, is_active in enumerate(vector)
+                          if is_active))
         return results
 
     def detect_repeats(self):
         results = []
         for j, column in enumerate(self.piano_roll.T):
-            for group in itertools.groupby(range(len(column)), key=lambda n: column[n]):
+            for group in itertools.groupby(
+                    range(len(column)), key=lambda n: column[n]):
                 is_active, items = group
                 items = list(items)
-                if int(is_active) == 1 and len(items) >= self.config['min_repeat_len']:
+                if int(is_active
+                       ) == 1 and len(items) >= self.config['min_repeat_len']:
                     results.append(tuple((i, j) for i in items))
         return results
 
     def detect_diagonals(self, direction=+1):
-
         """direction: -1 = towards bottom left; +1 = towards bottom right"""
         assert direction in (-1, 1)
 
-        search_space = list(itertools.product(
-            range(1, self.config['max_diagonal_skip'] + 1),
-            range(1, self.config['max_diagonal_dist'] + 1)))
+        search_space = list(
+            itertools.product(
+                range(1, self.config['max_diagonal_skip'] + 1),
+                range(1, self.config['max_diagonal_dist'] + 1)))
 
         if direction == -1:
             for key, value in enumerate(search_space):
@@ -108,7 +116,8 @@ class PatternAnalyzer(object):
             for j, is_active in enumerate(vector):
                 if is_active:
                     for x, y in search_space:
-                        if 0 <= i + x < height and 0 <= j + y < width and self.piano_roll[i + x, j + y]:
+                        if 0 <= i + x < height and 0 <= j + y < width and \
+                                self.piano_roll[i + x, j + y]:
                             length_2_diagonal[(i, j)].add((i + x, j + y))
 
         def get_all_diagonals(start):
@@ -138,6 +147,7 @@ class PatternAnalyzer(object):
         # TODO
         results = []
         return results
+
 
 # piano_roll = np.load('result.npy')
 

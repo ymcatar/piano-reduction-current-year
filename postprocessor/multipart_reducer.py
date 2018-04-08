@@ -10,26 +10,27 @@ from intervaltree import IntervalTree
 RIGHT_HAND = 'R'
 LEFT_HAND = 'L'
 
+
 # util function to find any gap within a given interval tree
 def find_slient_interval(intervals, start, end):
 
-    intervals = sorted(intervals, key=lambda n: n[0]) # sort by starting time
+    intervals = sorted(intervals, key=lambda n: n[0])  # sort by starting time
     results = []
 
     curr_start = 0.0
     for item in intervals:
         item_start, item_end, _ = item
-        if item_start - curr_start >= 1e-4: # curr_start < start
+        if item_start - curr_start >= 1e-4:  # curr_start < start
             results.append((curr_start, item_start))
         curr_start = item_end
 
-    if end - curr_start >= 1e-4: # curr_start < end
+    if end - curr_start >= 1e-4:  # curr_start < end
         results.append((curr_start, end))
 
     return results
 
-class MultipartReducer(object):
 
+class MultipartReducer(object):
     def __init__(self, score):
         self.score = score
 
@@ -42,7 +43,8 @@ class MultipartReducer(object):
         for i in count(0):
 
             bar = self.score.measure(i, collect=(), gatherSpanners=False)
-            measures = bar.recurse(skipSelf=False).getElementsByClass('Measure')
+            measures = bar.recurse(
+                skipSelf=False).getElementsByClass('Measure')
 
             if not measures:
                 # Measures is the pickup (partial) measure and may not exist
@@ -87,8 +89,7 @@ class MultipartReducer(object):
                             pass
 
                 out_measure = self._create_measure(
-                    notes=notes,
-                    measure_length=bar_length)
+                    notes=notes, measure_length=bar_length)
 
                 if key_signature:
                     out_measure.insert(key_signature)
@@ -112,7 +113,9 @@ class MultipartReducer(object):
         result.insert(0, parts[0])  # Left hand
 
         staff_group = music21.layout.StaffGroup(
-            [parts[1], parts[0]], name='Piano', abbreviation='Pno.',
+            [parts[1], parts[0]],
+            name='Piano',
+            abbreviation='Pno.',
             symbol='brace')
         staff_group.barTogether = 'yes'
 
@@ -134,7 +137,8 @@ class MultipartReducer(object):
         for n in notes:
             offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
             if n.tie:
-                tie_map[(n.offset, n.duration.quarterLength, n.pitch.ps)] = n.tie
+                tie_map[(n.offset, n.duration.quarterLength,
+                         n.pitch.ps)] = n.tie
 
         # merge notes with same offset and duration into a single chord
         for offset, offset_item in offset_map.items():
@@ -142,7 +146,8 @@ class MultipartReducer(object):
                 if len(pitches) == 1:
                     offset_item[duration] = music21.note.Note(pitches[0])
                     if (offset, duration, pitches[0].ps) in tie_map:
-                        offset_item[duration].tie = tie_map[(offset, duration, pitches[0].ps)]
+                        offset_item[duration].tie = tie_map[(offset, duration,
+                                                             pitches[0].ps)]
                 else:
                     pitches = list(set(pitches))
                     offset_item[duration] = music21.chord.Chord(pitches)
@@ -173,7 +178,8 @@ class MultipartReducer(object):
         for start in offset_map.keys():
             for duration in offset_map[start].keys():
                 if duration > 0.0:
-                    intervals.addi(start, start + duration, offset_map[start][duration])
+                    intervals.addi(start, start + duration,
+                                   offset_map[start][duration])
 
         # add all the notes to the measure
         voices = defaultdict(lambda: [])
@@ -201,7 +207,9 @@ class MultipartReducer(object):
             rests = find_slient_interval(temp, 0, measure_length)
             for item in rests:
                 start, end = item
-                voices[key].append((start, end, music21.note.Rest(quarterLength=(end-start))))
+                voices[key].append(
+                    (start, end,
+                     music21.note.Rest(quarterLength=(end - start))))
             voices[key] = sorted(voices[key], key=lambda i: i[0])
 
         if len(voices) <= 4:
@@ -215,6 +223,8 @@ class MultipartReducer(object):
                 result.insert(0, voice)
         else:
             # FIXME
-            print('JESUS CHRIST BE PRIASED, there are too many voices. Ignoring ...', len(voices))
+            print(
+                'There are too many voices. Ignoring ...',
+                len(voices))
 
         return result

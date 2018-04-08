@@ -2,13 +2,13 @@ import music21
 
 # a method that wraps the notes object properly so note in chord can be properly deleted
 
-class NoteWrapper(object):
 
+class NoteWrapper(object):
     def __init__(self, note, offset, chord=None):
 
         self.note = note
         self.offset = offset
-        self.chord = chord      # set to a chord if the note belongs to a chord
+        self.chord = chord  # set to a chord if the note belongs to a chord
 
         if 'deleted' not in self.note.editorial.misc:
             self.deleted = False
@@ -54,5 +54,7 @@ class NoteWrapper(object):
 
     def __repr__(self):
         state = 'DeletedNoteWrapper' if self.deleted else 'NoteWrapper'
-        assignment = ' {:s}{:d}'.format(self.hand, self.finger) if self.hand and self.finger else ''
-        return '<{:s} {:s}{:s}>'.format(state, self.note.nameWithOctave, assignment)
+        assignment = ' {:s}{:d}'.format(
+            self.hand, self.finger) if self.hand and self.finger else ''
+        return '<{:s} {:s}{:s}>'.format(state, self.note.nameWithOctave,
+                                        assignment)

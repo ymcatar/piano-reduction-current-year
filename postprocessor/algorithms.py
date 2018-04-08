@@ -9,7 +9,6 @@ MAX_PITCH_STEP_CHANGE = 8
 
 
 class PostProcessorAlgorithms(object):
-
     @staticmethod
     def repeated_note(groups):
 
@@ -24,7 +23,6 @@ class PostProcessorAlgorithms(object):
             if len(notes) > 1:
                 for note in notes[1:]:
                     note.deleted = True
-
 
     # @staticmethod
     # def detect_triad(group_tuple):

@@ -117,7 +117,7 @@ class HandAssignmentVisualizer(object):
         def value_to_func(value):
             value = int(value)
             if value == 0:
-                return '.'
+                return ' '
             elif 1 <= value <= 5:
                 return str(['a', 'b', 'c', 'd', 'e'][value - 1])
             elif 6 <= value <= 10:
