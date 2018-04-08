@@ -10,7 +10,7 @@ from operator import itemgetter
 # relative import
 from util import isNote, isChord, chunks
 from algorithms import PostProcessorAlgorithms
-from hand_assignment import HandAssignmentAlgorithm
+from hand_assignment import HandAssignment
 from note_wrapper import NoteWrapper
 from multipart_reducer import MultipartReducer
 
@@ -22,7 +22,7 @@ class PostProcessor(object):
         self.verbose = verbose
 
         # prepare hand assignment object
-        self.hand_assignment = HandAssignmentAlgorithm(verbose=self.verbose)
+        self.hand_assignment = HandAssignment(verbose=self.verbose)
 
         # prepare score
         self.score = deepcopy(score)

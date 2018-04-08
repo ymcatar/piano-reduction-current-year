@@ -52,10 +52,7 @@ def str_vector(vector, offset, notes=None, max_hand_span=7, func=None):
         func = value_to_block
 
     cluster_count = get_number_of_cluster(vector, max_hand_span)
-    if cluster_count <= 2:
-        cluster_count = '(' + str(cluster_count) + ')'
-    else:
-        cluster_count = colored('(' + str(cluster_count) + ')', 'red')
+    cluster_count = '(' + str(cluster_count) + ')'
 
     message = '{:s} {:s} {:s}'.format(
         '{:.2f}'.format(offset).zfill(6), ''.join(
@@ -72,7 +69,10 @@ def str_vector(vector, offset, notes=None, max_hand_span=7, func=None):
 def get_number_of_cluster(vector, max_hand_span):
 
     max_cluster_size = 2 * max_hand_span - 1
-    ps_list = [i for i, is_active in enumerate(vector) if int(is_active) != 0]
+    ps_list = [
+        i for i, is_active in enumerate(vector)
+        if int(is_active) not in (0, 11)
+    ]
 
     if len(ps_list) == 0:  # no note => trivially no cluster
         return 0
