@@ -14,6 +14,8 @@ node represents an onset. A node that represents v notes will have 2^v states.
 import copy
 import numpy as np
 from pystruct.models import StructuredModel
+from sklearn.svm import LinearSVC
+from ..models.base import BaseModel
 from ..models.pystruct_crf import PyStructCRF
 from .pre_processor import ContractingPreProcessor
 from .algorithm.output_count_estimate import OutputCountEstimate
@@ -275,3 +277,86 @@ class OnsetChainModel(PyStructCRF):
     '''
     def __init__(self, pre_processor):
         super().__init__(pre_processor, Model=OnsetChainPyStructModel)
+
+
+class OnsetOrderingSVM(BaseModel):
+    '''
+    A speical case of onset chain where horizontal edges are removed. This
+    gives a simple SVM objective based on the partial ordering of note
+    utilities defined by the keep labels.
+    '''
+    def __init__(self, pre_processor):
+        super().__init__(pre_processor)
+        assert pre_processor.label_type == 'align'
+        self.model = LinearSVC(loss='hinge')
+
+    def fit_structured(self, X, y):
+        X,y = self._convert_training_data(X, y)
+        self.model.fit(X, y)
+
+    def evaluate_structured(self, X, y):
+        X, y = self._convert_training_data(X, y)
+        y_pred = self.model.predict(X)
+        return np.mean(y != y_pred)
+
+    def predict_structured(self, X):
+        y = np.zeros(sum(onset.note_count for onset in X), dtype='float')
+
+        for onset in X:
+            utility = self.model.decision_function(onset.note_features)
+
+            onset_indices = sorted(range(onset.note_count), key=lambda i: -utility[i])
+            indices = [onset.indices[onset_index] for onset_index in onset_indices]
+
+            # Keep the max_kept notes with highest utilities
+            indices = indices[:onset.max_kept]
+            y[indices] = 1.0
+
+        return y[:, np.newaxis]
+
+    def _convert_training_data(self, Xs, ys):
+        features, labels = [], []
+        for onsets, y in zip(Xs, ys):
+            for onset in onsets:
+                keeps, discards = [], []
+
+                y_onset = y[onset.indices]
+                for note_feature, label in zip(onset.note_features, y_onset):
+                    if label:
+                        keeps.append(note_feature)
+                    else:
+                        discards.append(note_feature)
+                for k in keeps:
+                    for d in discards:
+                        # Partial ordering: k >= d and not (d >= k)
+                        features.append(k - d)
+                        labels.append(1)
+
+                        # Adding this is equivalent, and it stops sklearn from
+                        # complaining there being only one class
+                        features.append(d - k)
+                        labels.append(0)
+
+        features = np.asarray(features)
+        labels = np.asarray(labels)
+
+        return features, labels
+
+    def save(self, fp):
+        '''
+        Save the model parameters to the given file object.
+        '''
+        # column vectors
+        w = np.concatenate([self.model.coef_.flatten(), self.model.intercept_])
+        with open(fp, 'wb') as f:
+            np.save(f, w, allow_pickle=False)
+
+    def load(self, fp):
+        '''
+        Load the model parameters from the given file object.
+        '''
+        with open(fp, 'rb') as f:
+            w = np.load(f, allow_pickle=False)
+        # column vectors
+        self.model.coef_ = w[np.newaxis, :-1]
+        self.model.intercept_ = w[-1]
