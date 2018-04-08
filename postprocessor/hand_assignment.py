@@ -1,5 +1,6 @@
 import math
 import curses
+import signal
 import music21
 import numpy as np
 
@@ -8,19 +9,32 @@ from termcolor import colored
 from collections import defaultdict
 from random import randint, shuffle
 
-from util import construct_piano_roll, construct_vector, str_vector, get_number_of_cluster_from_notes
+from util import \
+    construct_piano_roll, construct_vector, str_vector, \
+    get_number_of_cluster_from_notes
 
 from pattern_analyzer import PatternAnalyzer
-class HandAssignmentAlgorithm(object):
 
+
+class HandAssignmentAlgorithm(object):
     def __init__(self, max_hand_span=7, verbose=False):
 
         self.config = {}
-        self.config['max_hand_span'] = max_hand_span    # maximum size of a cluster
-        self.config['min_repeat_len'] = 3               # minimum length of a vertical line
-        self.config['min_diagonal_len'] = 4             # minimum length of a diagonal
-        self.config['max_diagonal_dist'] = 3            # maximum allowed distance between consecutive notes within a diagonal
-        self.config['max_diagonal_skip'] = 2            # maximum size of gap allowed within a diagonal
+
+        # maximum size of a cluster
+        self.config['max_hand_span'] = max_hand_span
+
+        # minimum length of a vertical line
+        self.config['min_repeat_len'] = 3
+
+        # minimum length of a diagonal
+        self.config['min_diagonal_len'] = 4
+
+        # maximum allowed distance between consecutive notes within a diagonal
+        self.config['max_diagonal_dist'] = 3
+
+        # maximum size of gap allowed within a diagonal
+        self.config['max_diagonal_skip'] = 2
 
         self.verbose = verbose
 
@@ -38,8 +52,10 @@ class HandAssignmentAlgorithm(object):
             offset, notes = item
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
-            measures[i] = (offset, notes) # put back the sorted list to measures
-            num_cluster = get_number_of_cluster_from_notes(notes, self.config['max_hand_span'])
+            measures[i] = (offset,
+                           notes)  # put back the sorted list to measures
+            num_cluster = get_number_of_cluster_from_notes(
+                notes, self.config['max_hand_span'])
             problematic[i] = (num_cluster > 2)
 
         # try to resolve all problematic frame
@@ -47,37 +63,42 @@ class HandAssignmentAlgorithm(object):
             if not problematic[i]:
                 continue
 
-            fixed = False
             offset, notes = measure
 
             # if the lowest notes all have the same pitch class,
-            # keep removing the lowest until two clusters remain or all related notes except the lowest are deleted
+            # keep removing the lowest until two clusters remain
+            # or all related notes except the lowest are deleted
             target_class = notes[0].note.pitch.pitchClass
             for i, n in enumerate(notes):
                 if i != 0 and n.note.pitch.pitchClass == target_class:
                     notes[i - 1].deleted = True
-                    if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
+                    if get_number_of_cluster_from_notes(
+                            notes, self.config['max_hand_span']) <= 2:
                         break
 
             # move on if attempt to fix succeeded
-            if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
+            if get_number_of_cluster_from_notes(
+                    notes, self.config['max_hand_span']) <= 2:
                 continue
 
             # attempts to move the lowest note up
             # (if the lowest and second lowest notes are > an octave apart)
             # notes = [n for n in notes if not n.deleted]
             # while notes[1].note.pitch.ps - notes[0].note.pitch.ps >= 12:
-                # notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
-                # if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
-                    # break
+            # notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
+            # if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
+            # break
 
-            # attempts to move the lowest group of notes up an octave if they are > an octave apart
+            # attempts to move the lowest group of notes up an octave
+            # if they are > an octave apart
             notes = [n for n in notes if not n.deleted]
             note_distances = []
             for i, n in enumerate(notes):
                 if n != notes[-1]:
-                    note_distances.append((notes[i + 1].note.pitch.ps - n.note.pitch.ps, i))
-            note_distances = sorted(note_distances, key=lambda i: (-i[0], i[1]))
+                    note_distances.append(
+                        (notes[i + 1].note.pitch.ps - n.note.pitch.ps, i))
+            note_distances = sorted(
+                note_distances, key=lambda i: (-i[0], i[1]))
 
             for distance, index in note_distances:
                 if distance < 12.0:
@@ -85,23 +106,25 @@ class HandAssignmentAlgorithm(object):
                 distance = math.trunc(distance)
                 distance = distance - distance % 12
                 for i in range(0, index + 1):
-                    notes[i].note.transpose(music21.interval.Interval(distance), inPlace=True)
-                if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
+                    notes[i].note.transpose(
+                        music21.interval.Interval(distance), inPlace=True)
+                if get_number_of_cluster_from_notes(
+                        notes, self.config['max_hand_span']) <= 2:
                     continue
 
             # move on if attempt to fix succeeded
-            if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
+            if get_number_of_cluster_from_notes(
+                    notes, self.config['max_hand_span']) <= 2:
                 continue
 
             # FIXME: what else can I do? => remove the frame for now
             # notes = [n for n in notes if not n.deleted]
             # for n in notes:
-                # n.deleted = True
+            # n.deleted = True
 
     def assign(self, measures):
 
-        piano_roll = construct_piano_roll(measures)
-
+        # piano_roll = construct_piano_roll(measures)
         # analyzer = PatternAnalyzer(piano_roll, self.config)
         # analyzer.run()
 
@@ -114,20 +137,29 @@ class HandAssignmentAlgorithm(object):
             ps_median = np.median(list(n.note.pitch.ps for n in notes))
 
             left_hand_notes = [n for n in notes if n.note.pitch.ps < ps_median]
-            right_hand_notes = [n for n in notes if n.note.pitch.ps > ps_median]
+            right_hand_notes = [
+                n for n in notes if n.note.pitch.ps > ps_median
+            ]
 
             # assign the median to whatever closer
             median_note = [n for n in notes if n.note.pitch.ps == ps_median]
             if len(median_note) > 0:
-                highest_left_notes = max(n.note.pitch.ps for n in left_hand_notes) if len(left_hand_notes) else 0
-                lowest_right_notes = min(n.note.pitch.ps for n in right_hand_notes) if len(right_hand_notes) else 0
-                if median_note[0].note.pitch.ps - lowest_right_notes < highest_left_notes - median_note[0].note.pitch.ps:
+                highest_left_notes = max(
+                    n.note.pitch.ps
+                    for n in left_hand_notes) if len(left_hand_notes) else 0
+                lowest_right_notes = min(
+                    n.note.pitch.ps
+                    for n in right_hand_notes) if len(right_hand_notes) else 0
+                if median_note[0].note.pitch.ps - lowest_right_notes < \
+                        highest_left_notes - median_note[0].note.pitch.ps:
                     left_hand_notes += median_note
                 else:
                     right_hand_notes += median_note
 
-            left_hand_notes = sorted(left_hand_notes, key=lambda n: n.note.pitch.ps)
-            right_hand_notes = sorted(right_hand_notes, key=lambda n: n.note.pitch.ps)
+            left_hand_notes = sorted(
+                left_hand_notes, key=lambda n: n.note.pitch.ps)
+            right_hand_notes = sorted(
+                right_hand_notes, key=lambda n: n.note.pitch.ps)
 
             if len(left_hand_notes) > 5:
                 print(offset, 'too many left hand notes')
@@ -182,19 +214,25 @@ class HandAssignmentAlgorithm(object):
 
             # current finger are only in current frame => new placement cost
             if finger not in prev_fingers and finger in curr_fingers:
-                search_range = range(1, 6) if finger in range(1, 6) else range(6, 11)
-                prev = [ n.note.pitch.ps for key, n in prev_fingers.items() if key in search_range ]
+                search_range = range(1, 6) if finger in range(1, 6) else range(
+                    6, 11)
+                prev = [
+                    n.note.pitch.ps for key, n in prev_fingers.items()
+                    if key in search_range
+                ]
                 curr_ps = curr_fingers[finger].note.pitch.ps
                 if len(prev) == 0:
                     prev_ps = curr_ps
                 else:
-                    prev_ps = np.median(prev) # = median of left finger ps in previous frame
+                    prev_ps = np.median(
+                        prev)  # = median of left finger ps in previous frame
                 total_new_placement += abs(curr_ps - prev_ps)
 
         # total cost
         return total_movement + total_new_placement
 
     def get_cost_array(self, notes):
+
         costs = []
         for triplet in zip(notes, notes[1:], notes[2:]):
             prev_item, curr_item, next_item = triplet
@@ -206,6 +244,7 @@ class HandAssignmentAlgorithm(object):
         return costs
 
     def get_total_cost(self, notes):
+
         costs = self.get_cost_array(notes)
         return sum(costs, 0)
 
@@ -222,12 +261,13 @@ class HandAssignmentAlgorithm(object):
 
             for i in range(len(measures) - WINDOW_SIZE):
 
-                window = measures[i:i+WINDOW_SIZE]
+                window = measures[i:i + WINDOW_SIZE]
 
                 costs = self.get_cost_array(window)
                 max_cost_index = max(range(len(costs)), key=lambda n: costs[n])
 
-                copy = deepcopy(measures[max_cost_index]) # save the current row assignment
+                copy = deepcopy(measures[
+                    max_cost_index])  # save the current row assignment
 
                 prev_total_cost = self.get_total_cost(measures)
 
@@ -238,8 +278,9 @@ class HandAssignmentAlgorithm(object):
 
                 self.local_optimize(prev_frame, curr_frame, next_frame)
 
-                if self.get_total_cost(measures) < prev_total_cost: # if total cost is lowered
-                    measures[max_cost_index] = copy # revert
+                if self.get_total_cost(
+                        measures) < prev_total_cost:  # if total cost is lowered
+                    measures[max_cost_index] = copy  # revert
 
                 if self.verbose:
                     if self.print_fingering(measures, highlight=curr_offset):
@@ -250,7 +291,8 @@ class HandAssignmentAlgorithm(object):
 
         return 0
 
-    def local_optimize(self, prev, curr, next): # optimizes curr_frame
+    def local_optimize(self, prev, curr, next):  # optimizes curr_frame
+
         # FIXME: naive random
         fingers = list(range(1, 10))
         shuffle(fingers)
@@ -277,11 +319,13 @@ class HandAssignmentAlgorithm(object):
         curses.start_color()
         curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
 
-        curses.noecho() # disable screen echoing
-        curses.cbreak() # accept key press
-        curses.curs_set(0) # hide the cursoe
+        curses.noecho()  # disable screen echoing
+        curses.cbreak()  # accept key press
+        curses.curs_set(0)  # hide the cursoe
 
-        self.stdscr.keypad(True) # accept directional key
+        self.stdscr.keypad(True)  # accept directional key
+
+        signal.signal(signal.SIGINT, self.end_screen)
 
     def end_screen(self):
 
@@ -305,18 +349,20 @@ class HandAssignmentAlgorithm(object):
 
             if is_changed:
 
-                for i, item in enumerate(measures[self.start_line:self.start_line + self.stdscr_height]):
+                for i, item in enumerate(measures[
+                        self.start_line:self.start_line + self.stdscr_height]):
 
                     offset, notes = item
 
                     cost = None
-                    if item != measures[0] and item != measures[-1]: # has previous & next frame
+                    # has previous & next frame
+                    if item != measures[0] and item != measures[-1]:
                         cost = self.cost_model(
-                            measures[self.start_line + i - 1][1],
-                            notes,
+                            measures[self.start_line + i - 1][1], notes,
                             measures[self.start_line + i + 1][1])
 
-                    message = self.str_frame(offset, notes).ljust(self.stdscr_width - 10)
+                    message = self.str_frame(
+                        offset, notes).ljust(self.stdscr_width - 10)
 
                     if offset == highlight:
                         self.stdscr.addstr(i, 0, message, curses.color_pair(1))
@@ -324,7 +370,8 @@ class HandAssignmentAlgorithm(object):
                         self.stdscr.addstr(i, 0, message)
 
                     if cost is not None:
-                        self.stdscr.addstr(i, self.stdscr_width - 10, '<{:.0f}>'.format(cost).ljust(5))
+                        self.stdscr.addstr(i, self.stdscr_width - 10,
+                                           '<{:.0f}>'.format(cost).ljust(5))
 
             isChanged = False
 
@@ -360,7 +407,9 @@ class HandAssignmentAlgorithm(object):
         for n in notes:
             if not n.deleted:
                 if n.hand and n.finger:
-                    vector[math.trunc(n.note.pitch.ps)] = n.finger if n.hand == 'L' else 5 + n.finger
+                    vector[math.trunc(
+                        n.note.pitch.ps
+                    )] = n.finger if n.hand == 'L' else 5 + n.finger
                 else:
                     vector[math.trunc(n.note.pitch.ps)] = 11
 
@@ -377,6 +426,8 @@ class HandAssignmentAlgorithm(object):
                 return '-'
 
         return str_vector(
-            vector, offset, notes=notes,
+            vector,
+            offset,
+            notes=notes,
             max_hand_span=self.config['max_hand_span'],
             func=value_to_func)
