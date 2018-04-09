@@ -133,13 +133,14 @@ class HandAssignment(object):
                     notes, self.config['max_hand_span']) <= 2:
                 continue
 
-            # FIXME: what else can I do? => remove the frame for now
-            # notes = [n for n in notes if not n.deleted]
-            # for n in notes:
-            # n.deleted = True
-
     def split_to_hands(self, notes):
         '''split a list of notes to left hand part and right hand part'''
+
+        notes = [n for n in notes if not n.deleted]
+
+        # no notes in current frame
+        if len(notes) == 0:
+            return [], []
 
         ps_list = sorted(list(n.note.pitch.ps for n in notes))
 
@@ -211,18 +212,23 @@ class HandAssignment(object):
 
     def cost_model(self, prev, curr, next):
 
+        prev = [n for n in prev if not n.deleted and n.hand and n.finger]
+        curr = [n for n in curr if not n.deleted and n.hand and n.finger]
+        next = [n for n in next if not n.deleted and n.hand and n.finger]
+
+        # total number of note cost
+        total_number_of_note_cost = len(curr)
+
         # record where the fingers are
         prev_fingers, curr_fingers = {}, {}
 
         for n in prev:
-            if not n.deleted and n.hand and n.finger:
-                finger = n.finger if n.hand == 'L' else n.finger + 5
-                prev_fingers[finger] = n
+            finger = n.finger if n.hand == 'L' else n.finger + 5
+            prev_fingers[finger] = n
 
         for n in curr:
-            if not n.deleted and n.hand and n.finger:
-                finger = n.finger if n.hand == 'L' else n.finger + 5
-                curr_fingers[finger] = n
+            finger = n.finger if n.hand == 'L' else n.finger + 5
+            curr_fingers[finger] = n
 
         # record finger position change
         total_movement = 0
@@ -288,20 +294,21 @@ class HandAssignment(object):
         while count < 10 and not hasStopped:
 
             count += 1
-            WINDOW_SIZE = 16
 
-            for i in range(len(measures) - WINDOW_SIZE):
+            self.logger.info('=== Pass ' + str(count) + ' ===')
 
-                window = measures[i:i + WINDOW_SIZE]
+            costs = list(
+                (v, k + 1) for k, v in enumerate(self.get_cost_array(measures)))
 
-                costs = self.get_cost_array(window)
+            # get the highest 5% and optimize
 
-                # if the max cost is not that high => stop
-                if max(costs) < 10:
-                    continue
+            costs = sorted(costs, reverse=True)[:len(costs) // 20]
 
-                max_cost_index = max(
-                    range(len(costs)), key=lambda n: costs[n]) + i
+            # if the max cost is not that high => stop
+            # if costs[0][0] < 10:
+            # continue
+
+            for _, max_cost_index in costs:
 
                 # optimize the assignment
                 prev_offset, prev_frame = measures[max_cost_index - 1]
@@ -317,10 +324,6 @@ class HandAssignment(object):
                         hasStopped = True
                         break
 
-            if not self.verbose:
-                self.logger.info(
-                    'Optimizing piano score - pass ' + str(count) + ' ...')
-
         if self.verbose:
             self.visualizer.end_screen()
 
@@ -329,6 +332,7 @@ class HandAssignment(object):
     def local_optimize(self, measures, index, prev, curr, next):
 
         # backup the current assignment
+        original_frame_cost = self.cost_model(prev, curr, next)
         original_assignment = deepcopy(measures[index])
         original_cost = self.get_total_cost(measures)
 
@@ -358,13 +362,25 @@ class HandAssignment(object):
 
         # if total cost is lowered
         if best_cost is not None:
+
             if best_cost < original_cost:
                 measures[index] = best_assignment
+                new_frame_cost = self.cost_model(prev, curr, next)
+                self.logger.info(
+                    'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}'.format(
+                        index, original_frame_cost, new_frame_cost))
+
             else:
+
                 measures[index] = original_assignment  # revert
                 # cannot improve the finger assignment anymore => remove notes
-                self.logger.info('need to remove notes at ' + str(index))
-                for n in measures[index][1]:
-                    n.deleted = None
-                    n.hand = None
-                    n.finger = None
+                # FIXME: delete some middle notes
+                target = measures[index][1][len(measures[index][1]) // 2]
+                target.deleted = True
+                target.hand = None
+                target.finger = None
+
+                new_frame_cost = self.cost_model(prev, curr, next)
+                self.logger.info(
+                    'Optimization failed \t({:d})\t{:3.0f} => {:3.0f}'.format(
+                        index, original_frame_cost, new_frame_cost))

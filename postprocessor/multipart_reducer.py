@@ -378,7 +378,8 @@ class MultipartReducer(object):
                     else:
 
                         # FIXME: no good candidate => look for potential rest
-                        print('cannot include', n1)
+                        # to save effort, we add a new voice now for that note instead
+                        # print('cannot include', n1)
                         voices[key].append((start, end, n1))
 
         if len(voices) <= 4:
