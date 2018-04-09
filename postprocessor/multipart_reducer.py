@@ -31,7 +31,6 @@ def find_slient_interval(intervals, start, end):
 
 
 class MultipartReducer(object):
-
     def __init__(self, score, max_hand_span=7):
 
         self.score = score
@@ -210,18 +209,33 @@ class MultipartReducer(object):
             intervals = temp_intervals
             current_voice += 1
 
+        mostly_empty_voices = []
+
         for key in voices.keys():
             temp = IntervalTree()
             for note in voices[key]:
                 start, end, elem = note
                 temp.addi(start, end, elem)
             rests = find_slient_interval(temp, 0, measure_length)
+            rest_length = sum((b - a for a, b in rests), 0)
+            if rest_length > measure_length / 2:  # is a mostly empty voice
+                mostly_empty_voices.append(key)
             for item in rests:
                 start, end = item
                 voices[key].append(
                     (start, end,
                      music21.note.Rest(quarterLength=(end - start))))
             voices[key] = sorted(voices[key], key=lambda i: i[0])
+
+        # offset_map = defaultdict(lambda: [])
+        # for key, notes in voices.items():
+        #     for start, end, n in notes:
+        #         if not isinstance(n, music21.note.Rest):
+        #             offset_map[start].append((key, n.duration.quarterLength))
+
+        # for start, lengths in offset_map.items():
+        #     if len(lengths) >= 2:
+        #         print(start, lengths)
 
         if len(voices) <= 4:
             for i, v in enumerate(voices.values()):
@@ -234,8 +248,6 @@ class MultipartReducer(object):
                 result.insert(0, voice)
         else:
             # FIXME
-            print(
-                'There are too many voices. Ignoring ...',
-                len(voices))
+            print('There are too many voices. Ignoring ...', len(voices))
 
         return result
