@@ -3,6 +3,7 @@
 import music21
 import numpy as np
 
+from copy import deepcopy
 from collections import defaultdict
 from itertools import count
 from intervaltree import IntervalTree
@@ -139,6 +140,7 @@ class MultipartReducer(object):
 
         return result
 
+    # FIXME: tuplets are weird
     def _create_measure(self, notes=[], measure_length=4.0):
 
         result = music21.stream.Measure()
@@ -149,12 +151,16 @@ class MultipartReducer(object):
 
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
         tie_map = {}
+        tuplet_map = {}
 
         for n in notes:
             offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
             if n.tie:
                 tie_map[(n.offset, n.duration.quarterLength,
                          n.pitch.ps)] = n.tie
+            if n.duration.tuplets:
+                tuplet_map[(n.offset, n.duration.quarterLength,
+                            n.pitch.ps)] = n.duration.tuplets
 
         # merge notes with same offset and duration into a single chord
 
@@ -164,9 +170,14 @@ class MultipartReducer(object):
 
                 if len(pitches) == 1:
                     offset_item[duration] = music21.note.Note(pitches[0])
+                    # add back tie if any
                     if (offset, duration, pitches[0].ps) in tie_map:
                         offset_item[duration].tie = tie_map[(offset, duration,
                                                              pitches[0].ps)]
+                    # add back tuplet if any
+                    if (offset, duration, pitches[0].ps) in tuplet_map:
+                        offset_item[duration].tuplet = tuplet_map[(
+                            offset, duration, pitches[0].ps)]
                 else:
                     pitches = list(set(pitches))
                     offset_item[duration] = music21.chord.Chord(pitches)
@@ -186,13 +197,23 @@ class MultipartReducer(object):
                     if valid:
                         offset_item[duration].tie = tie_map[index]
 
+                offset_item[duration].articulations = []  # strip articulation
                 offset_item[duration].duration.quarterLength = duration
+
+                notes = offset_item[duration]._notes if isinstance(
+                    offset_item[duration],
+                    music21.chord.Chord) else [offset_item[duration]]
+
+                for n in notes:
+                    if (offset, duration, n.pitch.ps) in tuplet_map:
+                        offset_item[duration].tuplets = None
 
         offset_map = dict(offset_map)
         for key in offset_map.keys():
             offset_map[key] = dict(offset_map[key])
 
         # construct an interval for all the note intervals
+
         intervals = IntervalTree()
         for start in offset_map.keys():
             for duration in offset_map[start].keys():
@@ -200,7 +221,40 @@ class MultipartReducer(object):
                     intervals.addi(start, start + duration,
                                    offset_map[start][duration])
 
+        # delete tie if the tie is covering some notes
+
+        if len(tie_map) > 0:
+
+            for key, value in tie_map.items():
+
+                offset, duration, ps = key
+                matches = intervals.search(offset, offset + duration)
+
+                tied_note = None
+                should_delete = False
+
+                for m in matches:
+                    start, end, noteOrChord = m
+                    notes = noteOrChord._notes if isinstance(
+                        noteOrChord, music21.chord.Chord) else [noteOrChord]
+                    pss = [n.pitch.ps for n in notes]
+                    if ps in pss and start == offset and \
+                            abs(offset + duration - end) < 1e-2:
+                        tied_note = m
+                    else:
+                        # the tie is covering some notes
+                        should_delete = True
+
+                if should_delete and tied_note:
+                    start, end, elem = tied_note
+                    elem.tie = None
+                    new_duration = elem.duration.quarterLength
+                    new_end = min(start + new_duration, measure_length)
+                    intervals.removei(*tied_note)
+                    intervals.addi(start, new_end, elem)
+
         # add all the notes to the measure
+
         voices = defaultdict(lambda: [])
         current_voice = 0
 
@@ -262,10 +316,11 @@ class MultipartReducer(object):
 
             for key in excess_voices:
 
-                while len(voices[key]) > 0:
+                items = [i for i in voices[key]]
+                del voices[key]
 
-                    # pop a note from the excess voice
-                    start, end, n1 = voices[key].pop()
+                for start, end, n1 in items:
+
                     if isinstance(n1, music21.note.Rest):
                         continue
 
@@ -322,9 +377,9 @@ class MultipartReducer(object):
 
                     else:
 
-                        pass
-                        # no good candidate => look for potential rest
-                        # print(n1)
+                        # FIXME: no good candidate => look for potential rest
+                        print('cannot include', n1)
+                        voices[key].append((start, end, n1))
 
         if len(voices) <= 4:
             for i, v in enumerate(voices.values()):
