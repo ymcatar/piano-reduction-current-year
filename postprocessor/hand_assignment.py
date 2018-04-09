@@ -182,7 +182,7 @@ class HandAssignment(object):
                 left_hand_notes = left_hand_notes[:5]
 
             if len(right_hand_notes) > 5:
-                self.logger.info('too many right hand notes' + str(offset))
+                self.logger.info('too many right hand notes at ' + str(offset))
                 right_hand_notes = right_hand_notes[:5]
 
             for i, note in enumerate(reversed(left_hand_notes)):
