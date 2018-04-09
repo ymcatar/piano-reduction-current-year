@@ -5,7 +5,6 @@ import music21
 import traceback
 import numpy as np
 
-from copy import deepcopy
 from collections import defaultdict
 from itertools import combinations
 from random import randint, shuffle
@@ -216,8 +215,8 @@ class HandAssignment(object):
         curr = [n for n in curr if not n.deleted and n.hand and n.finger]
         next = [n for n in next if not n.deleted and n.hand and n.finger]
 
-        # total number of note cost
-        total_number_of_note_cost = len(curr)
+        # note cost
+        note_cost = len(curr) * 3
 
         # record where the fingers are
         prev_fingers, curr_fingers = {}, {}
@@ -255,15 +254,11 @@ class HandAssignment(object):
 
                 curr_ps = curr_fingers[finger].note.pitch.ps
 
-                if len(prev) == 0:
-                    prev_ps = curr_ps
-                else:
-                    prev_ps = np.median(prev)
-
-                total_new_placement += abs(curr_ps - prev_ps)
+                if len(prev) != 0:
+                    total_new_placement += abs(curr_ps - np.median(prev))
 
         # total cost
-        return total_movement + total_new_placement
+        return note_cost + total_movement + total_new_placement
 
     def get_cost_array(self, notes):
 
@@ -297,16 +292,12 @@ class HandAssignment(object):
 
             self.logger.info('=== Pass ' + str(count) + ' ===')
 
-            costs = list(
-                (v, k + 1) for k, v in enumerate(self.get_cost_array(measures)))
+            costs = list((v, k + 1)
+                         for k, v in enumerate(self.get_cost_array(measures)))
 
             # get the highest 5% and optimize
 
             costs = sorted(costs, reverse=True)[:len(costs) // 20]
-
-            # if the max cost is not that high => stop
-            # if costs[0][0] < 10:
-            # continue
 
             for _, max_cost_index in costs:
 
@@ -330,11 +321,25 @@ class HandAssignment(object):
         return 0
 
     def local_optimize(self, measures, index, prev, curr, next):
+        def get_assignment_object(frame):
+            hands, fingers = {}, {}
+            offset, notes = frame
+            for n in notes:
+                hands[n] = n.hand
+                fingers[n] = n.finger
+            return hands, fingers
+
+        def set_assignment_object(frame, hands, fingers):
+            offset, notes = frame
+            for n in notes:
+                n.hand = hands[n]
+                n.finger = fingers[n]
+            return (offset, notes)
 
         # backup the current assignment
         original_frame_cost = self.cost_model(prev, curr, next)
-        original_assignment = deepcopy(measures[index])
         original_cost = self.get_total_cost(measures)
+        original_assignment = get_assignment_object(measures[index])
 
         # try to reassign fingers
         left_hand_notes, right_hand_notes = self.split_to_hands(curr)
@@ -344,27 +349,35 @@ class HandAssignment(object):
 
         # loop through all possible finger assignment
         # FIXME: handle frame with only left hand notes / right hand notes
+
         for lefts in combinations(range(1, 6), len(left_hand_notes)):
+
             for rights in combinations(range(1, 6), len(right_hand_notes)):
-                # backup the previous assignment for potential revert
+
                 for i, n in enumerate(left_hand_notes):
                     n.hand = 'L'
                     n.finger = lefts[i]
+
                 for i, n in enumerate(right_hand_notes):
                     n.hand = 'R'
                     n.finger = rights[i]
+
                 # evaluate if the new assignment is better
                 curr_cost = self.get_total_cost(measures)
+
                 if (best_assignment is None
                         and best_cost is None) or curr_cost < best_cost:
-                    best_assignment = deepcopy(measures[index])
+                    best_assignment = get_assignment_object(measures[index])
                     best_cost = curr_cost
 
         # if total cost is lowered
         if best_cost is not None:
 
             if best_cost < original_cost:
-                measures[index] = best_assignment
+
+                measures[index] = set_assignment_object(
+                    measures[index], *best_assignment)
+
                 new_frame_cost = self.cost_model(prev, curr, next)
                 self.logger.info(
                     'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}'.format(
@@ -372,15 +385,20 @@ class HandAssignment(object):
 
             else:
 
-                measures[index] = original_assignment  # revert
+                # revert
+                measures[index] = set_assignment_object(
+                    measures[index], *original_assignment)
+
                 # cannot improve the finger assignment anymore => remove notes
-                # FIXME: delete some middle notes
-                target = measures[index][1][len(measures[index][1]) // 2]
+                # FIXME: remove one note that lead to highest decrease in cost
+                notes = [n for n in measures[index][1] if not n.deleted]
+                target = notes[len(notes) // 2]
                 target.deleted = True
                 target.hand = None
                 target.finger = None
 
                 new_frame_cost = self.cost_model(prev, curr, next)
                 self.logger.info(
-                    'Optimization failed \t({:d})\t{:3.0f} => {:3.0f}'.format(
-                        index, original_frame_cost, new_frame_cost))
+                    'Optimization failed \t({:d})\t{:3.0f} => {:3.0f}, deleting {:s}.'.
+                    format(index, original_frame_cost, new_frame_cost,
+                           str(target)))
