@@ -5,7 +5,7 @@ import numpy as np
 
 from copy import deepcopy
 from collections import defaultdict
-from itertools import count
+from itertools import count, combinations
 from intervaltree import IntervalTree
 
 RIGHT_HAND = 'R'
@@ -37,6 +37,29 @@ class MultipartReducer(object):
         self.score = score
         self.max_hand_span = max_hand_span
 
+    def add_notes_to(self, target, note):
+
+        if isinstance(target, music21.chord.Chord):
+            # no need to add if it is already in the score
+            if note.pitch.ps in list(_n.pitch.ps for _n in target._notes):
+                return target
+            # print('added to chord', note)
+            pitches = [note.pitch] + [n.pitch for n in target._notes]
+            return music21.chord.Chord(pitches)
+
+        elif not target.isRest:  # a note
+            # no need to add if it is already in the score
+            if note.pitch.ps == target.pitch.ps:
+                return target
+            # replace the note with a chord
+            # print('added to note', note)
+            return music21.chord.Chord([note.pitch, target.pitch])
+
+        elif target.isRest:
+            # fill the rest
+            # print('added to rest', note)
+            return music21.note.Note(note.pitch)
+
     def reduce(self):
 
         HANDS = [LEFT_HAND, RIGHT_HAND]
@@ -61,6 +84,8 @@ class MultipartReducer(object):
                     break
 
             bar_length = measures[0].barDuration.quarterLength
+
+            # record all the notes/chord/time,key signature, etc
 
             for hand, part in zip(HANDS, parts):
 
@@ -143,6 +168,7 @@ class MultipartReducer(object):
         return result
 
     # FIXME: tuplets are weird
+
     def _create_measure(self, notes=[], measure_length=4.0):
 
         result = music21.stream.Measure()
@@ -154,6 +180,8 @@ class MultipartReducer(object):
         # no note within the measure?
         if len(notes) == 0:
             return result
+
+        # record all the pitches starting at different onsets
 
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
         tie_map = {}
@@ -318,7 +346,7 @@ class MultipartReducer(object):
             else:
                 excess_voices = set(k
                                     for k, v in rests_length_in_voice.items()
-                                    if v >= measure_length / 2.0)
+                                    if v >= measure_length * 0.5)
 
             for key in excess_voices:
 
@@ -355,45 +383,15 @@ class MultipartReducer(object):
                         elif isinstance(n1, music21.chord.Chord):
                             notes = n1._notes
 
-                        for n in notes:
-
-                            if isinstance(n2, music21.chord.Chord):
-                                # no need to add if it is already in the score
-                                if n.pitch.ps in list(
-                                        _n.pitch.ps for _n in n2._notes):
-                                    continue
-                                # print('added to chord', n)
-                                pitches = [n.pitch
-                                           ] + [n.pitch for n in n2._notes]
-                                voices[best_key][index] = (
-                                    start, new_end,
-                                    music21.chord.Chord(pitches))
-
-                            elif not n2.isRest:  # a note
-                                # no need to add if it is already in the score
-                                if n.pitch.ps == n2.pitch.ps:
-                                    continue
-                                # replace the note with a chord
-                                # print('added to note', n)
-                                voices[best_key][index] = (start, new_end,
-                                                           music21.chord.Chord(
-                                                               [
-                                                                   n.pitch,
-                                                                   n2.pitch
-                                                               ]))
-
-                            elif n2.isRest:
-                                # fill the rest
-                                # print('added to rest', n)
-                                voices[best_key][index] = (start, new_end,
-                                                           music21.note.Note(
-                                                               n.pitch))
+                        for _n in notes:
+                            voices[best_key][index] = (start, new_end,
+                                                       self.add_notes_to(
+                                                           n2, _n))
 
                     else:
 
-                        # FIXME: no good candidate => look for potential rest
-                        # to save effort, we add a new voice now for that note instead
-                        # print('cannot include', n1)
+                        # te add a new voice now for that note instead
+                        # later it will be fixed in optimize_measure()
                         voices[key].append((start, end, n1))
 
         if len(voices) <= 4:
@@ -410,4 +408,22 @@ class MultipartReducer(object):
             # FIXME
             print('There are too many voices. Ignoring ...', len(voices))
 
-        return result
+        return result  #self.optimize_measure(result)
+
+    def optimize_measure(self, measure):
+
+        voices = list(measure.recurse().getElementsByClass('Voice'))
+        voice_offset_sets = defaultdict(lambda: set())
+
+        for key, v in enumerate(voices):
+            for n in v.recurse().getElementsByClass(('Note', 'Chord')):
+                voice_offset_sets[key].add(n.offset)
+
+        # len(voices) should be at most 2 so this is fine
+        for a, b in combinations(range(len(voices)), 2):
+            if len(voice_offset_sets[a]) > len(voice_offset_sets[b]):
+                a, b = b, a
+            if voice_offset_sets[a] < voice_offset_sets[b]:  # a subset of b
+                print('possible to merge', a, 'with', b)
+
+        return measure
