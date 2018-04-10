@@ -29,7 +29,11 @@ class NoteWrapper(object):
 
     @deleted.setter
     def deleted(self, value):
+        assert value in (False, True)
         self.note.editorial.misc['deleted'] = value
+        if value is False:
+            self.hand = None
+            self.finger = None
 
     @property
     def hand(self):

@@ -9,6 +9,7 @@ MAX_PITCH_STEP_CHANGE = 8
 
 
 class PostProcessorAlgorithms(object):
+
     @staticmethod
     def repeated_note(groups):
 

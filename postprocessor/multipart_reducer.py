@@ -71,7 +71,7 @@ class MultipartReducer(object):
                     for elem in p.recurse(skipSelf=False):
 
                         # ignore the note if it is marked as deleted
-                        if elem.editorial.misc.get('deleted'):
+                        if elem.editorial.misc.get('deleted') is True:
                             continue
 
                         if isinstance(elem, music21.key.KeySignature):
@@ -86,6 +86,7 @@ class MultipartReducer(object):
                         elif isinstance(elem, music21.note.Note):
                             if 'hand' not in elem.editorial.misc:
                                 continue
+                            # FIXME: can optimize
                             if hand == LEFT_HAND and elem.pitch.ps < 60:
                                 notes.append(elem)
                             elif hand == RIGHT_HAND and elem.pitch.ps >= 60:
@@ -95,6 +96,7 @@ class MultipartReducer(object):
                             for n in elem:
                                 if 'hand' not in n.editorial.misc:
                                     continue
+                                # FIXME: can optimize
                                 if hand == LEFT_HAND and n.pitch.ps < 60:
                                     notes.append(n)
                                 elif hand == RIGHT_HAND and n.pitch.ps >= 60:
@@ -144,6 +146,10 @@ class MultipartReducer(object):
     def _create_measure(self, notes=[], measure_length=4.0):
 
         result = music21.stream.Measure()
+
+        notes = [
+            n for n in notes if n.editorial.misc.get('deleted') is not True
+        ]
 
         # no note within the measure?
         if len(notes) == 0:
@@ -335,6 +341,7 @@ class MultipartReducer(object):
                     if len(candidates) > 0:
 
                         # find the best match
+
                         best = min(
                             candidates, key=lambda n: abs(n[1] - duration))
 
@@ -351,6 +358,10 @@ class MultipartReducer(object):
                         for n in notes:
 
                             if isinstance(n2, music21.chord.Chord):
+                                # no need to add if it is already in the score
+                                if n2.pitch.ps in list(
+                                        n.pitch.ps for n in n2._notes):
+                                    continue
                                 # print('added to chord', n)
                                 pitches = [n.pitch
                                            ] + [n.pitch for n in n2._notes]
@@ -359,6 +370,9 @@ class MultipartReducer(object):
                                     music21.chord.Chord(pitches))
 
                             elif not n2.isRest:  # a note
+                                # no need to add if it is already in the score
+                                if n.pitch.ps == n2.pitch.ps:
+                                    continue
                                 # replace the note with a chord
                                 # print('added to note', n)
                                 voices[best_key][index] = (start, new_end,
