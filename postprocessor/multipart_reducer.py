@@ -43,22 +43,27 @@ class MultipartReducer(object):
             # no need to add if it is already in the score
             if note.pitch.ps in list(_n.pitch.ps for _n in target._notes):
                 return target
-            # print('added to chord', note)
-            pitches = [note.pitch] + [n.pitch for n in target._notes]
-            return music21.chord.Chord(pitches)
+            else:
+                # print('added to chord', note)
+                pitches = [note.pitch] + [n.pitch for n in target._notes]
+                new_elem = music21.chord.Chord(pitches)
 
         elif not target.isRest:  # a note
             # no need to add if it is already in the score
             if note.pitch.ps == target.pitch.ps:
-                return target
-            # replace the note with a chord
-            # print('added to note', note)
-            return music21.chord.Chord([note.pitch, target.pitch])
+                new_elem = target
+            else:
+                # replace the note with a chord
+                # print('added to note', note)
+                new_elem = music21.chord.Chord([note.pitch, target.pitch])
 
         elif target.isRest:
             # fill the rest
             # print('added to rest', note)
-            return music21.note.Note(note.pitch)
+            new_elem = music21.note.Note(note.pitch)
+
+        new_elem.duration.quarterLength = target.duration.quarterLength
+        return new_elem
 
     def reduce(self):
 
@@ -394,36 +399,42 @@ class MultipartReducer(object):
                         # later it will be fixed in optimize_measure()
                         voices[key].append((start, end, n1))
 
-        if len(voices) <= 4:
-            for i, v in enumerate(voices.values()):
-                voice = music21.stream.Voice(id=i)
-                for note in v:
-                    start, end, elem = note
-                    elem.offset = start
-                    elem.quarterLength = end - start
-                    voice.insert(start, elem)
-                voice.makeAccidentals(useKeySignature=True)
-                result.insert(0, voice)
-        else:
-            # FIXME
-            print('There are too many voices. Ignoring ...', len(voices))
+        for i, v in enumerate(voices.values()):
+            voice = music21.stream.Voice(id=i)
+            for note in v:
+                start, end, elem = note
+                elem.offset = start
+                elem.quarterLength = end - start
+                voice.insert(start, elem)
+            voice.makeAccidentals(useKeySignature=True)
+            result.insert(0, voice)
 
-        return result  #self.optimize_measure(result)
+        return result # self.optimize_measure(result)
 
     def optimize_measure(self, measure):
 
+        measure.show('text')
+
         voices = list(measure.recurse().getElementsByClass('Voice'))
         voice_offset_sets = defaultdict(lambda: set())
+        voice_offset_map = defaultdict(lambda: {})
 
         for key, v in enumerate(voices):
             for n in v.recurse().getElementsByClass(('Note', 'Chord')):
                 voice_offset_sets[key].add(n.offset)
+                voice_offset_map[key][n.offset] = n
 
         # len(voices) should be at most 2 so this is fine
         for a, b in combinations(range(len(voices)), 2):
             if len(voice_offset_sets[a]) > len(voice_offset_sets[b]):
                 a, b = b, a
-            if voice_offset_sets[a] < voice_offset_sets[b]:  # a subset of b
-                print('possible to merge', a, 'with', b)
+            if voice_offset_sets[a] <= voice_offset_sets[b]:  # a subset of b
+                print('merging', voice_offset_map[a], voice_offset_map[b])
+                for offset, n1 in voice_offset_map[a].items():
+                    n2 = voice_offset_map[b][offset]
+                    new_elem = self.add_notes_to(n2, n1)
+                    voices[b].remove(n2)
+                    voices[b].insert(n2.offset, new_elem)
+                measure.remove(voices[a])
 
         return measure
