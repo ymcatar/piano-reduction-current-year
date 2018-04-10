@@ -359,8 +359,8 @@ class MultipartReducer(object):
 
                             if isinstance(n2, music21.chord.Chord):
                                 # no need to add if it is already in the score
-                                if n2.pitch.ps in list(
-                                        n.pitch.ps for n in n2._notes):
+                                if n.pitch.ps in list(
+                                        _n.pitch.ps for _n in n2._notes):
                                     continue
                                 # print('added to chord', n)
                                 pitches = [n.pitch
