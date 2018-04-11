@@ -218,10 +218,8 @@ class HandAssignment(object):
         next = [n for n in next if not n.deleted and n.hand and n.finger]
 
         # penalty
-        note_count_cost = 0
-        left_hand_notes, right_hand_notes = self.split_to_hands(curr)
-        note_count_cost += len(left_hand_notes)**2
-        note_count_cost += len(right_hand_notes)**2
+        # left_hand_notes, right_hand_notes = self.split_to_hands(curr)
+        note_count_cost = len(curr) * 3
 
         # record where the fingers are
         prev_fingers, curr_fingers = {}, {}
@@ -422,8 +420,7 @@ class HandAssignment(object):
             # cannot improve the finger assignment anymore
             # => remove one note that lead to highest decrease in cost
             notes = [
-                n for n in measures[index][1]
-                if not n.deleted and n.hand and n.finger
+                n for n in curr if not n.deleted and n.hand and n.finger
             ]
 
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
@@ -448,9 +445,8 @@ class HandAssignment(object):
                     lowest_deletion.hand = None
                     lowest_deletion.finger = None
 
-                new_frame_cost = self.cost_model(prev, curr, next)
+                    new_frame_cost = self.cost_model(prev, curr, next)
 
-                if lowest_deletion is not None:
                     self.logger.info(
                         'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}, deleting {:s}.'.
                         format(index, original_frame_cost, new_frame_cost,
