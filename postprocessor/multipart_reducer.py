@@ -37,33 +37,47 @@ class MultipartReducer(object):
         self.score = score
         self.max_hand_span = max_hand_span
 
-    def add_notes_to(self, target, note):
+    def add_notes_to(self, target, noteOrChord):
 
-        if isinstance(target, music21.chord.Chord):
-            # no need to add if it is already in the score
-            if note.pitch.ps in list(_n.pitch.ps for _n in target._notes):
-                return target
-            else:
-                # print('added to chord', note)
-                pitches = [note.pitch] + [n.pitch for n in target._notes]
-                new_elem = music21.chord.Chord(pitches)
+        notes = []
 
-        elif not target.isRest:  # a note
-            # no need to add if it is already in the score
-            if note.pitch.ps == target.pitch.ps:
-                new_elem = target
-            else:
-                # replace the note with a chord
-                # print('added to note', note)
-                new_elem = music21.chord.Chord([note.pitch, target.pitch])
+        if isinstance(noteOrChord, music21.note.Note):
+            notes = [noteOrChord]
+        elif isinstance(noteOrChord, music21.chord.Chord):
+            notes = noteOrChord._notes
 
-        elif target.isRest:
-            # fill the rest
-            # print('added to rest', note)
-            new_elem = music21.note.Note(note.pitch)
+        for note in notes:
 
-        new_elem.duration.quarterLength = target.duration.quarterLength
-        return new_elem
+            new_elem = None
+
+            if isinstance(target, music21.chord.Chord):
+                # no need to add if it is already in the score
+                if note.pitch.ps in list(_n.pitch.ps for _n in target._notes):
+                    new_elem = target
+                else:
+                    # print('added to chord', note)
+                    pitches = [note.pitch] + [n.pitch for n in target._notes]
+                    new_elem = music21.chord.Chord(pitches)
+
+            elif isinstance(target,
+                            music21.note.Note) and not target.isRest:  # a note
+                # no need to add if it is already in the score
+                if note.pitch.ps == target.pitch.ps:
+                    new_elem = target
+                else:
+                    # replace the note with a chord
+                    # print('added to note', note)
+                    new_elem = music21.chord.Chord([note.pitch, target.pitch])
+
+            elif isinstance(target, music21.note.Rest):
+                # fill the rest
+                # print('added to rest', note)
+                new_elem = music21.note.Note(note.pitch)
+
+            new_elem.duration.quarterLength = target.duration.quarterLength
+            target = new_elem
+
+        return target
 
     def reduce(self):
 
@@ -137,7 +151,7 @@ class MultipartReducer(object):
                             pass
 
                 out_measure = self._create_measure(
-                    notes=notes, measure_length=bar_length)
+                    notes=notes, measure_length=bar_length, index=i)
 
                 if signature_just_changed and time_signature:
                     out_measure.insert(time_signature)
@@ -174,7 +188,7 @@ class MultipartReducer(object):
 
     # FIXME: tuplets are weird
 
-    def _create_measure(self, notes=[], measure_length=4.0):
+    def _create_measure(self, notes=[], measure_length=4.0, index=0.0):
 
         result = music21.stream.Measure()
 
@@ -409,32 +423,51 @@ class MultipartReducer(object):
             voice.makeAccidentals(useKeySignature=True)
             result.insert(0, voice)
 
-        return result # self.optimize_measure(result)
+        return self.optimize_measure(result, index=index)
 
-    def optimize_measure(self, measure):
-
-        measure.show('text')
+    def optimize_measure(self, measure, index=0.0):
 
         voices = list(measure.recurse().getElementsByClass('Voice'))
         voice_offset_sets = defaultdict(lambda: set())
+        voice_offset_rest_sets = defaultdict(lambda: set())
         voice_offset_map = defaultdict(lambda: {})
 
         for key, v in enumerate(voices):
-            for n in v.recurse().getElementsByClass(('Note', 'Chord')):
-                voice_offset_sets[key].add(n.offset)
-                voice_offset_map[key][n.offset] = n
+            curr_offset = 0.0
+            voice_offset_sets[key] = set()
+            voice_offset_rest_sets[key] = set()
+            for n in v.recurse().getElementsByClass(('Note', 'Chord', 'Rest')):
+                if isinstance(n, music21.note.Rest):
+                    voice_offset_rest_sets[key].add(curr_offset)
+                    voice_offset_map[key][curr_offset] = n
+                else:
+                    voice_offset_sets[key].add(curr_offset)
+                    voice_offset_map[key][curr_offset] = n
+                curr_offset += n.duration.quarterLength
 
         # len(voices) should be at most 2 so this is fine
         for a, b in combinations(range(len(voices)), 2):
             if len(voice_offset_sets[a]) > len(voice_offset_sets[b]):
                 a, b = b, a
-            if voice_offset_sets[a] <= voice_offset_sets[b]:  # a subset of b
-                print('merging', voice_offset_map[a], voice_offset_map[b])
+            first_set = voice_offset_sets[a]
+            second_set = voice_offset_sets[b].union(voice_offset_rest_sets[b])
+            if first_set <= second_set:
                 for offset, n1 in voice_offset_map[a].items():
-                    n2 = voice_offset_map[b][offset]
-                    new_elem = self.add_notes_to(n2, n1)
-                    voices[b].remove(n2)
-                    voices[b].insert(n2.offset, new_elem)
+                    if offset in voice_offset_map[b]:
+                        n2 = voice_offset_map[b][offset]
+                        new_elem = self.add_notes_to(n2, n1)
+                        voices[a].remove(n1)
+                        voices[b].remove(n2)
+                        voices[b].insert(n2.offset, new_elem)
+                        voice_offset_map[b][offset] = new_elem
                 measure.remove(voices[a])
+                try:
+                    del voice_offset_sets[a]
+                    del voice_offset_rest_sets[a]
+                    del voice_offset_map[a]
+                except KeyError:
+                    pass
+
+        # FIXME: merge as many notes as possible
 
         return measure
