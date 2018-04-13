@@ -137,7 +137,7 @@ class MultipartReducer(object):
                                 notes.append(elem)
 
                         elif isinstance(elem, music21.chord.Chord):
-                            for n in elem:
+                            for n in elem._notes:
                                 if 'hand' not in n.editorial.misc:
                                     continue
                                 # FIXME: can optimize
@@ -145,6 +145,7 @@ class MultipartReducer(object):
                                     notes.append(n)
                                 elif hand == RIGHT_HAND and n.pitch.ps >= 60:
                                     notes.append(n)
+                            elem.tie = None
 
                         else:
                             # Ignore other stuff by default
