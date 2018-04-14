@@ -8,8 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sns.set()
-
 from collections import defaultdict
 from itertools import combinations
 from random import randint, shuffle
@@ -17,15 +15,17 @@ from expiringdict import ExpiringDict
 
 from util import \
     construct_piano_roll, construct_vector, str_vector, \
-    get_number_of_cluster_from_notes
+    get_number_of_cluster_from_notes, split_to_hands
 
 from pattern_analyzer import PatternAnalyzer
+from hand_assignment_cost_model import cost_model, get_cost_array, get_total_cost
 from hand_assignment_visualizer import HandAssignmentVisualizer
 
-MIDDLE_C = 60
+sns.set()
 
 
 class HandAssignment(object):
+
     def __init__(self, max_hand_span=7, verbose=False):
 
         # configure logger
@@ -102,14 +102,6 @@ class HandAssignment(object):
                     notes, self.config['max_hand_span']) <= 2:
                 continue
 
-            # attempts to move the lowest note up
-            # (if the lowest and second lowest notes are > an octave apart)
-            # notes = [n for n in notes if not n.deleted]
-            # while notes[1].note.pitch.ps - notes[0].note.pitch.ps >= 12:
-            # notes[0].note.transpose(music21.interval.Interval(+12), inPlace=True)
-            # if get_number_of_cluster_from_notes(notes, self.config['max_hand_span']) <= 2:
-            # break
-
             # attempts to move the lowest group of notes up an octave
             # if they are > an octave apart
             notes = [n for n in notes if not n.deleted]
@@ -138,42 +130,13 @@ class HandAssignment(object):
                     notes, self.config['max_hand_span']) <= 2:
                 continue
 
-    def split_to_hands(self, notes):
-        '''split a list of notes to left hand part and right hand part'''
+        self.preassign_initial_assignment(measures)
 
-        notes = [n for n in notes if not n.deleted]
+    def preassign_initial_assignment(self, measures):
 
-        # no notes in current frame
-        if len(notes) == 0:
-            return [], []
-
-        ps_list = sorted(list(n.note.pitch.ps for n in notes))
-
-        left_hand_notes = []
-        right_hand_notes = []
-
-        max_note_distance = 2 * self.config['max_hand_span'] - 1
-        # all notes are close together => assign to same hand
-        if ps_list[-1] - ps_list[0] <= max_note_distance:
-            if ps_list[0] < MIDDLE_C:
-                left_hand_notes = notes
-            else:
-                right_hand_notes = notes
-        else:
-            # greedily expand the left cluster until it is impossible
-            for i, item in enumerate(ps_list):
-                if item - ps_list[0] <= max_note_distance:
-                    left_hand_notes.append(notes[i])
-                else:
-                    right_hand_notes.append(notes[i])
-
-        return left_hand_notes, right_hand_notes
-
-    def assign(self, measures):
-
-        # piano_roll = construct_piano_roll(measures)
-        # analyzer = PatternAnalyzer(piano_roll, self.config)
-        # analyzer.run()
+        piano_roll = construct_piano_roll(measures)
+        analyzer = PatternAnalyzer(piano_roll, self.config)
+        analyzer.run()
 
         # used to give an naive assignment
         for offset, notes in measures:
@@ -181,7 +144,8 @@ class HandAssignment(object):
             notes = [n for n in notes if not n.deleted]
             notes = sorted(notes, key=lambda n: n.note.pitch.ps)
 
-            left_hand_notes, right_hand_notes = self.split_to_hands(notes)
+            left_hand_notes, right_hand_notes = split_to_hands(
+                notes, self.config['max_hand_span'])
 
             if len(left_hand_notes) > 5:
                 self.logger.info('too many left hand notes at ' + str(offset))
@@ -201,11 +165,13 @@ class HandAssignment(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
+    def assign(self, measures):
+
         try:
 
-            self.global_optimize(measures)
+            self.assign_global_optimize(measures)
 
-        except Exception as e:
+        except Exception:
 
             if self.visualizer is not None:
                 self.visualizer.end_screen()
@@ -213,80 +179,7 @@ class HandAssignment(object):
             traceback.print_exc()
             exit(1)
 
-    def postassign(self, measures):
-
-        pass
-
-    def cost_model(self, prev, curr, next):
-
-        prev = [n for n in prev if not n.deleted and n.hand and n.finger]
-        curr = [n for n in curr if not n.deleted and n.hand and n.finger]
-        next = [n for n in next if not n.deleted and n.hand and n.finger]
-
-        # penalty
-        # left_hand_notes, right_hand_notes = self.split_to_hands(curr)
-        # note_count_cost = len(curr) * 3
-
-        # record where the fingers are
-        prev_fingers, curr_fingers = {}, {}
-
-        for n in prev:
-            finger = n.finger if n.hand == 'L' else n.finger + 5
-            prev_fingers[finger] = n
-
-        for n in curr:
-            finger = n.finger if n.hand == 'L' else n.finger + 5
-            curr_fingers[finger] = n
-
-        # record finger position change
-        total_movement = 0
-        total_new_placement = 0
-
-        for finger in range(1, 11):
-
-            # current finger are in both prev & curr frame => movement cost
-            if finger in prev_fingers and finger in curr_fingers:
-                prev_ps = prev_fingers[finger].note.pitch.ps
-                curr_ps = curr_fingers[finger].note.pitch.ps
-                total_movement += abs(curr_ps - prev_ps)
-
-            # current finger are only in current frame => new placement cost
-            if finger not in prev_fingers and finger in curr_fingers:
-
-                search_range = range(1, 6) \
-                    if finger in range(1, 6) else range(6, 11)
-
-                prev = [
-                    n.note.pitch.ps for key, n in prev_fingers.items()
-                    if key in search_range
-                ]
-
-                curr_ps = curr_fingers[finger].note.pitch.ps
-
-                if len(prev) != 0:
-                    total_new_placement += abs(curr_ps - np.median(prev))
-
-        # total cost
-        return total_movement + total_new_placement
-
-    def get_cost_array(self, notes):
-
-        costs = []
-        for triplet in zip(notes, notes[1:], notes[2:]):
-            prev_item, curr_item, next_item = triplet
-            prev_offset, prev_frame = prev_item
-            curr_offset, curr_frame = curr_item
-            next_offset, next_frame = next_item
-            cost = self.cost_model(prev_frame, curr_frame, next_frame)
-            costs.append(cost)
-        return costs
-
-    def get_total_cost(self, notes):
-
-        costs = self.get_cost_array(notes)
-        return sum(costs, 0)
-
-    def global_optimize(self, measures):
+    def assign_global_optimize(self, measures):
 
         # optimization cache
         cache = ExpiringDict(max_len=1000, max_age_seconds=100)
@@ -307,7 +200,7 @@ class HandAssignment(object):
             self.logger.info('=== Pass ' + str(count) + ' ===')
 
             costs = list((v, k + 1)
-                         for k, v in enumerate(self.get_cost_array(measures)))
+                         for k, v in enumerate(get_cost_array(measures)))
 
             costs = sorted(costs, reverse=True)
             mean = np.mean(list(i[0] for i in costs))
@@ -339,9 +232,9 @@ class HandAssignment(object):
                     construct_vector(curr_frame), max_cost_index)
 
                 if cache_key not in cache:
-                    result = self.local_optimize(measures, max_cost_index,
-                                                 prev_frame, curr_frame,
-                                                 next_frame)
+                    result = self.assign_local_optimize(measures, max_cost_index,
+                                                        prev_frame, curr_frame,
+                                                        next_frame)
                     some_succeeded |= result
                     if not result:
                         cache[cache_key] = False
@@ -365,7 +258,7 @@ class HandAssignment(object):
 
         return 0
 
-    def local_optimize(self, measures, index, prev, curr, next):
+    def assign_local_optimize(self, measures, index, prev, curr, next):
 
         def get_assignment_object(frame):
             hands, fingers = {}, {}
@@ -383,12 +276,13 @@ class HandAssignment(object):
             return (offset, notes)
 
         # backup the current assignment
-        original_frame_cost = self.cost_model(prev, curr, next)
-        original_cost = self.get_total_cost(measures)
+        original_frame_cost = cost_model(prev, curr, next)
+        original_cost = get_total_cost(measures)
         original_assignment = get_assignment_object(measures[index])
 
         # try to reassign fingers
-        left_hand_notes, right_hand_notes = self.split_to_hands(curr)
+        left_hand_notes, right_hand_notes = split_to_hands(
+            curr, self.config['max_hand_span'])
 
         best_assignment = None
         best_cost = None
@@ -414,7 +308,7 @@ class HandAssignment(object):
                     n.finger = rights[i]
 
                 # evaluate if the new assignment is better
-                curr_cost = self.get_total_cost(measures)
+                curr_cost = get_total_cost(measures)
 
                 if (best_assignment is None
                         and best_cost is None) or curr_cost < best_cost:
@@ -429,7 +323,7 @@ class HandAssignment(object):
             measures[index] = set_assignment_object(measures[index],
                                                     *best_assignment)
 
-            new_frame_cost = self.cost_model(prev, curr, next)
+            new_frame_cost = cost_model(prev, curr, next)
             self.logger.info(
                 'Optimization succeed\t({:d})\t{:3.0f} => {:3.0f}, by reassigning fingers'.
                 format(index, original_frame_cost, new_frame_cost))
@@ -460,7 +354,7 @@ class HandAssignment(object):
 
                 for n in notes[1:-1]:
                     n.deleted = True
-                    new_cost = self.cost_model(prev, curr, next)
+                    new_cost = cost_model(prev, curr, next)
                     if new_cost < lowest_cost:
                         lowest_cost = new_cost
                         lowest_deletion = n
@@ -471,7 +365,7 @@ class HandAssignment(object):
                     lowest_deletion.hand = None
                     lowest_deletion.finger = None
 
-                    new_frame_cost = self.cost_model(prev, curr, next)
+                    new_frame_cost = cost_model(prev, curr, next)
 
                     self.logger.info(
                         'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}, deleting {:s}.'.
@@ -493,3 +387,7 @@ class HandAssignment(object):
                 return False
 
         return False
+
+    def postassign(self, measures):
+
+        pass

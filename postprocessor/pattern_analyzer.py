@@ -41,8 +41,6 @@ class PatternAnalyzer(object):
         self.patterns['triads'] = self.detect_triads()
         # broken chord pattern
         self.patterns['broken_chords'] = self.detect_broken_chords()
-        # too many notes within the same row
-        self.patterns['clusters'] = self.detect_clusters()
         # run of notes being hit repeatedly
         self.patterns['repeats'] = self.detect_repeats()
         # diagonal
@@ -51,11 +49,9 @@ class PatternAnalyzer(object):
 
         # self.print_piano_roll(self.highlight_pattern(self.patterns['triads']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['broken_chords']))
-        # self.print_piano_roll(self.highlight_pattern(self.patterns['clusters']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['repeats']))
         # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_left']))
-        self.print_piano_roll(
-            self.highlight_pattern(self.patterns['diagonals_right']))
+        # self.print_piano_roll(self.highlight_pattern(self.patterns['diagonals_right']))
 
     def detect_triads(self):
         results = []
@@ -72,15 +68,6 @@ class PatternAnalyzer(object):
                         'M3', 'm3') and second_interval.name in ('P5', 'd5',
                                                                  'a5'):
                     results.append(tuple((i, j) for j in triplet))
-        return results
-
-    def detect_clusters(self):
-        results = []
-        for i, vector in enumerate(self.piano_roll):
-            if get_number_of_cluster(vector, self.config['max_hand_span']) > 2:
-                results.append(
-                    tuple((i, j) for j, is_active in enumerate(vector)
-                          if is_active))
         return results
 
     def detect_repeats(self):

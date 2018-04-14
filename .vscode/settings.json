@@ -1,4 +1,4 @@
 {
-    "python.pythonPath": "/home/ymcatar/bin/anaconda3/envs/masheen/bin/python",
+    "python.pythonPath": "/home/ymcatar/bin/anaconda3/envs/piano/bin/python",
     "python.formatting.provider": "autopep8"
 }

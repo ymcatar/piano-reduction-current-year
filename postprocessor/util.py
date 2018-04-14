@@ -4,6 +4,8 @@ import numpy as np
 
 from termcolor import colored
 
+MIDDLE_C = 60
+
 
 def isNote(item):
     return isinstance(item, music21.note.Note)
@@ -40,6 +42,7 @@ def construct_piano_roll(measures):
 
 
 def str_vector(vector, offset, notes=None, max_hand_span=7, func=None):
+
     def value_to_block(value):
         if value == 0:
             return '▒'
@@ -93,3 +96,35 @@ def get_number_of_cluster(vector, max_hand_span):
 def get_number_of_cluster_from_notes(notes, max_hand_span):
     vector = construct_vector(notes)
     return get_number_of_cluster(vector, max_hand_span)
+
+
+def split_to_hands(notes, max_hand_span):
+    '''split a list of notes to left hand part and right hand part'''
+
+    notes = [n for n in notes if not n.deleted]
+
+    # no notes in current frame
+    if len(notes) == 0:
+        return [], []
+
+    ps_list = sorted(list(n.note.pitch.ps for n in notes))
+
+    left_hand_notes = []
+    right_hand_notes = []
+
+    max_note_distance = 2 * max_hand_span - 1
+    # all notes are close together => assign to same hand
+    if ps_list[-1] - ps_list[0] <= max_note_distance:
+        if ps_list[0] < MIDDLE_C:
+            left_hand_notes = notes
+        else:
+            right_hand_notes = notes
+    else:
+        # greedily expand the left cluster until it is impossible
+        for i, item in enumerate(ps_list):
+            if item - ps_list[0] <= max_note_distance:
+                left_hand_notes.append(notes[i])
+            else:
+                right_hand_notes.append(notes[i])
+
+    return left_hand_notes, right_hand_notes
