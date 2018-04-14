@@ -75,7 +75,9 @@ class HandAssignmentVisualizer(object):
                     if item != measures[0] and item != measures[-1]:
                         cost = cost_model(
                             measures[self.start_line + i - 1][1], notes,
-                            measures[self.start_line + i + 1][1], max_hand_span=self.max_hand_span)
+                            measures[self.start_line + i +
+                                     1][1], max_hand_span=self.max_hand_span,
+                            frame_length=measures[self.start_line + i + 1][0]-offset)
 
                     message = self.str_frame(
                         offset, notes).ljust(self.stdscr_width - 10)

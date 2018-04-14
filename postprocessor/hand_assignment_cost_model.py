@@ -4,11 +4,16 @@ from expiringdict import ExpiringDict
 
 from util import split_to_hands
 
-cache = ExpiringDict(max_len=10000, max_age_seconds=1000)
+cache = ExpiringDict(max_len=1000, max_age_seconds=100)
 
-def cost_model(prev, curr, next, max_hand_span=7):
 
-    cache_key = str(prev) + '@' + str(curr) # + '@' + str(next)
+def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
+
+    if frame_length < 0.0:
+        print(frame_length)
+        exit()
+
+    cache_key = str(prev) + '@' + str(curr) + '@' + str(next)
 
     if cache_key in cache:
         return cache[cache_key]
@@ -17,9 +22,12 @@ def cost_model(prev, curr, next, max_hand_span=7):
     curr = [n for n in curr if not n.deleted and n.hand and n.finger]
     next = [n for n in next if not n.deleted and n.hand and n.finger]
 
-    # penalty
+    # higher penalty for number of notes
     left_hand_notes, right_hand_notes = split_to_hands(curr, max_hand_span)
-    note_count_cost = len(left_hand_notes) ** 2 + len(right_hand_notes) ** 2
+    note_count_cost = len(left_hand_notes) * 2 + len(right_hand_notes) * 2
+
+    # higher penalty for previous and next frame are both busy
+    busy_cost = len(prev) + len(next)
 
     # record where the fingers are
     prev_fingers, curr_fingers = {}, {}
@@ -60,27 +68,31 @@ def cost_model(prev, curr, next, max_hand_span=7):
             if len(prev) != 0:
                 total_new_placement += abs(curr_ps - np.median(prev))
 
-    total_cost = note_count_cost + total_movement + total_new_placement
-    cache[cache_key] = total_cost
+    total_cost = note_count_cost + busy_cost + total_movement + total_new_placement
+    total_cost = total_cost / frame_length  # normalize total_cost by frame_length
 
+    cache[cache_key] = total_cost
     return total_cost
 
-def get_cost_array(notes):
 
+def get_cost_array(notes):
     costs = []
     for triplet in zip(notes, notes[1:], notes[2:]):
         prev_item, curr_item, next_item = triplet
-        prev_offset, prev_frame = prev_item
+        _, prev_frame = prev_item
         curr_offset, curr_frame = curr_item
         next_offset, next_frame = next_item
-        cost = cost_model(prev_frame, curr_frame, next_frame)
+        cost = cost_model(prev_frame, curr_frame, next_frame,
+                          frame_length=(next_offset-curr_offset))
         costs.append(cost)
     return costs
+
 
 def get_total_cost(notes):
 
     costs = get_cost_array(notes)
     return sum(costs, 0)
+
 
 def get_windowed_cost(measures, index, window_size=3):
 

@@ -150,11 +150,11 @@ class HandAssignment(object):
                 notes, self.config['max_hand_span'])
 
             if len(left_hand_notes) > 5:
-                # self.logger.info('too many left hand notes at ' + str(offset))
+                self.logger.info('too many left hand notes at ' + str(offset))
                 left_hand_notes = left_hand_notes[:5]
 
             if len(right_hand_notes) > 5:
-                # self.logger.info('too many right hand notes at ' + str(offset))
+                self.logger.info('too many right hand notes at ' + str(offset))
                 right_hand_notes = list(reversed(right_hand_notes))
                 right_hand_notes = right_hand_notes[:5]
                 right_hand_notes = list(reversed(right_hand_notes))
@@ -167,12 +167,13 @@ class HandAssignment(object):
                 note.hand = 'R'
                 note.finger = i + 1
 
-            print(self.visualizer.str_frame(offset, notes))
+            # print(self.visualizer.str_frame(offset, notes))
 
     def assign(self, measures):
 
         try:
 
+            measures = sorted(measures, key=lambda n: n[0])
             self.assign_global_optimize(measures)
 
         except Exception:
@@ -223,7 +224,7 @@ class HandAssignment(object):
                 cost, index = item
                 costs[i] = ((cost - mean) / sd, index)
 
-            costs = [i for i in costs if i[0] >= 1.0]
+            costs = [i for i in costs if i[0] >= 0.0]
 
             some_succeeded = False
 
@@ -232,7 +233,7 @@ class HandAssignment(object):
                 # optimize the assignment
                 _, prev_frame = measures[max_cost_index - 1]
                 curr_offset, curr_frame = measures[max_cost_index]
-                _, next_frame = measures[max_cost_index + 1]
+                next_offset, next_frame = measures[max_cost_index + 1]
 
                 cache_key = str_vector(
                     construct_vector(curr_frame), max_cost_index)
@@ -240,7 +241,7 @@ class HandAssignment(object):
                 if cache_key not in cache:
                     result = self.assign_local_optimize(measures, max_cost_index,
                                                         prev_frame, curr_frame,
-                                                        next_frame)
+                                                        next_frame, frame_length=(next_offset-curr_offset))
                     some_succeeded |= result
                     if not result:
                         cache[cache_key] = False
@@ -264,7 +265,7 @@ class HandAssignment(object):
 
         return 0
 
-    def assign_local_optimize(self, measures, index, prev, curr, next):
+    def assign_local_optimize(self, measures, index, prev, curr, next, frame_length=1.0):
 
         def get_assignment_object(frame):
             hands, fingers = {}, {}
@@ -283,8 +284,7 @@ class HandAssignment(object):
 
         # backup the current assignment
         original_frame_cost = cost_model(
-            prev, curr, next, max_hand_span=self.config['max_hand_span'])
-        original_cost = get_total_cost(measures)
+            prev, curr, next, max_hand_span=self.config['max_hand_span'], frame_length=frame_length)
         original_assignment = get_assignment_object(measures[index])
 
         # try to reassign fingers
@@ -292,7 +292,7 @@ class HandAssignment(object):
             curr, self.config['max_hand_span'])
 
         best_assignment = None
-        best_cost = original_frame_cost
+        best_cost = get_windowed_cost(measures, index)
 
         # loop through all possible finger assignment
         # FIXME: handle frame with only left hand notes / right hand notes
@@ -326,13 +326,13 @@ class HandAssignment(object):
                     break
 
         # if total cost is lowered
-        if best_assignment is not None and best_cost < original_cost:
+        if best_assignment is not None:
 
             measures[index] = set_assignment_object(measures[index],
                                                     *best_assignment)
 
             new_frame_cost = cost_model(
-                prev, curr, next, max_hand_span=self.config['max_hand_span'])
+                prev, curr, next, max_hand_span=self.config['max_hand_span'], frame_length=frame_length)
             self.logger.info(
                 'Optimization succeed\t({:d})\t{:3.0f} => {:3.0f}, by reassigning fingers'.
                 format(index, original_frame_cost, new_frame_cost))
@@ -364,7 +364,7 @@ class HandAssignment(object):
                 for n in notes[1:-1]:
                     n.deleted = True
                     new_cost = cost_model(
-                        prev, curr, next, max_hand_span=self.config['max_hand_span'])
+                        prev, curr, next, max_hand_span=self.config['max_hand_span'], frame_length=frame_length)
                     if new_cost < lowest_cost:
                         lowest_cost = new_cost
                         lowest_deletion = n
@@ -376,7 +376,7 @@ class HandAssignment(object):
                     lowest_deletion.finger = None
 
                     new_frame_cost = cost_model(
-                        prev, curr, next, max_hand_span=self.config['max_hand_span'])
+                        prev, curr, next, max_hand_span=self.config['max_hand_span'], frame_length=frame_length)
 
                     self.logger.info(
                         'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}, deleting {:s}.'.
