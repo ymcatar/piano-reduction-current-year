@@ -11,6 +11,7 @@ from util import str_vector, get_number_of_cluster
 
 
 class PatternAnalyzer(object):
+
     def __init__(self, piano_roll, config):
 
         self.piano_roll = piano_roll

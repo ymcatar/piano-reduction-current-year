@@ -60,10 +60,8 @@ class HandAssignment(object):
         self.verbose = verbose
         self.show_plot = show_plot
 
-        if self.verbose:
-            self.visualizer = HandAssignmentVisualizer(self)
-        else:
-            self.visualizer = None
+        self.visualizer = HandAssignmentVisualizer(
+            self, max_hand_span=self.config['max_hand_span'])
 
     def preassign(self, measures):
 
@@ -152,11 +150,11 @@ class HandAssignment(object):
                 notes, self.config['max_hand_span'])
 
             if len(left_hand_notes) > 5:
-                self.logger.info('too many left hand notes at ' + str(offset))
+                # self.logger.info('too many left hand notes at ' + str(offset))
                 left_hand_notes = left_hand_notes[:5]
 
             if len(right_hand_notes) > 5:
-                self.logger.info('too many right hand notes at ' + str(offset))
+                # self.logger.info('too many right hand notes at ' + str(offset))
                 right_hand_notes = list(reversed(right_hand_notes))
                 right_hand_notes = right_hand_notes[:5]
                 right_hand_notes = list(reversed(right_hand_notes))
@@ -168,6 +166,8 @@ class HandAssignment(object):
             for i, note in enumerate(right_hand_notes):
                 note.hand = 'R'
                 note.finger = i + 1
+
+            print(self.visualizer.str_frame(offset, notes))
 
     def assign(self, measures):
 
@@ -185,11 +185,11 @@ class HandAssignment(object):
 
     def assign_global_optimize(self, measures):
 
-        # optimization cache
-        cache = ExpiringDict(max_len=1000, max_age_seconds=100)
-
         if self.verbose:
             self.visualizer.init_screen()
+
+        # optimization cache
+        cache = ExpiringDict(max_len=1000, max_age_seconds=100)
 
         has_stopped = False
 
@@ -230,9 +230,9 @@ class HandAssignment(object):
             for _, max_cost_index in costs:
 
                 # optimize the assignment
-                prev_offset, prev_frame = measures[max_cost_index - 1]
+                _, prev_frame = measures[max_cost_index - 1]
                 curr_offset, curr_frame = measures[max_cost_index]
-                next_offset, next_frame = measures[max_cost_index + 1]
+                _, next_frame = measures[max_cost_index + 1]
 
                 cache_key = str_vector(
                     construct_vector(curr_frame), max_cost_index)

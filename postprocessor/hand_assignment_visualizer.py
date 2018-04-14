@@ -4,15 +4,18 @@ import signal
 import traceback
 
 from util import str_vector
+from hand_assignment_cost_model import cost_model
 
 
 class HandAssignmentVisualizer(object):
-    def __init__(self, context):
+
+    def __init__(self, context, max_hand_span=7):
 
         self.context = context
         self.stdscr = None
         self.stdscr_height = None
         self.start_line = 0
+        self.max_hand_span = max_hand_span
 
     def init_screen(self):
 
@@ -70,9 +73,9 @@ class HandAssignmentVisualizer(object):
 
                     cost = None
                     if item != measures[0] and item != measures[-1]:
-                        cost = self.context.cost_model(
+                        cost = cost_model(
                             measures[self.start_line + i - 1][1], notes,
-                            measures[self.start_line + i + 1][1])
+                            measures[self.start_line + i + 1][1], max_hand_span=self.max_hand_span)
 
                     message = self.str_frame(
                         offset, notes).ljust(self.stdscr_width - 10)
