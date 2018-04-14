@@ -109,6 +109,7 @@ class MultipartReducer(object):
             for hand, part in zip(HANDS, parts):
 
                 notes = []
+                tuplet_map = {}
 
                 for p in bar.parts:
 
@@ -116,6 +117,9 @@ class MultipartReducer(object):
 
                         # ignore the note if it is marked as deleted
                         if elem.editorial.misc.get('deleted') is True:
+                            continue
+
+                        if isinstance(elem, music21.note.Rest):
                             continue
 
                         if isinstance(elem, music21.key.KeySignature):
@@ -187,9 +191,7 @@ class MultipartReducer(object):
 
         return result
 
-    # FIXME: tuplets are weird
-
-    def _create_measure(self, notes=[], measure_length=4.0, index=0.0):
+    def _create_measure(self, notes=[], measure_length=4.0, index=0.0, tuplet_map={}):
 
         result = music21.stream.Measure()
 
@@ -205,16 +207,12 @@ class MultipartReducer(object):
 
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
         tie_map = {}
-        tuplet_map = {}
 
         for n in notes:
             offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
             if n.tie:
                 tie_map[(n.offset, n.duration.quarterLength,
                          n.pitch.ps)] = n.tie
-            if n.duration.tuplets:
-                tuplet_map[(n.offset, n.duration.quarterLength,
-                            n.pitch.ps)] = n.duration.tuplets
 
         # merge notes with same offset and duration into a single chord
 
@@ -228,10 +226,6 @@ class MultipartReducer(object):
                     if (offset, duration, pitches[0].ps) in tie_map:
                         offset_item[duration].tie = tie_map[(offset, duration,
                                                              pitches[0].ps)]
-                    # add back tuplet if any
-                    if (offset, duration, pitches[0].ps) in tuplet_map:
-                        offset_item[duration].tuplet = tuplet_map[(
-                            offset, duration, pitches[0].ps)]
                 else:
                     pitches = list(set(pitches))
                     offset_item[duration] = music21.chord.Chord(pitches)
@@ -250,17 +244,12 @@ class MultipartReducer(object):
                             break
                     if valid:
                         offset_item[duration].tie = tie_map[index]
-
                 offset_item[duration].articulations = []  # strip articulation
                 offset_item[duration].duration.quarterLength = duration
 
                 notes = offset_item[duration]._notes if isinstance(
                     offset_item[duration],
                     music21.chord.Chord) else [offset_item[duration]]
-
-                for n in notes:
-                    if (offset, duration, n.pitch.ps) in tuplet_map:
-                        offset_item[duration].tuplets = None
 
         offset_map = dict(offset_map)
         for key in offset_map.keys():
@@ -428,6 +417,8 @@ class MultipartReducer(object):
 
     def optimize_measure(self, measure, index=0.0):
 
+        # merge mergable voices together ---------------------------------------
+
         voices = list(measure.recurse().getElementsByClass('Voice'))
         voice_offset_sets = defaultdict(lambda: set())
         voice_offset_rest_sets = defaultdict(lambda: set())
@@ -468,7 +459,5 @@ class MultipartReducer(object):
                     del voice_offset_map[a]
                 except KeyError:
                     pass
-
-        # FIXME: merge as many notes as possible
 
         return measure

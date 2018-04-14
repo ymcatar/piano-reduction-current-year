@@ -191,7 +191,7 @@ class HandAssignment(object):
 
         count = 0
 
-        plt.ion()
+        # plt.ion()
 
         while not has_stopped:
 
@@ -206,10 +206,10 @@ class HandAssignment(object):
             mean = np.mean(list(i[0] for i in costs))
             sd = np.std(list(i[0] for i in costs))
 
-            sns.distplot(list(i[0] for i in costs), hist=False)
-            plt.ylim(0, 0.2)
-            plt.draw()
-            plt.pause(0.001)
+            # sns.distplot(list(i[0] for i in costs), hist=False)
+            # plt.ylim(0, 0.2)
+            # plt.draw()
+            # plt.pause(0.001)
 
             self.logger.info('> Mean: {:f} / S.D.: {:f}'.format(mean, sd))
 
