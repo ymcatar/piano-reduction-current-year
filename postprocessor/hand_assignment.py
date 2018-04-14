@@ -5,9 +5,15 @@ import music21
 import traceback
 import numpy as np
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set()
+
 from collections import defaultdict
 from itertools import combinations
 from random import randint, shuffle
+from expiringdict import ExpiringDict
 
 from util import \
     construct_piano_roll, construct_vector, str_vector, \
@@ -219,7 +225,7 @@ class HandAssignment(object):
 
         # penalty
         # left_hand_notes, right_hand_notes = self.split_to_hands(curr)
-        note_count_cost = len(curr) * 3
+        # note_count_cost = len(curr) * 3
 
         # record where the fingers are
         prev_fingers, curr_fingers = {}, {}
@@ -261,7 +267,7 @@ class HandAssignment(object):
                     total_new_placement += abs(curr_ps - np.median(prev))
 
         # total cost
-        return note_count_cost + total_movement + total_new_placement
+        return total_movement + total_new_placement
 
     def get_cost_array(self, notes):
 
@@ -282,12 +288,17 @@ class HandAssignment(object):
 
     def global_optimize(self, measures):
 
+        # optimization cache
+        cache = ExpiringDict(max_len=1000, max_age_seconds=100)
+
         if self.verbose:
             self.visualizer.init_screen()
 
         has_stopped = False
 
         count = 0
+
+        plt.ion()
 
         while not has_stopped:
 
@@ -301,6 +312,11 @@ class HandAssignment(object):
             costs = sorted(costs, reverse=True)
             mean = np.mean(list(i[0] for i in costs))
             sd = np.std(list(i[0] for i in costs))
+
+            sns.distplot(list(i[0] for i in costs), hist=False)
+            plt.ylim(0, 0.2)
+            plt.draw()
+            plt.pause(0.001)
 
             self.logger.info('> Mean: {:f} / S.D.: {:f}'.format(mean, sd))
 
@@ -319,9 +335,18 @@ class HandAssignment(object):
                 curr_offset, curr_frame = measures[max_cost_index]
                 next_offset, next_frame = measures[max_cost_index + 1]
 
-                some_succeeded |= self.local_optimize(measures, max_cost_index,
-                                                      prev_frame, curr_frame,
-                                                      next_frame)
+                cache_key = str_vector(
+                    construct_vector(curr_frame), max_cost_index)
+
+                if cache_key not in cache:
+                    result = self.local_optimize(measures, max_cost_index,
+                                                 prev_frame, curr_frame,
+                                                 next_frame)
+                    some_succeeded |= result
+                    if not result:
+                        cache[cache_key] = False
+                # else:
+                    # print('cache hit')
 
                 if self.verbose:
                     if self.visualizer.print_fingering(
@@ -341,6 +366,7 @@ class HandAssignment(object):
         return 0
 
     def local_optimize(self, measures, index, prev, curr, next):
+
         def get_assignment_object(frame):
             hands, fingers = {}, {}
             offset, notes = frame
