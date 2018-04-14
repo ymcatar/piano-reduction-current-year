@@ -1,6 +1,15 @@
 import numpy as np
 
+from expiringdict import ExpiringDict
+
+cache = ExpiringDict(max_len=1000, max_age_seconds=100)
+
 def cost_model(prev, curr, next):
+
+    cache_key = str(prev) + '@' + str(curr) + '@' + str(next)
+
+    if cache_key in cache:
+        return cache[cache_key]
 
     prev = [n for n in prev if not n.deleted and n.hand and n.finger]
     curr = [n for n in curr if not n.deleted and n.hand and n.finger]
@@ -49,8 +58,10 @@ def cost_model(prev, curr, next):
             if len(prev) != 0:
                 total_new_placement += abs(curr_ps - np.median(prev))
 
-    # total cost
-    return total_movement + total_new_placement
+    total_cost = total_movement + total_new_placement
+    cache[cache_key] = total_cost
+
+    return total_cost
 
 def get_cost_array(notes):
 
