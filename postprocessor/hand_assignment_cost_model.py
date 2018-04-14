@@ -2,16 +2,12 @@ import numpy as np
 
 from expiringdict import ExpiringDict
 
-from util import split_to_hands
+from util import split_to_hands, get_note_dist
 
 cache = ExpiringDict(max_len=1000, max_age_seconds=100)
 
 
 def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
-
-    if frame_length < 0.0:
-        print(frame_length)
-        exit()
 
     cache_key = str(prev) + '@' + str(curr) + '@' + str(next)
 
@@ -24,7 +20,7 @@ def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
 
     # higher penalty for number of notes
     left_hand_notes, right_hand_notes = split_to_hands(curr, max_hand_span)
-    note_count_cost = len(left_hand_notes) * 2 + len(right_hand_notes) * 2
+    note_count_cost = len(left_hand_notes) * 5 + len(right_hand_notes) * 5
 
     # higher penalty for previous and next frame are both busy
     busy_cost = len(prev) + len(next)
@@ -50,7 +46,7 @@ def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
         if finger in prev_fingers and finger in curr_fingers:
             prev_ps = prev_fingers[finger].note.pitch.ps
             curr_ps = curr_fingers[finger].note.pitch.ps
-            total_movement += abs(curr_ps - prev_ps)
+            total_movement += get_note_dist(curr_ps, prev_ps)
 
         # current finger are only in current frame => new placement cost
         if finger not in prev_fingers and finger in curr_fingers:
@@ -66,7 +62,7 @@ def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
             curr_ps = curr_fingers[finger].note.pitch.ps
 
             if len(prev) != 0:
-                total_new_placement += abs(curr_ps - np.median(prev))
+                total_new_placement += get_note_dist(curr_ps, np.median(prev))
 
     total_cost = note_count_cost + busy_cost + total_movement + total_new_placement
     total_cost = total_cost / frame_length  # normalize total_cost by frame_length

@@ -112,9 +112,8 @@ def split_to_hands(notes, max_hand_span):
     left_hand_notes = []
     right_hand_notes = []
 
-    max_note_distance = 2 * max_hand_span - 1
     # all notes are close together => assign to same hand
-    if ps_list[-1] - ps_list[0] <= max_note_distance:
+    if ps_list[-1] - ps_list[0] <= max_hand_span:
         if ps_list[0] < MIDDLE_C:
             left_hand_notes = notes
         else:
@@ -122,9 +121,17 @@ def split_to_hands(notes, max_hand_span):
     else:
         # greedily expand the left cluster until it is impossible
         for i, item in enumerate(ps_list):
-            if item - ps_list[0] <= max_note_distance:
+            if item - ps_list[0] <= max_hand_span:
                 left_hand_notes.append(notes[i])
             else:
                 right_hand_notes.append(notes[i])
 
     return left_hand_notes, right_hand_notes
+
+
+def get_note_dist(a, b):
+
+    first = music21.note.Note(ps=a)
+    second = music21.note.Note(ps=b)
+    interval = music21.interval.Interval(first, second)
+    return abs(interval.semitones) / 2.0

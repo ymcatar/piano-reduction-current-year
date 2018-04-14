@@ -109,7 +109,7 @@ class MultipartReducer(object):
             for hand, part in zip(HANDS, parts):
 
                 notes = []
-                tuplet_map = {}
+                tie_map = {}
 
                 for p in bar.parts:
 
@@ -139,11 +139,19 @@ class MultipartReducer(object):
                                 notes.append(elem)
                             elif hand == RIGHT_HAND and elem.pitch.ps >= 60:
                                 notes.append(elem)
+                            if elem.tie is not None:
+                                tie_map[(
+                                    elem.offset, elem.duration.quarterLength, elem.pitch.ps)] = elem.tie
+                            # elem.tie = None
 
                         elif isinstance(elem, music21.chord.Chord):
                             for n in elem._notes:
                                 if 'hand' not in n.editorial.misc:
                                     continue
+                                if n.tie is not None:
+                                    tie_map[(
+                                        n.offset, n.duration.quarterLength, n.pitch.ps)] = n.tie
+                                n.tie = None
                                 # FIXME: can optimize
                                 if hand == LEFT_HAND and n.pitch.ps < 60:
                                     notes.append(n)
@@ -156,7 +164,7 @@ class MultipartReducer(object):
                             pass
 
                 out_measure = self._create_measure(
-                    notes=notes, measure_length=bar_length, index=i)
+                    notes=notes, measure_length=bar_length, index=i, tie_map=tie_map)
 
                 if signature_just_changed and time_signature:
                     out_measure.insert(time_signature)
@@ -191,7 +199,7 @@ class MultipartReducer(object):
 
         return result
 
-    def _create_measure(self, notes=[], measure_length=4.0, index=0.0, tuplet_map={}):
+    def _create_measure(self, notes=[], measure_length=4.0, index=0.0, tuplet_map={}, tie_map={}):
 
         result = music21.stream.Measure()
 
@@ -206,13 +214,8 @@ class MultipartReducer(object):
         # record all the pitches starting at different onsets
 
         offset_map = defaultdict(lambda: defaultdict(lambda: []))
-        tie_map = {}
-
         for n in notes:
             offset_map[n.offset][n.duration.quarterLength].append(n.pitch)
-            if n.tie:
-                tie_map[(n.offset, n.duration.quarterLength,
-                         n.pitch.ps)] = n.tie
 
         # merge notes with same offset and duration into a single chord
 
@@ -243,7 +246,7 @@ class MultipartReducer(object):
                             valid = False
                             break
                     if valid:
-                        offset_item[duration].tie = tie_map[index]
+                        offset_item[duration].tie = prev_tie
                 offset_item[duration].articulations = []  # strip articulation
                 offset_item[duration].duration.quarterLength = duration
 
@@ -268,7 +271,7 @@ class MultipartReducer(object):
 
         if len(tie_map) > 0:
 
-            for key, value in tie_map.items():
+            for key in tie_map.keys():
 
                 offset, duration, ps = key
                 matches = intervals.search(offset, offset + duration)
@@ -282,13 +285,13 @@ class MultipartReducer(object):
                         noteOrChord, music21.chord.Chord) else [noteOrChord]
                     pss = [n.pitch.ps for n in notes]
                     if ps in pss and start == offset and \
-                            abs(offset + duration - end) < 1e-2:
+                            abs(offset + duration - end) < 1e-1:
                         tied_note = m
                     else:
                         # the tie is covering some notes
                         should_delete = True
 
-                if should_delete and tied_note:
+                if should_delete and tied_note is not None:
                     start, end, elem = tied_note
                     elem.tie = None
                     new_duration = elem.duration.quarterLength
