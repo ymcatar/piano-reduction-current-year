@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from collections import defaultdict
+from algorithms import PostProcessorAlgorithms
 from itertools import combinations
 from random import randint, shuffle
 from expiringdict import ExpiringDict
@@ -18,7 +19,7 @@ from util import \
     get_number_of_cluster_from_notes, split_to_hands
 
 from pattern_analyzer import PatternAnalyzer
-from hand_assignment_cost_model import cost_model, get_cost_array, get_total_cost
+from hand_assignment_cost_model import cost_model, get_cost_array, get_total_cost, get_windowed_cost
 from hand_assignment_visualizer import HandAssignmentVisualizer
 
 sns.set()
@@ -64,6 +65,8 @@ class HandAssignment(object):
             self.visualizer = None
 
     def preassign(self, measures):
+
+        PostProcessorAlgorithms.repeated_note(measures)
 
         # concerning octaves ---------------------------------------------------
         problematic = {}
@@ -285,7 +288,7 @@ class HandAssignment(object):
             curr, self.config['max_hand_span'])
 
         best_assignment = None
-        best_cost = None
+        best_cost = original_frame_cost
 
         # loop through all possible finger assignment
         # FIXME: handle frame with only left hand notes / right hand notes
@@ -299,6 +302,8 @@ class HandAssignment(object):
 
             for rights in combinations(range(1, 6), len(right_hand_notes)):
 
+                # print(lefts, rights)
+
                 for i, n in enumerate(left_hand_notes):
                     n.hand = 'L'
                     n.finger = lefts[i]
@@ -308,17 +313,16 @@ class HandAssignment(object):
                     n.finger = rights[i]
 
                 # evaluate if the new assignment is better
-                curr_cost = get_total_cost(measures)
+                curr_cost = get_windowed_cost(measures, index)
 
-                if (best_assignment is None
-                        and best_cost is None) or curr_cost < best_cost:
+                if curr_cost < best_cost:
                     best_assignment = get_assignment_object(measures[index])
                     best_cost = curr_cost
                     has_found = True
                     break
 
         # if total cost is lowered
-        if best_cost is not None and best_cost < original_cost:
+        if best_assignment is not None and best_cost < original_cost:
 
             measures[index] = set_assignment_object(measures[index],
                                                     *best_assignment)
@@ -360,7 +364,7 @@ class HandAssignment(object):
                         lowest_deletion = n
                     n.deleted = False
 
-                if lowest_deletion is not None:  # should always be true
+                if lowest_deletion is not None:
                     lowest_deletion.deleted = True
                     lowest_deletion.hand = None
                     lowest_deletion.finger = None
@@ -390,4 +394,4 @@ class HandAssignment(object):
 
     def postassign(self, measures):
 
-        pass
+        PostProcessorAlgorithms.repeated_note(measures)

@@ -2,11 +2,11 @@ import numpy as np
 
 from expiringdict import ExpiringDict
 
-cache = ExpiringDict(max_len=1000, max_age_seconds=100)
+cache = ExpiringDict(max_len=10000, max_age_seconds=1000)
 
 def cost_model(prev, curr, next):
 
-    cache_key = str(prev) + '@' + str(curr) + '@' + str(next)
+    cache_key = str(prev) + '@' + str(curr) # + '@' + str(next)
 
     if cache_key in cache:
         return cache[cache_key]
@@ -79,3 +79,11 @@ def get_total_cost(notes):
 
     costs = get_cost_array(notes)
     return sum(costs, 0)
+
+def get_windowed_cost(measures, index, window_size=3):
+
+    lower = max(0, index - 2)
+    upper = min(index + 2, len(measures))
+
+    window = measures[lower:upper]
+    return get_total_cost(window)

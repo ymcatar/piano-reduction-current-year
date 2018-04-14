@@ -9,7 +9,6 @@ from operator import itemgetter
 
 # relative import
 from util import isNote, isChord, chunks
-from algorithms import PostProcessorAlgorithms
 from hand_assignment import HandAssignment
 from note_wrapper import NoteWrapper
 from multipart_reducer import MultipartReducer
@@ -56,9 +55,6 @@ class PostProcessor(object):
                         self.grouped_onsets[offset].append(note)
 
     def apply(self):
-
-        self.apply_each(PostProcessorAlgorithms.repeated_note,
-                        self.grouped_onsets)
 
         self.apply_each(self.hand_assignment.preassign, self.grouped_onsets)
 
