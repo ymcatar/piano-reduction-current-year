@@ -27,7 +27,7 @@ sns.set()
 
 class HandAssignment(object):
 
-    def __init__(self, max_hand_span=7, verbose=False):
+    def __init__(self, max_hand_span=7, verbose=False, show_plot=False):
 
         # configure logger
 
@@ -58,6 +58,7 @@ class HandAssignment(object):
         self.config['max_diagonal_skip'] = 2
 
         self.verbose = verbose
+        self.show_plot = show_plot
 
         if self.verbose:
             self.visualizer = HandAssignmentVisualizer(self)
@@ -194,7 +195,8 @@ class HandAssignment(object):
 
         count = 0
 
-        # plt.ion()
+        if self.show_plot:
+            plt.ion()
 
         while not has_stopped:
 
@@ -209,10 +211,11 @@ class HandAssignment(object):
             mean = np.mean(list(i[0] for i in costs))
             sd = np.std(list(i[0] for i in costs))
 
-            # sns.distplot(list(i[0] for i in costs), hist=False)
-            # plt.ylim(0, 0.2)
-            # plt.draw()
-            # plt.pause(0.001)
+            if self.show_plot:
+                sns.distplot(list(i[0] for i in costs), hist=False)
+                plt.ylim(0, 0.2)
+                plt.draw()
+                plt.pause(0.001)
 
             self.logger.info('> Mean: {:f} / S.D.: {:f}'.format(mean, sd))
 
@@ -279,7 +282,8 @@ class HandAssignment(object):
             return (offset, notes)
 
         # backup the current assignment
-        original_frame_cost = cost_model(prev, curr, next)
+        original_frame_cost = cost_model(
+            prev, curr, next, max_hand_span=self.config['max_hand_span'])
         original_cost = get_total_cost(measures)
         original_assignment = get_assignment_object(measures[index])
 
@@ -327,7 +331,8 @@ class HandAssignment(object):
             measures[index] = set_assignment_object(measures[index],
                                                     *best_assignment)
 
-            new_frame_cost = cost_model(prev, curr, next)
+            new_frame_cost = cost_model(
+                prev, curr, next, max_hand_span=self.config['max_hand_span'])
             self.logger.info(
                 'Optimization succeed\t({:d})\t{:3.0f} => {:3.0f}, by reassigning fingers'.
                 format(index, original_frame_cost, new_frame_cost))
@@ -358,7 +363,8 @@ class HandAssignment(object):
 
                 for n in notes[1:-1]:
                     n.deleted = True
-                    new_cost = cost_model(prev, curr, next)
+                    new_cost = cost_model(
+                        prev, curr, next, max_hand_span=self.config['max_hand_span'])
                     if new_cost < lowest_cost:
                         lowest_cost = new_cost
                         lowest_deletion = n
@@ -369,7 +375,8 @@ class HandAssignment(object):
                     lowest_deletion.hand = None
                     lowest_deletion.finger = None
 
-                    new_frame_cost = cost_model(prev, curr, next)
+                    new_frame_cost = cost_model(
+                        prev, curr, next, max_hand_span=self.config['max_hand_span'])
 
                     self.logger.info(
                         'Optimization succeed \t({:d})\t{:3.0f} => {:3.0f}, deleting {:s}.'.

@@ -2,9 +2,11 @@ import numpy as np
 
 from expiringdict import ExpiringDict
 
+from util import split_to_hands
+
 cache = ExpiringDict(max_len=10000, max_age_seconds=1000)
 
-def cost_model(prev, curr, next):
+def cost_model(prev, curr, next, max_hand_span=7):
 
     cache_key = str(prev) + '@' + str(curr) # + '@' + str(next)
 
@@ -16,8 +18,8 @@ def cost_model(prev, curr, next):
     next = [n for n in next if not n.deleted and n.hand and n.finger]
 
     # penalty
-    # left_hand_notes, right_hand_notes = split_to_hands(curr)
-    # note_count_cost = len(curr) * 3
+    left_hand_notes, right_hand_notes = split_to_hands(curr, max_hand_span)
+    note_count_cost = len(left_hand_notes) ** 2 + len(right_hand_notes) ** 2
 
     # record where the fingers are
     prev_fingers, curr_fingers = {}, {}
@@ -58,7 +60,7 @@ def cost_model(prev, curr, next):
             if len(prev) != 0:
                 total_new_placement += abs(curr_ps - np.median(prev))
 
-    total_cost = total_movement + total_new_placement
+    total_cost = note_count_cost + total_movement + total_new_placement
     cache[cache_key] = total_cost
 
     return total_cost

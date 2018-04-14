@@ -16,12 +16,13 @@ from multipart_reducer import MultipartReducer
 
 class PostProcessor(object):
 
-    def __init__(self, score, verbose=False):
+    def __init__(self, score, verbose=False, show_plot=False):
 
         self.verbose = verbose
 
         # prepare hand assignment object
-        self.hand_assignment = HandAssignment(verbose=self.verbose)
+        self.hand_assignment = HandAssignment(
+            verbose=self.verbose, show_plot=show_plot)
 
         # prepare score
         self.score = deepcopy(score)
