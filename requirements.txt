@@ -20,3 +20,4 @@ ad3==2.1
 cvxopt==1.1.9
 https://github.com/pystruct/pystruct/archive/23c6d8f6ab34a88b63386a595debbfdfa13345fe.zip
 tabulate==0.8.2
+Cython==0.27.3

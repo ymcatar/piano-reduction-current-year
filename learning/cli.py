@@ -42,6 +42,8 @@ class SystemCLI:
         for f in args.file:
             in_path, _, out_path = f.partition(':')
             entry = self.system.pre_processor.process_path_pair(in_path, out_path)
+            logging.info('Reducing {}'.format(entry.name))
+
             gen_score, y_proba, y_pred = self.system.reduce(entry)
 
             if args.no_output:
@@ -54,7 +56,8 @@ class SystemCLI:
                 gen_score.show('musicxml')
 
             is_train = args.train and f in args.sample
-            result = self.system.evaluate(entry, gen_score, y_proba, y_pred, train=is_train)
+            result = self.system.evaluate(entry, gen_score, y_proba, y_pred, train=is_train,
+                                          log=not args.no_log)
             if result:
                 results.append((entry.name, *result))
 
@@ -182,6 +185,8 @@ class SystemCLI:
                                    help='Disable score output')
         reduce_parser.add_argument('--train', action='store_true',
                                    help='Train the model in place')
+        reduce_parser.add_argument('--no-log', action='store_true',
+                                   help='Disable scoreboard output')
 
         show_parser = subparsers.add_parser('show', help='Show features in Scoreboard')
         show_parser.add_argument(

@@ -109,9 +109,22 @@ class PianoReductionSystem:
 
         return gen_score, y_proba, y_pred
 
-    def evaluate(self, entry, gen_score, y_proba, y_pred, train=False):
+    def evaluate(self, entry, gen_score, y_proba, y_pred, train=False, log=True):
         target = entry.input
         y_test = entry.y
+
+        if entry.output:
+            mmetrics = ModelMetrics(self.pre_processor, y_proba, y_test)
+            logging.info('Model metrics\n' + mmetrics.format())
+
+            smetrics = ScoreMetrics(self.pre_processor, gen_score, entry.output.score)
+            logging.info('Score metrics\n' + smetrics.format())
+
+        if not log:
+            if entry.output:
+                return mmetrics, smetrics
+            else:
+                return None
 
         title = '{}/{}/{}'.format(
             self.name, 'training' if train else 'reduction', entry.name)
@@ -128,12 +141,6 @@ class PianoReductionSystem:
             'contracted', help='Whether the note is contracted to some other note', group='input'))
 
         if entry.output:
-            mmetrics = ModelMetrics(self.pre_processor, y_proba, y_test)
-            logging.info('Model metrics\n' + mmetrics.format())
-
-            smetrics = ScoreMetrics(self.pre_processor, gen_score, entry.output.score)
-            logging.info('Score metrics\n' + smetrics.format())
-
             # Wrongness marking
             correction = [str(t) if t != p else '' for t, p in zip(y_test.flatten(), y_pred)]
             target.annotate(entry.mapping.unmap_matrix(correction), 'correction')

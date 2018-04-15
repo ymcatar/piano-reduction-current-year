@@ -107,3 +107,6 @@ env
 trained/
 /log/
 /temp/
+
+# Cython
+*.c
