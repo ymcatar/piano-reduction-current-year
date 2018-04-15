@@ -25,7 +25,6 @@ class PostProcessorAlgorithms(object):
                 for note in notes[1:]:
                     note.deleted = True
 
-
     # @staticmethod
     # def detect_triad(group_tuple):
     #     offset, group = group_tuple
