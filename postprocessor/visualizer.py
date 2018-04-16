@@ -6,11 +6,9 @@ import vpython as vp
 
 from collections import defaultdict
 
-from util import isNote, isChord
+from util import isNote, isChord, get_number_of_cluster_from_notes
 from note_wrapper import NoteWrapper
 from algorithms import PostProcessorAlgorithms
-from hand_assignment import HandAssignmentAlgorithm
-
 
 def set_interval(func, sec):
     def func_wrapper():
@@ -36,8 +34,6 @@ colors = {
 
 class Visualizer(object):
     def __init__(self, score):
-
-        self.hand_assignment = HandAssignmentAlgorithm()
 
         self.score = score
         self.current_offset = 0
@@ -307,8 +303,8 @@ class Visualizer(object):
 
         helptext = '{:s} / {:s} ({:d})'.format(
             current_label, self.onset_keys[-1],
-            self.hand_assignment.get_number_of_cluster(
-                self.grouped_onsets[current_label], verbose=False))
+            get_number_of_cluster_from_notes(
+                self.grouped_onsets[current_label], 7.0))
 
         self.text = vp.label(
             pos=vp.vector(75., 15., 0.),
