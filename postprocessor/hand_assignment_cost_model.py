@@ -19,11 +19,12 @@ def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
     next = [n for n in next if not n.deleted and n.hand and n.finger]
 
     # higher penalty for number of notes
-    left_hand_notes, right_hand_notes = split_to_hands(curr, max_hand_span)
-    note_count_cost = len(left_hand_notes) * 5 + len(right_hand_notes) * 5
+    # left_hand_notes, right_hand_notes = split_to_hands(curr, max_hand_span)
+    # note_count_cost = len(left_hand_notes) * 5 + len(right_hand_notes) * 5
+    note_count_cost = len(curr) * 2
 
     # higher penalty for previous and next frame are both busy
-    busy_cost = len(prev) + len(next)
+    busy_cost = (len(prev) + len(next)) * 2
 
     # record where the fingers are
     prev_fingers, curr_fingers = {}, {}
@@ -65,7 +66,7 @@ def cost_model(prev, curr, next, max_hand_span=7, frame_length=1.0):
                 total_new_placement += get_note_dist(curr_ps, np.median(prev))
 
     total_cost = note_count_cost + busy_cost + total_movement + total_new_placement
-    total_cost = total_cost / frame_length  # normalize total_cost by frame_length
+    total_cost = total_cost / (frame_length + 1.0)  # normalize total_cost by frame_length
 
     cache[cache_key] = total_cost
     return total_cost
