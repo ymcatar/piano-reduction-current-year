@@ -34,11 +34,11 @@ class HandAssignment(object):
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
 
-        fmt = '%(asctime)s %(levelname)s: %(message)s'
-        formatter = logging.Formatter(fmt, datefmt='%H:%M:%S')
-        sh = logging.StreamHandler()
-        sh.setFormatter(formatter)
-        self.logger.addHandler(sh)
+        # fmt = '%(asctime)s %(levelname)s: %(message)s'
+        # formatter = logging.Formatter(fmt, datefmt='%H:%M:%S')
+        # sh = logging.StreamHandler()
+        # sh.setFormatter(formatter)
+        # self.logger.addHandler(sh)
 
         self.config = {}
 
