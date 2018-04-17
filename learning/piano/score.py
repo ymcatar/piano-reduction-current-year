@@ -48,10 +48,9 @@ class ScoreObject(object):
         '''
         result = copy.deepcopy(score)
 
-        logger.info('Layout clean-up')
-        for measure in score.recurse(skipSelf=False).getElementsByClass(stream.Measure):
-            # Remove page breaks so that it doesn't mess with our output layout
-            measure.removeByClass([layout.PageLayout, layout.SystemLayout])
+        for n in iter_notes(result, recurse=True):
+            if not n.duration.quarterLength:
+                result.remove(n, recurse=True)  # Probably quite slow
 
         logger.info('Instrument transposition')
         # Remove instrument transposition
