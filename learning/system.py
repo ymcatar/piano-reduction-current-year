@@ -19,6 +19,10 @@ from . import config
 from scoreboard.writer import LogWriter
 import scoreboard.writer as writerlib
 
+import os
+sys.path.insert(0, os.getcwd() + '/postprocessor')  # HACK
+from postprocessor.post_processor import PostProcessor
+
 
 def add_description_to_score(score, description):
     te = expressions.TextExpression(description)
@@ -103,9 +107,19 @@ class PianoReductionSystem:
 
         target.annotate(entry.mapping.unmap_matrix(y_pred), self.pre_processor.label_type)
 
-        post_processor = PostProcessor()
-        gen_score = post_processor.generate_piano_score(
-            target, reduced=True, playable=True, label_type=self.pre_processor.label_type)
+        # Convert to post-processor format
+        for n in target.notes:
+            if self.pre_processor.label_type == 'align':
+                n.editorial.misc['deleted'] = not n.editorial.misc['align']
+            elif self.pre_processor.label_type == 'hand':
+                # Note that staff assignment labels are actually ignored
+                n.editorial.misc['deleted'] = not n.editorial.misc['hand']
+            else:
+                raise NotImplementedError()
+
+        post_processor = PostProcessor(target.score)
+        post_processor.apply()
+        gen_score = post_processor.generate_piano_score()
 
         return gen_score, y_proba, y_pred
 
